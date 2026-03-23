@@ -99,6 +99,53 @@ func TestInteractiveModel_Quit(t *testing.T) {
 	}
 }
 
+func TestInteractiveModel_PauseResume(t *testing.T) {
+	m := NewInteractiveModel(InteractiveConfig{
+		Product:  ProductCompositeReflectivity,
+		RadiusKM: 200,
+	})
+	m.width, m.height = 80, 24
+
+	// Enable loop mode first.
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
+	m2 := updated.(InteractiveModel)
+	if !m2.loopMode {
+		t.Fatal("expected loop mode on")
+	}
+	if m2.paused {
+		t.Error("should not be paused initially")
+	}
+
+	// Space → pause.
+	updated, _ = m2.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{' '}})
+	m3 := updated.(InteractiveModel)
+	if !m3.paused {
+		t.Error("after space: should be paused")
+	}
+
+	// Space again → resume.
+	updated, _ = m3.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{' '}})
+	m4 := updated.(InteractiveModel)
+	if m4.paused {
+		t.Error("after second space: should be resumed")
+	}
+}
+
+func TestInteractiveModel_SpaceNoOpOutsideLoop(t *testing.T) {
+	m := NewInteractiveModel(InteractiveConfig{
+		Product:  ProductCompositeReflectivity,
+		RadiusKM: 200,
+	})
+	m.width, m.height = 80, 24
+
+	// Space outside loop mode should not toggle pause.
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{' '}})
+	m2 := updated.(InteractiveModel)
+	if m2.paused {
+		t.Error("space outside loop mode should not set paused")
+	}
+}
+
 func TestNextRadius(t *testing.T) {
 	// Zoom in from 200 → 150
 	if got := nextRadius(200, -1); got != 150 {

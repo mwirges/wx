@@ -51,7 +51,8 @@ func RenderFrame(w io.Writer, frame *Frame, locName string, opts RenderOptions) 
 
 	// ── Radar image ─────────────────────────────────────────────────
 	if opts.Mode == TermITerm2 || opts.Mode == TermKitty {
-		if err := renderInlineImage(w, frame.Img, imgW, imgRows, opts.Mode); err != nil {
+		labeled := drawCityLabels(frame.Img, frame.BBox)
+		if err := renderInlineImage(w, labeled, imgW, imgRows, opts.Mode); err != nil {
 			// Inline rendering failed — fall through to half-block.
 			renderHalfBlockWithLabels(w, frame, imgW, imgH)
 		}

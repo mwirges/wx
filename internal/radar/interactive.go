@@ -83,6 +83,7 @@ type InteractiveModel struct {
 	product  Product
 	radius   float64
 	loopMode bool
+	paused   bool
 
 	// Data
 	frame    *Frame   // current single frame
@@ -177,6 +178,12 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 
+		case " ":
+			if m.loopMode {
+				m.paused = !m.paused
+			}
+			return m, nil
+
 		case "r":
 			m.loading = true
 			m.status = "Refreshing…"
@@ -223,7 +230,9 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if !m.loopMode || len(m.frames) == 0 {
 			return m, nil
 		}
-		m.frameIdx = (m.frameIdx + 1) % len(m.frames)
+		if !m.paused {
+			m.frameIdx = (m.frameIdx + 1) % len(m.frames)
+		}
 		return m, m.tickCmd()
 	}
 
@@ -321,6 +330,11 @@ func (m InteractiveModel) helpBar() string {
 
 	if m.loopMode {
 		parts = append(parts, key.Render("←→")+dim.Render(":step"))
+		if m.paused {
+			parts = append(parts, key.Render("space")+dim.Render(":play"))
+		} else {
+			parts = append(parts, key.Render("space")+dim.Render(":pause"))
+		}
 	}
 
 	parts = append(parts, key.Render("r")+dim.Render(":refresh"))
