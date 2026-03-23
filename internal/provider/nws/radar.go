@@ -47,9 +47,14 @@ var nwsWMSLayers = map[radar.Product]string{
 }
 
 // iemProducts maps our product codes to IEM radmap product codes.
+// Composite reflectivity uses the national mosaic layer, not RIDGE.
+// All other products use single-station RIDGE with the code below.
 var iemProducts = map[radar.Product]string{
-	radar.ProductCompositeReflectivity: "N0Q",
-	radar.ProductBaseReflectivity:      "N0Q",
+	radar.ProductCompositeReflectivity:   "N0Q",
+	radar.ProductBaseReflectivity:        "N0B",
+	radar.ProductBaseVelocity:            "N0U",
+	radar.ProductStormRelativeVelocity:   "N0S",
+	radar.ProductEchoTops:               "NET",
 }
 
 // ── bbox ──────────────────────────────────────────────────────────────────────
@@ -192,7 +197,7 @@ func (p *RadarProvider) CurrentFrame(ctx context.Context, loc location.Location,
 	}
 
 	bb := boundingBox(loc.Lat, loc.Lon, opts.RadiusKM)
-	key := fmt.Sprintf("nws:radar:cur:v2:%s:%.4f,%.4f:%.0f", opts.Product, loc.Lat, loc.Lon, opts.RadiusKM)
+	key := fmt.Sprintf("nws:radar:cur:v3:%s:%.4f,%.4f:%.0f", opts.Product, loc.Lat, loc.Lon, opts.RadiusKM)
 
 	// L1: in-process (avoids re-decoding PNG within the same invocation)
 	if f := p.imgGet(key); f != nil {
@@ -205,20 +210,14 @@ func (p *RadarProvider) CurrentFrame(ctx context.Context, loc location.Location,
 	}
 
 	now := time.Now().UTC().Truncate(radarFrameInterval)
-	prod := iemProducts[opts.Product]
 
 	params := url.Values{}
-	params.Add("layers[]", "nexrad")
-	params.Add("layers[]", "usstates")
-	params.Add("layers[]", "uscounties")
-	params.Add("layers[]", "places")
-	params.Add("layers[]", "interstates")
+	p.addRadarLayers(params, loc, opts)
 	params.Set("width", "1600")
 	params.Set("height", "1600")
 	params.Set("bbox", fmt.Sprintf("%.6f,%.6f,%.6f,%.6f",
 		bb.MinLon, bb.MinLat, bb.MaxLon, bb.MaxLat))
 	params.Set("fmt", "png")
-	params.Set("prod", prod)
 	params.Set("ts", now.Format("200601021504"))
 
 	img, _, err := p.fetchImageURL(ctx, p.iemBase+"?"+params.Encode())
@@ -233,6 +232,31 @@ func (p *RadarProvider) CurrentFrame(ctx context.Context, loc location.Location,
 	p.diskSet(c, key, f, currentFrameTTL)
 	p.imgSet(key, f, currentFrameTTL)
 	return f, nil
+}
+
+// addRadarLayers configures the IEM radmap layers[] and product params.
+// Composite reflectivity uses the national mosaic. All other products use
+// single-station RIDGE with the nearest NEXRAD site.
+func (p *RadarProvider) addRadarLayers(params url.Values, loc location.Location, opts radar.Options) {
+	prod := iemProducts[opts.Product]
+
+	if radar.IsStationProduct(opts.Product) {
+		// Single-station RIDGE mode.
+		station := radar.NearestStation(loc.Lat, loc.Lon)
+		params.Add("layers[]", "ridge")
+		params.Set("ridge_radar", station.ID)
+		params.Set("ridge_product", prod)
+	} else {
+		// National composite mosaic.
+		params.Add("layers[]", "nexrad")
+		params.Set("prod", prod)
+	}
+
+	// Geographic overlay layers (always included).
+	params.Add("layers[]", "usstates")
+	params.Add("layers[]", "uscounties")
+	params.Add("layers[]", "places")
+	params.Add("layers[]", "interstates")
 }
 
 // ── RecentFrames ──────────────────────────────────────────────────────────────
@@ -262,7 +286,7 @@ func (p *RadarProvider) RecentFrames(ctx context.Context, loc location.Location,
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			f, err := p.fetchIEMFrame(ctx, bb, opts, ts, c)
+			f, err := p.fetchIEMFrame(ctx, loc, bb, opts, ts, c)
 			results[idx] = result{f, err}
 		}(i, ts)
 	}
@@ -319,8 +343,8 @@ func (p *RadarProvider) fetchWMSFrame(ctx context.Context, layer string, bb rada
 
 // ── IEM fetch (historical loop frames) ───────────────────────────────────────
 
-func (p *RadarProvider) fetchIEMFrame(ctx context.Context, bb radarBBox, opts radar.Options, ts time.Time, c *cache.Cache) (*radar.Frame, error) {
-	key := fmt.Sprintf("nws:radar:iem:v2:%s:%.4f,%.4f:%.0f:%s",
+func (p *RadarProvider) fetchIEMFrame(ctx context.Context, loc location.Location, bb radarBBox, opts radar.Options, ts time.Time, c *cache.Cache) (*radar.Frame, error) {
+	key := fmt.Sprintf("nws:radar:iem:v3:%s:%.4f,%.4f:%.0f:%s",
 		opts.Product, (bb.MinLat+bb.MaxLat)/2, (bb.MinLon+bb.MaxLon)/2,
 		opts.RadiusKM, ts.Format(time.RFC3339))
 
@@ -334,19 +358,12 @@ func (p *RadarProvider) fetchIEMFrame(ctx context.Context, bb radarBBox, opts ra
 		return f, nil
 	}
 
-	prod := iemProducts[opts.Product]
 	params := url.Values{}
-	// Radar layer first, then geographic overlays on top (IEM composites in order).
-	params.Add("layers[]", "nexrad")
-	params.Add("layers[]", "usstates")
-	params.Add("layers[]", "uscounties")
-	params.Add("layers[]", "places")
-	params.Add("layers[]", "interstates")
+	p.addRadarLayers(params, loc, opts)
 	params.Set("width", "1600")
 	params.Set("height", "1600")
 	params.Set("bbox", fmt.Sprintf("%.6f,%.6f,%.6f,%.6f", bb.MinLon, bb.MinLat, bb.MaxLon, bb.MaxLat))
 	params.Set("fmt", "png")
-	params.Set("prod", prod)
 	params.Set("ts", ts.UTC().Format("200601021504"))
 
 	img, _, err := p.fetchImageURL(ctx, p.iemBase+"?"+params.Encode())

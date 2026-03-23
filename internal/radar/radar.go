@@ -19,11 +19,40 @@ type Product string
 const (
 	// ProductCompositeReflectivity shows the maximum reflectivity from all
 	// elevation scans — best general-purpose view of precipitation extent.
+	// Uses the national CONUS mosaic (all stations merged).
 	ProductCompositeReflectivity Product = "composite-reflectivity"
 
 	// ProductBaseReflectivity shows only the lowest radar tilt (0.5°).
+	// Uses single-station RIDGE data from the nearest NEXRAD site.
 	ProductBaseReflectivity Product = "base-reflectivity"
+
+	// ProductBaseVelocity shows radial velocity — wind speed toward or away
+	// from the radar. Useful for identifying rotation and wind shear.
+	// Single-station RIDGE product.
+	ProductBaseVelocity Product = "base-velocity"
+
+	// ProductStormRelativeVelocity is velocity adjusted for storm motion,
+	// highlighting rotation within storm cells.
+	// Single-station RIDGE product.
+	ProductStormRelativeVelocity Product = "storm-relative-velocity"
+
+	// ProductEchoTops shows the maximum height of detected radar echoes
+	// (in thousands of feet). Indicates storm intensity and vertical extent.
+	// Single-station RIDGE product.
+	ProductEchoTops Product = "echo-tops"
 )
+
+// IsStationProduct returns true if the product requires single-station RIDGE
+// data rather than the national composite mosaic.
+func IsStationProduct(p Product) bool {
+	switch p {
+	case ProductBaseReflectivity, ProductBaseVelocity,
+		ProductStormRelativeVelocity, ProductEchoTops:
+		return true
+	default:
+		return false
+	}
+}
 
 // Options controls what radar data to fetch.
 type Options struct {

@@ -53,19 +53,19 @@ func TestRadarProvider_CurrentFrame(t *testing.T) {
 	pngData := solidPNG(t, 0, 200, 0)
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// CurrentFrame now uses IEM (same as loop frames).
+		// CurrentFrame uses IEM — should have radar layers.
 		layers := r.URL.Query()["layers[]"]
 		if len(layers) == 0 {
 			t.Errorf("expected layers[] params, got none")
 		}
-		foundNexrad := false
+		foundRadar := false
 		for _, l := range layers {
-			if l == "nexrad" {
-				foundNexrad = true
+			if l == "nexrad" || l == "ridge" {
+				foundRadar = true
 			}
 		}
-		if !foundNexrad {
-			t.Errorf("expected nexrad in layers[], got %v", layers)
+		if !foundRadar {
+			t.Errorf("expected nexrad or ridge in layers[], got %v", layers)
 		}
 		w.Header().Set("Content-Type", "image/png")
 		w.Write(pngData)
@@ -85,6 +85,44 @@ func TestRadarProvider_CurrentFrame(t *testing.T) {
 	}
 	if frame.Product != opts.Product {
 		t.Errorf("product = %q, want %q", frame.Product, opts.Product)
+	}
+}
+
+func TestRadarProvider_CurrentFrame_StationProduct(t *testing.T) {
+	pngData := solidPNG(t, 0, 200, 0)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		layers := r.URL.Query()["layers[]"]
+		foundRidge := false
+		for _, l := range layers {
+			if l == "ridge" {
+				foundRidge = true
+			}
+		}
+		if !foundRidge {
+			t.Errorf("expected ridge in layers[] for station product, got %v", layers)
+		}
+		if rr := r.URL.Query().Get("ridge_radar"); rr == "" {
+			t.Error("expected ridge_radar param for station product")
+		}
+		if rp := r.URL.Query().Get("ridge_product"); rp != "N0U" {
+			t.Errorf("ridge_product = %q, want N0U", rp)
+		}
+		w.Header().Set("Content-Type", "image/png")
+		w.Write(pngData)
+	}))
+	defer srv.Close()
+
+	p := &RadarProvider{wmsBase: srv.URL, iemBase: srv.URL, nwsAPIBase: srv.URL, imgCache: make(map[string]radarCacheEntry)}
+	loc := location.Location{Lat: 39.1, Lon: -94.6, CountryCode: "US"}
+	opts := radar.Options{Product: radar.ProductBaseVelocity, RadiusKM: 200}
+
+	frame, err := p.CurrentFrame(context.Background(), loc, opts, cache.NewNoOp())
+	if err != nil {
+		t.Fatalf("CurrentFrame velocity: %v", err)
+	}
+	if frame.Product != radar.ProductBaseVelocity {
+		t.Errorf("product = %q, want base-velocity", frame.Product)
 	}
 }
 
@@ -169,7 +207,7 @@ func TestRadarProvider_Supports(t *testing.T) {
 func TestRadarProvider_UnsupportedProduct(t *testing.T) {
 	p := newRadarProvider()
 	loc := location.Location{Lat: 39.1, Lon: -94.6, CountryCode: "US"}
-	_, err := p.CurrentFrame(context.Background(), loc, radar.Options{Product: "velocity"}, cache.NewNoOp())
+	_, err := p.CurrentFrame(context.Background(), loc, radar.Options{Product: "nonexistent-product"}, cache.NewNoOp())
 	if err == nil {
 		t.Error("expected error for unsupported product")
 	}

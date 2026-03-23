@@ -171,7 +171,20 @@ func TestNextProduct(t *testing.T) {
 		t.Errorf("nextProduct(CR) = %q, want BR", got)
 	}
 	got = nextProduct(ProductBaseReflectivity)
+	if got != ProductBaseVelocity {
+		t.Errorf("nextProduct(BR) = %q, want BV", got)
+	}
+	got = nextProduct(ProductBaseVelocity)
+	if got != ProductStormRelativeVelocity {
+		t.Errorf("nextProduct(BV) = %q, want SRV", got)
+	}
+	got = nextProduct(ProductStormRelativeVelocity)
+	if got != ProductEchoTops {
+		t.Errorf("nextProduct(SRV) = %q, want ET", got)
+	}
+	// Echo tops wraps back to composite reflectivity.
+	got = nextProduct(ProductEchoTops)
 	if got != ProductCompositeReflectivity {
-		t.Errorf("nextProduct(BR) = %q, want CR", got)
+		t.Errorf("nextProduct(ET) = %q, want CR", got)
 	}
 }

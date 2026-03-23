@@ -51,7 +51,13 @@ func abs(f float64) float64 {
 
 // ── Products ─────────────────────────────────────────────────────────────────
 
-var products = []Product{ProductCompositeReflectivity, ProductBaseReflectivity}
+var products = []Product{
+	ProductCompositeReflectivity,
+	ProductBaseReflectivity,
+	ProductBaseVelocity,
+	ProductStormRelativeVelocity,
+	ProductEchoTops,
+}
 
 func nextProduct(cur Product) Product {
 	for i, p := range products {
