@@ -69,6 +69,39 @@ internal/
       alerts.go                /alerts/active → []Alert (cached 5m)
 ```
 
+## Radar (`wx radar`)
+
+```bash
+wx radar                        # current composite reflectivity
+wx radar --loop                 # 6-frame animated loop (Ctrl+C to exit)
+wx radar --loop --frames 12 --interval 400
+wx radar --product base-reflectivity
+wx radar --radius 150           # km radius around location
+```
+
+Data sources:
+- **Current frame** — NWS MRMS WMS (`opengeo.ncep.noaa.gov`), layers `conus_cref_qcd` / `conus_bref_qcd`
+- **Loop frames** — Iowa State IEM radmap (`mesonet.agron.iastate.edu`), 5-minute intervals
+
+Rendering: `▀` half-block characters with ANSI truecolor (fg = top pixel, bg = bottom pixel), giving 2× vertical resolution. Works in iTerm2, VS Code terminal, xterm, Terminal.app. Requires a TTY.
+
+### Radar caching (two-tier)
+
+`image.Image` cannot be JSON-serialised through `cache.Cache`, so radar uses two layers:
+
+| Layer | Type | Scope | TTL |
+|-------|------|-------|-----|
+| L1 | In-process `sync.RWMutex` map | Single invocation | 5 min (current) / forever (historical) |
+| L2 | `cache.Cache` disk (PNG bytes as base64 JSON) | Across invocations | 5 min (current) / 24 h (historical) |
+
+Both layers live in `RadarProvider`. L1 avoids re-decoding PNG during loop animation; L2 avoids re-fetching the same frame on a subsequent `wx radar` call within the TTL.
+
+### Adding a new radar product
+
+1. Add a `Product` const in `internal/radar/radar.go`
+2. Add the WMS layer name to `nwsWMSLayers` in `internal/provider/nws/radar.go`
+3. Add the IEM product code to `iemProducts` (for loop support)
+
 ## Key design decisions
 
 ### Adding a new weather provider

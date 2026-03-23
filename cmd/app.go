@@ -59,7 +59,7 @@ func NewApp() *cli.App {
 			},
 		},
 		Action:   action,
-		Commands: []*cli.Command{configCommand()},
+		Commands: []*cli.Command{configCommand(), radarCommand()},
 		ExitErrHandler: func(c *cli.Context, err error) {
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "error: %v\n", err)
