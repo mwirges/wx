@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/term"
 
@@ -33,6 +34,11 @@ func radarCommand() *cli.Command {
 				Name:    "station",
 				Aliases: []string{"s"},
 				Usage:   "NEXRAD station ID to center radar on (e.g. KIWX, KMKE); overrides --location",
+			},
+			&cli.BoolFlag{
+				Name:    "interactive",
+				Aliases: []string{"i"},
+				Usage:   "interactive mode: change product, zoom, and loop with keyboard shortcuts",
 			},
 			&cli.BoolFlag{
 				Name:    "loop",
@@ -136,6 +142,24 @@ func radarAction(c *cli.Context) error {
 	if c.Bool("no-inline") {
 		mode = radar.TermHalfBlock
 	}
+
+	// Interactive mode — full TUI with keyboard controls.
+	if c.Bool("interactive") {
+		icfg := radar.InteractiveConfig{
+			Loc:       loc,
+			Provider:  prov,
+			Cache:     ch,
+			Product:   opts.Product,
+			RadiusKM:  opts.RadiusKM,
+			TermMode:  mode,
+			NumFrames: c.Int("frames"),
+		}
+		m := radar.NewInteractiveModel(icfg)
+		p := tea.NewProgram(m, tea.WithAltScreen())
+		_, err := p.Run()
+		return err
+	}
+
 	renderOpts := radar.RenderOptions{
 		TermWidth:  termW,
 		TermHeight: termH,

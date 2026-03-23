@@ -75,11 +75,11 @@ func writeHeader(w io.Writer, locName string, frame *Frame, opts RenderOptions) 
 	if gap < 2 {
 		gap = 2
 	}
-	fmt.Fprintf(w, "%s%s%s\n",
+	fmt.Fprintf(w, "%s%s%s\x1b[K\n",
 		locStyle.Render(locName),
 		strings.Repeat(" ", gap),
 		prodStyle.Render(prodBadge))
-	fmt.Fprintf(w, "%s\n", subStyle.Render(strings.Repeat("─", opts.TermWidth)))
+	fmt.Fprintf(w, "%s\x1b[K\n", subStyle.Render(strings.Repeat("─", opts.TermWidth)))
 }
 
 // writeFooter outputs the centered timestamp line.
@@ -90,7 +90,7 @@ func writeFooter(w io.Writer, frame *Frame, opts RenderOptions) {
 	if pad < 0 {
 		pad = 0
 	}
-	fmt.Fprintf(w, "%s%s\n", strings.Repeat(" ", pad), ts)
+	fmt.Fprintf(w, "%s%s\x1b[K\n", strings.Repeat(" ", pad), ts)
 }
 
 // renderHalfBlockWithLabels downscales the frame image and renders it using
@@ -123,7 +123,7 @@ func renderHalfBlockWithLabels(w io.Writer, frame *Frame, imgW, imgH int) {
 					bot.R, bot.G, bot.B)
 			}
 		}
-		fmt.Fprintf(w, "\x1b[0m\n")
+		fmt.Fprintf(w, "\x1b[0m\x1b[K\n")
 	}
 }
 

@@ -73,17 +73,38 @@ internal/
 
 ```bash
 wx radar                        # current composite reflectivity
+wx radar --interactive          # interactive mode: keyboard controls for product, zoom, loop
 wx radar --loop                 # 6-frame animated loop (Ctrl+C to exit)
 wx radar --loop --frames 12 --interval 400
 wx radar --product base-reflectivity
 wx radar --radius 150           # km radius around location
+wx radar --station KIWX         # center on a specific NEXRAD station
+wx radar --no-inline            # force half-block rendering
 ```
 
-Data sources:
-- **Current frame** — NWS MRMS WMS (`opengeo.ncep.noaa.gov`), layers `conus_cref_qcd` / `conus_bref_qcd`
-- **Loop frames** — Iowa State IEM radmap (`mesonet.agron.iastate.edu`), 5-minute intervals
+### Interactive mode (`--interactive / -i`)
 
-Rendering: `▀` half-block characters with ANSI truecolor (fg = top pixel, bg = bottom pixel), giving 2× vertical resolution. Works in iTerm2, VS Code terminal, xterm, Terminal.app. Requires a TTY.
+Full-screen TUI powered by bubbletea. Keyboard shortcuts:
+
+| Key   | Action |
+|-------|--------|
+| `p`   | Cycle radar product (composite / base reflectivity) |
+| `+/-` | Zoom in / out (50–500 km radius presets) |
+| `l`   | Toggle loop animation |
+| `←/→` | Step through loop frames manually |
+| `r`   | Refresh current data |
+| `q`   | Quit |
+
+### Data sources
+
+- **Current + loop frames** — Iowa State IEM radmap (`mesonet.agron.iastate.edu`), 5-min intervals, with geographic overlay layers (state borders, county lines, city labels, interstates)
+- **Station lookup** — NWS API (`api.weather.gov/radar/stations/{ID}`)
+
+### Rendering
+
+- **Half-block mode** (default): `▀` characters with ANSI truecolor (fg = top pixel, bg = bottom pixel), giving 2× vertical resolution. Programmatic city labels (~90 major US cities) overlaid in white text. Works in all truecolor terminals.
+- **Inline image mode** (auto-detected): sends full 1600×1600 PNG via iTerm2 or Kitty graphics protocol. Supported by iTerm2, Kitty, Ghostty, WezTerm. Use `--no-inline` to force half-block.
+- Source images are 1600×1600 from IEM for high-quality rendering in both modes.
 
 ### Radar caching (two-tier)
 

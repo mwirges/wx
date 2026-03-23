@@ -76,6 +76,10 @@ type cachedRadarPNG struct {
 	PNG       []byte        `json:"png"`
 	ValidTime time.Time     `json:"valid_time"`
 	Product   radar.Product `json:"product"`
+	MinLat    float64       `json:"min_lat,omitempty"`
+	MinLon    float64       `json:"min_lon,omitempty"`
+	MaxLat    float64       `json:"max_lat,omitempty"`
+	MaxLon    float64       `json:"max_lon,omitempty"`
 }
 
 func (p *RadarProvider) diskGet(c *cache.Cache, key string) (*radar.Frame, bool) {
@@ -87,7 +91,11 @@ func (p *RadarProvider) diskGet(c *cache.Cache, key string) (*radar.Frame, bool)
 	if err != nil {
 		return nil, false
 	}
-	return &radar.Frame{Img: img, ValidTime: cd.ValidTime, Product: cd.Product}, true
+	f := &radar.Frame{Img: img, ValidTime: cd.ValidTime, Product: cd.Product}
+	if cd.MinLat != 0 || cd.MinLon != 0 || cd.MaxLat != 0 || cd.MaxLon != 0 {
+		f.BBox = &radar.BBox{MinLat: cd.MinLat, MinLon: cd.MinLon, MaxLat: cd.MaxLat, MaxLon: cd.MaxLon}
+	}
+	return f, true
 }
 
 func (p *RadarProvider) diskSet(c *cache.Cache, key string, f *radar.Frame, ttl time.Duration) {
@@ -95,11 +103,18 @@ func (p *RadarProvider) diskSet(c *cache.Cache, key string, f *radar.Frame, ttl 
 	if err := png.Encode(&buf, f.Img); err != nil {
 		return // best-effort; a cache miss on the next run is harmless
 	}
-	_ = c.Set(key, cachedRadarPNG{
+	cd := cachedRadarPNG{
 		PNG:       buf.Bytes(),
 		ValidTime: f.ValidTime,
 		Product:   f.Product,
-	}, ttl)
+	}
+	if f.BBox != nil {
+		cd.MinLat = f.BBox.MinLat
+		cd.MinLon = f.BBox.MinLon
+		cd.MaxLat = f.BBox.MaxLat
+		cd.MaxLon = f.BBox.MaxLon
+	}
+	_ = c.Set(key, cd, ttl)
 }
 
 // ── in-process L1 cache ───────────────────────────────────────────────────────
