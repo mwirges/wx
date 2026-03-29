@@ -77,9 +77,8 @@ wx radar --interactive          # interactive mode: keyboard controls for produc
 wx radar --loop                 # 6-frame animated loop (Ctrl+C to exit)
 wx radar --loop --frames 12 --interval 400
 wx radar --product base-reflectivity    # single-station RIDGE
-wx radar --product base-velocity        # radial velocity (wind)
 wx radar --product storm-relative-velocity
-wx radar --product echo-tops            # storm height
+wx radar --product echo-tops            # MRMS enhanced echo tops (national mosaic)
 wx radar --radius 150           # km radius around location
 wx radar --station KIWX         # center on a specific NEXRAD station
 wx radar --no-inline            # force half-block rendering
@@ -91,7 +90,7 @@ Full-screen TUI powered by bubbletea. Keyboard shortcuts:
 
 | Key   | Action |
 |-------|--------|
-| `p`     | Cycle radar product (composite refl → base refl → velocity → SRV → echo tops) |
+| `p`     | Cycle radar product (composite refl → base refl → SRV → echo tops) |
 | `+/-`   | Zoom in / out (50–500 km radius presets) |
 | `l`     | Toggle loop animation |
 | `space` | Pause / resume loop animation |
@@ -102,7 +101,8 @@ Full-screen TUI powered by bubbletea. Keyboard shortcuts:
 ### Data sources
 
 - **Composite reflectivity** — Iowa State IEM radmap (`mesonet.agron.iastate.edu`) national CONUS mosaic, 5-min intervals, with geographic overlay layers (state borders, county lines, city labels, interstates)
-- **Station products** (base reflectivity, velocity, SRV, echo tops) — IEM single-station RIDGE data from the nearest NEXRAD site (auto-detected from ~150 embedded stations)
+- **Station products** (base reflectivity, SRV) — IEM single-station RIDGE data from the nearest NEXRAD site (auto-detected from ~150 embedded stations); IEM uses 3-letter station codes (K prefix stripped)
+- **Echo tops** — NWS MRMS Enhanced Echo Tops (`opengeo.ncep.noaa.gov` WMS `conus_neet_v18`) composited on top of IEM radmap geographic overlays (two-request approach)
 - **Station lookup** — NWS API (`api.weather.gov/radar/stations/{ID}`)
 
 ### Rendering
@@ -125,10 +125,12 @@ Both layers live in `RadarProvider`. L1 avoids re-decoding PNG during loop anima
 ### Adding a new radar product
 
 1. Add a `Product` const in `internal/radar/radar.go`
-2. If it's a single-station product, add it to `IsStationProduct()` in `radar.go`
-3. Add the IEM RIDGE product code to `iemProducts` in `internal/provider/nws/radar.go`
-4. Add it to the `products` slice in `internal/radar/interactive.go`
-5. Add a label in `ProductLabel()` and color in `productColor()` in `render.go`
+2. If it's a single-station RIDGE product, add it to `IsStationProduct()` in `radar.go`
+3. Add the product code to `iemProducts` in `internal/provider/nws/radar.go`
+4. For WMS-based products: add the WMS layer to `nwsWMSLayers` and add to `isWMSCompositeProduct()`
+5. For RIDGE products: IEM uses 3-letter station codes — `ridgeStationCode()` handles stripping
+6. Add it to the `products` slice in `internal/radar/interactive.go`
+7. Add a label in `ProductLabel()` and color in `productColor()` in `render.go`
 
 ## Key design decisions
 

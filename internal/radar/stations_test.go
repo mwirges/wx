@@ -31,13 +31,10 @@ func TestIsStationProduct(t *testing.T) {
 	if !IsStationProduct(ProductBaseReflectivity) {
 		t.Error("base reflectivity should be a station product")
 	}
-	if !IsStationProduct(ProductBaseVelocity) {
-		t.Error("base velocity should be a station product")
-	}
 	if !IsStationProduct(ProductStormRelativeVelocity) {
 		t.Error("storm relative velocity should be a station product")
 	}
-	if !IsStationProduct(ProductEchoTops) {
-		t.Error("echo tops should be a station product")
+	if IsStationProduct(ProductEchoTops) {
+		t.Error("echo tops should NOT be a station product (uses WMS mosaic)")
 	}
 }

@@ -171,12 +171,8 @@ func TestNextProduct(t *testing.T) {
 		t.Errorf("nextProduct(CR) = %q, want BR", got)
 	}
 	got = nextProduct(ProductBaseReflectivity)
-	if got != ProductBaseVelocity {
-		t.Errorf("nextProduct(BR) = %q, want BV", got)
-	}
-	got = nextProduct(ProductBaseVelocity)
 	if got != ProductStormRelativeVelocity {
-		t.Errorf("nextProduct(BV) = %q, want SRV", got)
+		t.Errorf("nextProduct(BR) = %q, want SRV", got)
 	}
 	got = nextProduct(ProductStormRelativeVelocity)
 	if got != ProductEchoTops {

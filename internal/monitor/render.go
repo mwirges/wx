@@ -278,7 +278,7 @@ func (m MonitorModel) renderForecast(w, maxLines int) []string {
 	periods := m.forecast.Periods[m.forecastOffset:end]
 
 	for _, p := range periods {
-		name := styleForecastName.Width(14).Render(p.Name)
+		name := styleForecastName.Width(16).Render(p.Name)
 		tempStr := output.FormatTemp(p.TempC, m.cfg.Imperial)
 		var tempStyled string
 		if p.IsDaytime {

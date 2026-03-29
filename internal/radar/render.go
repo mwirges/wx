@@ -145,8 +145,6 @@ func ProductLabel(p Product) string {
 		return "Composite Reflectivity"
 	case ProductBaseReflectivity:
 		return "Base Reflectivity"
-	case ProductBaseVelocity:
-		return "Base Velocity"
 	case ProductStormRelativeVelocity:
 		return "Storm Rel. Velocity"
 	case ProductEchoTops:
@@ -194,8 +192,6 @@ func productColor(p Product) lipgloss.Color {
 	switch p {
 	case ProductBaseReflectivity:
 		return lipgloss.Color("51") // cyan — single-tilt / lower-atmosphere focus
-	case ProductBaseVelocity:
-		return lipgloss.Color("46") // green — velocity / wind
 	case ProductStormRelativeVelocity:
 		return lipgloss.Color("201") // magenta — storm-relative motion
 	case ProductEchoTops:

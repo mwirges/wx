@@ -333,7 +333,7 @@ func fetchRadarCmd(cfg MonitorConfig, loc location.Location, termW, termH int) t
 		renderOpts := radar.RenderOptions{
 			TermWidth:  radarW,
 			TermHeight: radarH,
-			Mode:       radar.DetectTerminal(),
+			Mode:       radar.TermHalfBlock, // inline image protocols don't work in a split TUI layout
 		}
 		if err := radar.RenderFrame(&sb, frame, loc.DisplayName, renderOpts); err != nil {
 			return radarMsg{err: err}

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
+	"image/draw"
 	_ "image/png" // register PNG decoder
 	"image/png"
 	"io"
@@ -41,20 +42,52 @@ const (
 )
 
 // nwsWMSLayers maps our product codes to NWS MRMS WMS layer names.
+// Echo tops uses the MRMS Enhanced Echo Tops national mosaic, composited
+// on top of a radmap overlay base map (two-request approach).
 var nwsWMSLayers = map[radar.Product]string{
 	radar.ProductCompositeReflectivity: "conus_cref_qcd",
 	radar.ProductBaseReflectivity:      "conus_bref_qcd",
+	radar.ProductEchoTops:              "conus_neet_v18",
 }
 
 // iemProducts maps our product codes to IEM radmap product codes.
 // Composite reflectivity uses the national mosaic layer, not RIDGE.
-// All other products use single-station RIDGE with the code below.
+// Station products (base refl, SRV) use single-station RIDGE.
+// Echo tops uses NWS WMS (not IEM) — see nwsWMSLayers.
 var iemProducts = map[radar.Product]string{
-	radar.ProductCompositeReflectivity:   "N0Q",
-	radar.ProductBaseReflectivity:        "N0B",
-	radar.ProductBaseVelocity:            "N0U",
-	radar.ProductStormRelativeVelocity:   "N0S",
-	radar.ProductEchoTops:               "NET",
+	radar.ProductCompositeReflectivity: "N0Q",
+	radar.ProductBaseReflectivity:      "N0B",
+	radar.ProductStormRelativeVelocity: "N0S",
+	radar.ProductEchoTops:              "NET", // used only for product validation
+}
+
+// isWMSCompositeProduct returns true if the product uses NWS WMS for radar
+// data composited on top of an IEM radmap overlay base map.
+func isWMSCompositeProduct(p radar.Product) bool {
+	return p == radar.ProductEchoTops
+}
+
+// ridgeStationCode converts a 4-letter NEXRAD ID (e.g. "KEAX") to the
+// 3-letter code used in IEM's RIDGE archive (e.g. "EAX").
+// Non-CONUS prefixes (P, T) are also stripped.
+func ridgeStationCode(id string) string {
+	if len(id) == 4 {
+		prefix := id[0]
+		if prefix == 'K' || prefix == 'P' || prefix == 'T' {
+			return id[1:]
+		}
+	}
+	return id
+}
+
+// compositeOver draws fg on top of bg using alpha compositing.
+// Both images must have the same dimensions.
+func compositeOver(bg, fg image.Image) image.Image {
+	b := bg.Bounds()
+	dst := image.NewRGBA(b)
+	draw.Draw(dst, b, bg, b.Min, draw.Src)
+	draw.Draw(dst, b, fg, fg.Bounds().Min, draw.Over)
+	return dst
 }
 
 // ── bbox ──────────────────────────────────────────────────────────────────────
@@ -225,6 +258,16 @@ func (p *RadarProvider) CurrentFrame(ctx context.Context, loc location.Location,
 		return nil, fmt.Errorf("nws radar current: %w", err)
 	}
 
+	// For WMS composite products (echo tops), overlay radar data from NWS WMS.
+	if isWMSCompositeProduct(opts.Product) {
+		if layer, ok := nwsWMSLayers[opts.Product]; ok {
+			radarImg, _, wmsErr := p.fetchWMSFrame(ctx, layer, bb, "")
+			if wmsErr == nil {
+				img = compositeOver(img, radarImg)
+			}
+		}
+	}
+
 	f := &radar.Frame{
 		Img: img, ValidTime: now, Product: opts.Product,
 		BBox: &radar.BBox{MinLat: bb.MinLat, MinLon: bb.MinLon, MaxLat: bb.MaxLat, MaxLon: bb.MaxLon},
@@ -235,21 +278,22 @@ func (p *RadarProvider) CurrentFrame(ctx context.Context, loc location.Location,
 }
 
 // addRadarLayers configures the IEM radmap layers[] and product params.
-// Composite reflectivity uses the national mosaic. All other products use
-// single-station RIDGE with the nearest NEXRAD site.
+// Composite reflectivity uses the national mosaic. Station products (base
+// reflectivity, SRV) use single-station RIDGE. Echo tops uses only
+// overlays here — the radar data is fetched separately via NWS WMS.
 func (p *RadarProvider) addRadarLayers(params url.Values, loc location.Location, opts radar.Options) {
-	prod := iemProducts[opts.Product]
-
-	if radar.IsStationProduct(opts.Product) {
-		// Single-station RIDGE mode.
+	if isWMSCompositeProduct(opts.Product) {
+		// Radar data comes from NWS WMS; radmap provides only the base map
+		// and geographic overlays. No radar layer added here.
+	} else if radar.IsStationProduct(opts.Product) {
+		// Single-station RIDGE mode — IEM uses 3-letter station codes.
 		station := radar.NearestStation(loc.Lat, loc.Lon)
 		params.Add("layers[]", "ridge")
-		params.Set("ridge_radar", station.ID)
-		params.Set("ridge_product", prod)
+		params.Set("ridge_radar", ridgeStationCode(station.ID))
+		params.Set("ridge_product", iemProducts[opts.Product])
 	} else {
 		// National composite mosaic.
 		params.Add("layers[]", "nexrad")
-		params.Set("prod", prod)
 	}
 
 	// Geographic overlay layers (always included).
@@ -369,6 +413,16 @@ func (p *RadarProvider) fetchIEMFrame(ctx context.Context, loc location.Location
 	img, _, err := p.fetchImageURL(ctx, p.iemBase+"?"+params.Encode())
 	if err != nil {
 		return nil, fmt.Errorf("iem radar: %w", err)
+	}
+
+	// For WMS composite products (echo tops), overlay radar data from NWS WMS.
+	if isWMSCompositeProduct(opts.Product) {
+		if layer, ok := nwsWMSLayers[opts.Product]; ok {
+			radarImg, _, wmsErr := p.fetchWMSFrame(ctx, layer, bb, ts.Format(time.RFC3339))
+			if wmsErr == nil {
+				img = compositeOver(img, radarImg)
+			}
+		}
 	}
 
 	f := &radar.Frame{

@@ -58,7 +58,7 @@ func radarCommand() *cli.Command {
 			&cli.StringFlag{
 				Name:  "product",
 				Value: string(radar.ProductCompositeReflectivity),
-				Usage: "radar product: composite-reflectivity, base-reflectivity, base-velocity, storm-relative-velocity, echo-tops",
+				Usage: "radar product: composite-reflectivity, base-reflectivity, storm-relative-velocity, echo-tops",
 			},
 			&cli.Float64Flag{
 				Name:  "radius",

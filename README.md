@@ -54,6 +54,67 @@ wx -l 10001 | jq .conditions.temperature_f
 wx --no-cache
 ```
 
+## Radar
+
+```bash
+wx radar                          # composite reflectivity, auto-detected location
+wx radar --interactive            # full-screen interactive TUI
+wx radar --loop                   # 6-frame animated loop (Ctrl+C to exit)
+wx radar --loop --frames 12 --interval 400
+wx radar --product base-reflectivity
+wx radar --product storm-relative-velocity
+wx radar --product echo-tops
+wx radar --radius 150             # km radius around location (default 200)
+wx radar --station KIWX           # center on a specific NEXRAD station
+wx radar --no-inline              # force half-block rendering
+```
+
+**Products:**
+
+| Product | Description |
+|---------|-------------|
+| `composite-reflectivity` | National CONUS mosaic (default) |
+| `base-reflectivity` | Single-station, lower-tilt scan |
+| `storm-relative-velocity` | Velocity adjusted for storm motion |
+| `echo-tops` | MRMS enhanced echo tops (cloud heights, kft) |
+
+**Rendering:** wx auto-detects your terminal. In iTerm2, Kitty, Ghostty, and WezTerm it sends a full 1600×1600 PNG via inline image protocol. In all other terminals it uses Unicode half-block characters (`▀`) with ANSI truecolor. Use `--no-inline` to force half-block.
+
+### Interactive mode (`--interactive`)
+
+Full-screen TUI with live radar. Press `R` in `wx monitor` to open the radar panel there instead.
+
+| Key | Action |
+|-----|--------|
+| `p` | Cycle product (composite → base refl → SRV → echo tops) |
+| `+` / `-` | Zoom in / out |
+| `l` | Toggle loop animation |
+| `space` | Pause / resume loop |
+| `←` / `→` | Step through frames manually |
+| `r` | Refresh |
+| `q` | Quit |
+
+## Monitor
+
+Full-screen live weather dashboard that refreshes automatically.
+
+```bash
+wx monitor                        # current conditions + forecast, auto-detected location
+wx monitor --location "Chicago, IL"
+wx monitor --units metric
+wx monitor --interval 5m          # refresh interval (default 15m)
+```
+
+The monitor shows current conditions, active alerts, and a scrollable 7-day forecast. Press `R` to toggle a live radar panel alongside the weather data.
+
+| Key | Action |
+|-----|--------|
+| `R` | Toggle radar panel (splits screen left/right) |
+| `r` | Refresh weather now |
+| `l` | Change location |
+| `↑` / `↓` | Scroll forecast |
+| `q` | Quit |
+
 ## Config file
 
 Use `wx config set` to write your preferences, or edit `~/.config/wx/config.json` directly.

@@ -102,11 +102,16 @@ func TestRadarProvider_CurrentFrame_StationProduct(t *testing.T) {
 		if !foundRidge {
 			t.Errorf("expected ridge in layers[] for station product, got %v", layers)
 		}
-		if rr := r.URL.Query().Get("ridge_radar"); rr == "" {
+		rr := r.URL.Query().Get("ridge_radar")
+		if rr == "" {
 			t.Error("expected ridge_radar param for station product")
 		}
-		if rp := r.URL.Query().Get("ridge_product"); rp != "N0U" {
-			t.Errorf("ridge_product = %q, want N0U", rp)
+		// Station codes should be 3-letter (K stripped).
+		if len(rr) == 4 && rr[0] == 'K' {
+			t.Errorf("ridge_radar should be 3-letter code, got %q", rr)
+		}
+		if rp := r.URL.Query().Get("ridge_product"); rp != "N0B" {
+			t.Errorf("ridge_product = %q, want N0B", rp)
 		}
 		w.Header().Set("Content-Type", "image/png")
 		w.Write(pngData)
@@ -115,14 +120,69 @@ func TestRadarProvider_CurrentFrame_StationProduct(t *testing.T) {
 
 	p := &RadarProvider{wmsBase: srv.URL, iemBase: srv.URL, nwsAPIBase: srv.URL, imgCache: make(map[string]radarCacheEntry)}
 	loc := location.Location{Lat: 39.1, Lon: -94.6, CountryCode: "US"}
-	opts := radar.Options{Product: radar.ProductBaseVelocity, RadiusKM: 200}
+	opts := radar.Options{Product: radar.ProductBaseReflectivity, RadiusKM: 200}
 
 	frame, err := p.CurrentFrame(context.Background(), loc, opts, cache.NewNoOp())
 	if err != nil {
-		t.Fatalf("CurrentFrame velocity: %v", err)
+		t.Fatalf("CurrentFrame base-refl: %v", err)
 	}
-	if frame.Product != radar.ProductBaseVelocity {
-		t.Errorf("product = %q, want base-velocity", frame.Product)
+	if frame.Product != radar.ProductBaseReflectivity {
+		t.Errorf("product = %q, want base-reflectivity", frame.Product)
+	}
+}
+
+func TestRadarProvider_CurrentFrame_EchoTops(t *testing.T) {
+	pngData := solidPNG(t, 0, 200, 0)
+
+	callPaths := []string{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callPaths = append(callPaths, r.URL.Path)
+		layers := r.URL.Query()["layers[]"]
+
+		// The first call (IEM radmap) should NOT have a radar layer.
+		// The second call (NWS WMS) should have LAYERS=conus_neet_v18.
+		for _, l := range layers {
+			if l == "nexrad" || l == "ridge" {
+				t.Errorf("echo tops radmap call should not have radar layer, got %v", layers)
+			}
+		}
+		w.Header().Set("Content-Type", "image/png")
+		w.Write(pngData)
+	}))
+	defer srv.Close()
+
+	p := &RadarProvider{wmsBase: srv.URL, iemBase: srv.URL, nwsAPIBase: srv.URL, imgCache: make(map[string]radarCacheEntry)}
+	loc := location.Location{Lat: 39.1, Lon: -94.6, CountryCode: "US"}
+	opts := radar.Options{Product: radar.ProductEchoTops, RadiusKM: 200}
+
+	frame, err := p.CurrentFrame(context.Background(), loc, opts, cache.NewNoOp())
+	if err != nil {
+		t.Fatalf("CurrentFrame echo-tops: %v", err)
+	}
+	if frame.Product != radar.ProductEchoTops {
+		t.Errorf("product = %q, want echo-tops", frame.Product)
+	}
+	// Should make 2 HTTP calls: radmap (overlays) + WMS (radar).
+	if len(callPaths) != 2 {
+		t.Errorf("expected 2 HTTP calls (radmap + WMS), got %d", len(callPaths))
+	}
+}
+
+func TestRidgeStationCode(t *testing.T) {
+	tests := []struct {
+		input, want string
+	}{
+		{"KEAX", "EAX"},
+		{"KIWX", "IWX"},
+		{"PGUA", "GUA"},  // Pacific prefix
+		{"TJUA", "JUA"},  // Caribbean prefix
+		{"EAX", "EAX"},   // already 3-letter
+		{"AB", "AB"},     // short code, unchanged
+	}
+	for _, tc := range tests {
+		if got := ridgeStationCode(tc.input); got != tc.want {
+			t.Errorf("ridgeStationCode(%q) = %q, want %q", tc.input, got, tc.want)
+		}
 	}
 }
 

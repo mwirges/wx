@@ -26,11 +26,6 @@ const (
 	// Uses single-station RIDGE data from the nearest NEXRAD site.
 	ProductBaseReflectivity Product = "base-reflectivity"
 
-	// ProductBaseVelocity shows radial velocity — wind speed toward or away
-	// from the radar. Useful for identifying rotation and wind shear.
-	// Single-station RIDGE product.
-	ProductBaseVelocity Product = "base-velocity"
-
 	// ProductStormRelativeVelocity is velocity adjusted for storm motion,
 	// highlighting rotation within storm cells.
 	// Single-station RIDGE product.
@@ -38,16 +33,17 @@ const (
 
 	// ProductEchoTops shows the maximum height of detected radar echoes
 	// (in thousands of feet). Indicates storm intensity and vertical extent.
-	// Single-station RIDGE product.
+	// Uses NWS MRMS Enhanced Echo Tops national mosaic via WMS.
 	ProductEchoTops Product = "echo-tops"
 )
 
 // IsStationProduct returns true if the product requires single-station RIDGE
 // data rather than the national composite mosaic.
+// IsStationProduct returns true if the product requires single-station RIDGE
+// data rather than the national composite mosaic.
 func IsStationProduct(p Product) bool {
 	switch p {
-	case ProductBaseReflectivity, ProductBaseVelocity,
-		ProductStormRelativeVelocity, ProductEchoTops:
+	case ProductBaseReflectivity, ProductStormRelativeVelocity:
 		return true
 	default:
 		return false

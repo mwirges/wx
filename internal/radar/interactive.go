@@ -54,7 +54,6 @@ func abs(f float64) float64 {
 var products = []Product{
 	ProductCompositeReflectivity,
 	ProductBaseReflectivity,
-	ProductBaseVelocity,
 	ProductStormRelativeVelocity,
 	ProductEchoTops,
 }
