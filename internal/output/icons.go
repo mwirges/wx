@@ -2,13 +2,13 @@ package output
 
 import "github.com/charmbracelet/lipgloss"
 
-// iconWidth is the visual width each icon line is padded to via lipgloss.
-const iconWidth = 13
+// IconWidth is the visual width each icon line is padded to via lipgloss.
+const IconWidth = 13
 
-// weatherIcon holds 5 lines of ASCII art with per-line foreground colors.
-type weatherIcon struct {
-	lines  [5]string
-	colors [5]lipgloss.Color
+// WeatherIcon holds 5 lines of ASCII art with per-line foreground colors.
+type WeatherIcon struct {
+	Lines  [5]string
+	Colors [5]lipgloss.Color
 }
 
 // Named colors used across icons.
@@ -23,67 +23,67 @@ const (
 )
 
 // conditionIcons maps normalized condition codes to ASCII weather icons.
-// Each line is ≤11 visible characters; lipgloss pads to iconWidth on render.
-var conditionIcons = map[string]weatherIcon{
+// Each line is ≤11 visible characters; lipgloss pads to IconWidth on render.
+var conditionIcons = map[string]WeatherIcon{
 	"clear-day": {
-		lines:  [5]string{`   \   /   `, `    .-.    `, `  -(   )-  `, "    `-'    ", `   /   \   `},
-		colors: [5]lipgloss.Color{clrYellow, clrYellow, clrYellow, clrYellow, clrYellow},
+		Lines:  [5]string{`   \   /   `, `    .-.    `, `  -(   )-  `, "    `-'    ", `   /   \   `},
+		Colors: [5]lipgloss.Color{clrYellow, clrYellow, clrYellow, clrYellow, clrYellow},
 	},
 	"clear-night": {
-		lines:  [5]string{`           `, `    .-.    `, `   (   |   `, "    `- '   ", `           `},
-		colors: [5]lipgloss.Color{clrMoon, clrMoon, clrMoon, clrMoon, clrMoon},
+		Lines:  [5]string{`           `, `    .-.    `, `   (   |   `, "    `- '   ", `           `},
+		Colors: [5]lipgloss.Color{clrMoon, clrMoon, clrMoon, clrMoon, clrMoon},
 	},
 	"partly-cloudy-day": {
-		lines:  [5]string{`  \  /     `, `_ /"".--.  `, `  \_(  ).  `, ` (___(__)  `, `           `},
-		colors: [5]lipgloss.Color{clrYellow, clrYellow, clrGray, clrGray, clrGray},
+		Lines:  [5]string{`  \  /     `, `_ /"".--.  `, `  \_(  ).  `, ` (___(__)  `, `           `},
+		Colors: [5]lipgloss.Color{clrYellow, clrYellow, clrGray, clrGray, clrGray},
 	},
 	"partly-cloudy-night": {
-		lines:  [5]string{`           `, `    .-.    `, `   (   |   `, " .--`- '   ", `(    ).    `},
-		colors: [5]lipgloss.Color{clrMoon, clrMoon, clrMoon, clrGray, clrGray},
+		Lines:  [5]string{`           `, `    .-.    `, `   (   |   `, " .--`- '   ", `(    ).    `},
+		Colors: [5]lipgloss.Color{clrMoon, clrMoon, clrMoon, clrGray, clrGray},
 	},
 	"cloudy": {
-		lines:  [5]string{`           `, `   .--.    `, ` .-(    ). `, `(___.__)_) `, `           `},
-		colors: [5]lipgloss.Color{clrGray, clrGray, clrGray, clrGray, clrGray},
+		Lines:  [5]string{`           `, `   .--.    `, ` .-(    ). `, `(___.__)_) `, `           `},
+		Colors: [5]lipgloss.Color{clrGray, clrGray, clrGray, clrGray, clrGray},
 	},
 	"rain": {
-		lines:  [5]string{`   .--.    `, ` .-(    ). `, `(___.__)_) `, ` ' ' ' '   `, `           `},
-		colors: [5]lipgloss.Color{clrGray, clrGray, clrGray, clrBlue, clrBlue},
+		Lines:  [5]string{`   .--.    `, ` .-(    ). `, `(___.__)_) `, ` ' ' ' '   `, `           `},
+		Colors: [5]lipgloss.Color{clrGray, clrGray, clrGray, clrBlue, clrBlue},
 	},
 	"heavy-rain": {
-		lines:  [5]string{`   .--.    `, ` .-(    ). `, `(___.__)_) `, `'' '' ''   `, `'' '' ''   `},
-		colors: [5]lipgloss.Color{clrGray, clrGray, clrGray, clrDarkBlue, clrDarkBlue},
+		Lines:  [5]string{`   .--.    `, ` .-(    ). `, `(___.__)_) `, `'' '' ''   `, `'' '' ''   `},
+		Colors: [5]lipgloss.Color{clrGray, clrGray, clrGray, clrDarkBlue, clrDarkBlue},
 	},
 	"snow": {
-		lines:  [5]string{`   .--.    `, ` .-(    ). `, `(___.__)_) `, ` * * * *   `, `  * * *    `},
-		colors: [5]lipgloss.Color{clrGray, clrGray, clrGray, clrCyan, clrCyan},
+		Lines:  [5]string{`   .--.    `, ` .-(    ). `, `(___.__)_) `, ` * * * *   `, `  * * *    `},
+		Colors: [5]lipgloss.Color{clrGray, clrGray, clrGray, clrCyan, clrCyan},
 	},
 	"sleet": {
-		lines:  [5]string{`   .--.    `, ` .-(    ). `, `(___.__)_) `, ` '* '* '*  `, `           `},
-		colors: [5]lipgloss.Color{clrGray, clrGray, clrGray, clrCyan, clrCyan},
+		Lines:  [5]string{`   .--.    `, ` .-(    ). `, `(___.__)_) `, ` '* '* '*  `, `           `},
+		Colors: [5]lipgloss.Color{clrGray, clrGray, clrGray, clrCyan, clrCyan},
 	},
 	"thunder": {
-		lines:  [5]string{`   .--.    `, ` .-(    ). `, `(___.__)_) `, `  / ' '    `, ` /         `},
-		colors: [5]lipgloss.Color{clrGray, clrGray, clrGray, clrYellow, clrYellow},
+		Lines:  [5]string{`   .--.    `, ` .-(    ). `, `(___.__)_) `, `  / ' '    `, ` /         `},
+		Colors: [5]lipgloss.Color{clrGray, clrGray, clrGray, clrYellow, clrYellow},
 	},
 	"fog": {
-		lines:  [5]string{`           `, `_ - _ - _  `, ` _ - _ -   `, `_ - _ - _  `, `           `},
-		colors: [5]lipgloss.Color{clrDimGray, clrDimGray, clrDimGray, clrDimGray, clrDimGray},
+		Lines:  [5]string{`           `, `_ - _ - _  `, ` _ - _ -   `, `_ - _ - _  `, `           `},
+		Colors: [5]lipgloss.Color{clrDimGray, clrDimGray, clrDimGray, clrDimGray, clrDimGray},
 	},
 	"wind": {
-		lines:  [5]string{`           `, `  ~  ~  ~  `, ` ~  ~  ~   `, `  ~  ~  ~  `, `           `},
-		colors: [5]lipgloss.Color{clrGray, clrGray, clrGray, clrGray, clrGray},
+		Lines:  [5]string{`           `, `  ~  ~  ~  `, ` ~  ~  ~   `, `  ~  ~  ~  `, `           `},
+		Colors: [5]lipgloss.Color{clrGray, clrGray, clrGray, clrGray, clrGray},
 	},
 }
 
-// getIcon returns the weatherIcon for code, or a blank icon if code is unknown.
-func getIcon(code string) weatherIcon {
+// GetIcon returns the WeatherIcon for code, or a blank icon if code is unknown.
+func GetIcon(code string) WeatherIcon {
 	if ic, ok := conditionIcons[code]; ok {
 		return ic
 	}
-	var blank weatherIcon
-	for i := range blank.lines {
-		blank.lines[i] = `           `
-		blank.colors[i] = clrGray
+	var blank WeatherIcon
+	for i := range blank.Lines {
+		blank.Lines[i] = `           `
+		blank.Colors[i] = clrGray
 	}
 	return blank
 }

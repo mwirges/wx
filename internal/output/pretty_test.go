@@ -17,9 +17,9 @@ func TestFormatTemp_Imperial(t *testing.T) {
 		{20, "68°F"},
 	}
 	for _, tc := range cases {
-		got := formatTemp(tc.tempC, true)
+		got := FormatTemp(tc.tempC, true)
 		if got != tc.want {
-			t.Errorf("formatTemp(%.1f, imperial) = %q, want %q", tc.tempC, got, tc.want)
+			t.Errorf("FormatTemp(%.1f, imperial) = %q, want %q", tc.tempC, got, tc.want)
 		}
 	}
 }
@@ -35,9 +35,9 @@ func TestFormatTemp_Metric(t *testing.T) {
 		{22.5, "22.5°C"},
 	}
 	for _, tc := range cases {
-		got := formatTemp(tc.tempC, false)
+		got := FormatTemp(tc.tempC, false)
 		if got != tc.want {
-			t.Errorf("formatTemp(%.1f, metric) = %q, want %q", tc.tempC, got, tc.want)
+			t.Errorf("FormatTemp(%.1f, metric) = %q, want %q", tc.tempC, got, tc.want)
 		}
 	}
 }
@@ -60,16 +60,14 @@ func TestDegreesToCompass(t *testing.T) {
 		{22.5, "NNE"},
 	}
 	for _, tc := range cases {
-		got := degreesToCompass(tc.deg)
+		got := DegreesToCompass(tc.deg)
 		if got != tc.want {
-			t.Errorf("degreesToCompass(%.1f) = %q, want %q", tc.deg, got, tc.want)
+			t.Errorf("DegreesToCompass(%.1f) = %q, want %q", tc.deg, got, tc.want)
 		}
 	}
 }
 
 func TestTempStyle_Thresholds(t *testing.T) {
-	// Verify each temperature band maps to the correct package-level style
-	// by comparing the returned style to the expected style variable.
 	cases := []struct {
 		tempC    float64
 		imperial bool
@@ -86,9 +84,9 @@ func TestTempStyle_Thresholds(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		got := tempStyle(tc.tempC, tc.imperial)
+		got := TempStyle(tc.tempC, tc.imperial)
 		if got.GetForeground() != tc.want.GetForeground() {
-			t.Errorf("tempStyle(%.1f°C, imperial=%v): got foreground %v, want %v",
+			t.Errorf("TempStyle(%.1f°C, imperial=%v): got foreground %v, want %v",
 				tc.tempC, tc.imperial, got.GetForeground(), tc.want.GetForeground())
 		}
 	}
@@ -102,9 +100,9 @@ func TestCelsiusToFahrenheit(t *testing.T) {
 		{37, 98.6},
 	}
 	for _, tc := range cases {
-		got := celsiusToFahrenheit(tc.c)
+		got := CelsiusToFahrenheit(tc.c)
 		if got < tc.wantF-0.01 || got > tc.wantF+0.01 {
-			t.Errorf("celsiusToFahrenheit(%.1f) = %.4f, want %.4f", tc.c, got, tc.wantF)
+			t.Errorf("CelsiusToFahrenheit(%.1f) = %.4f, want %.4f", tc.c, got, tc.wantF)
 		}
 	}
 }
@@ -116,9 +114,9 @@ func TestKPHToMPH(t *testing.T) {
 		{96.5604, 60},
 	}
 	for _, tc := range cases {
-		got := kphToMPH(tc.kph)
+		got := KphToMPH(tc.kph)
 		if got < tc.wantMPH-0.01 || got > tc.wantMPH+0.01 {
-			t.Errorf("kphToMPH(%.4f) = %.4f, want %.4f", tc.kph, got, tc.wantMPH)
+			t.Errorf("KphToMPH(%.4f) = %.4f, want %.4f", tc.kph, got, tc.wantMPH)
 		}
 	}
 }
@@ -134,9 +132,9 @@ func TestFormatWindSpeed(t *testing.T) {
 		{0, false, "0 km/h"},
 	}
 	for _, tc := range cases {
-		got := formatWindSpeed(tc.kph, tc.imperial)
+		got := FormatWindSpeed(tc.kph, tc.imperial)
 		if got != tc.want {
-			t.Errorf("formatWindSpeed(%.4f, %v) = %q, want %q", tc.kph, tc.imperial, got, tc.want)
+			t.Errorf("FormatWindSpeed(%.4f, %v) = %q, want %q", tc.kph, tc.imperial, got, tc.want)
 		}
 	}
 }
@@ -152,9 +150,9 @@ func TestFormatPressure(t *testing.T) {
 		{1020.0, false, "1020 hPa"},
 	}
 	for _, tc := range cases {
-		got := formatPressure(tc.hpa, tc.imperial)
+		got := FormatPressure(tc.hpa, tc.imperial)
 		if got != tc.want {
-			t.Errorf("formatPressure(%.2f, %v) = %q, want %q", tc.hpa, tc.imperial, got, tc.want)
+			t.Errorf("FormatPressure(%.2f, %v) = %q, want %q", tc.hpa, tc.imperial, got, tc.want)
 		}
 	}
 }
@@ -171,9 +169,9 @@ func TestFormatVisibility(t *testing.T) {
 		{5000.0, false, "5.0 km"},
 	}
 	for _, tc := range cases {
-		got := formatVisibility(tc.meters, tc.imperial)
+		got := FormatVisibility(tc.meters, tc.imperial)
 		if got != tc.want {
-			t.Errorf("formatVisibility(%.2f, %v) = %q, want %q", tc.meters, tc.imperial, got, tc.want)
+			t.Errorf("FormatVisibility(%.2f, %v) = %q, want %q", tc.meters, tc.imperial, got, tc.want)
 		}
 	}
 }
@@ -182,30 +180,30 @@ func TestFeelsLikeTemp(t *testing.T) {
 	wc := -5.0
 	hi := 38.0
 
-	if got := feelsLikeTemp(&wc, nil); got != &wc {
+	if got := FeelsLikeTemp(&wc, nil); got != &wc {
 		t.Error("expected wind chill pointer when heat index is nil")
 	}
-	if got := feelsLikeTemp(nil, &hi); got != &hi {
+	if got := FeelsLikeTemp(nil, &hi); got != &hi {
 		t.Error("expected heat index pointer when wind chill is nil")
 	}
-	if got := feelsLikeTemp(nil, nil); got != nil {
+	if got := FeelsLikeTemp(nil, nil); got != nil {
 		t.Errorf("expected nil when both nil, got %v", got)
 	}
 	// wind chill takes precedence
-	if got := feelsLikeTemp(&wc, &hi); got != &wc {
+	if got := FeelsLikeTemp(&wc, &hi); got != &wc {
 		t.Error("expected wind chill to take precedence over heat index")
 	}
 }
 
 func TestGetIcon(t *testing.T) {
 	// Known code returns a non-blank first line.
-	ic := getIcon("clear-day")
-	if ic.lines[0] == `           ` {
+	ic := GetIcon("clear-day")
+	if ic.Lines[0] == `           ` {
 		t.Error("clear-day icon line 0 should not be blank")
 	}
 	// Unknown code returns blank icon without panic.
-	blank := getIcon("nonexistent-condition")
-	for i, l := range blank.lines {
+	blank := GetIcon("nonexistent-condition")
+	for i, l := range blank.Lines {
 		if l != `           ` {
 			t.Errorf("blank icon line %d = %q, want all spaces", i, l)
 		}
@@ -216,10 +214,10 @@ func TestFormatWind(t *testing.T) {
 	deg270 := 270.0
 
 	cases := []struct {
-		kph     float64
-		degrees *float64
+		kph      float64
+		degrees  *float64
 		imperial bool
-		want    string
+		want     string
 	}{
 		{16.0934, &deg270, true, "W 10 mph"},
 		{16.0934, &deg270, false, "W 16 km/h"},
@@ -227,9 +225,9 @@ func TestFormatWind(t *testing.T) {
 		{0, nil, false, "0 km/h"},
 	}
 	for _, tc := range cases {
-		got := formatWind(tc.kph, tc.degrees, tc.imperial)
+		got := FormatWind(tc.kph, tc.degrees, tc.imperial)
 		if got != tc.want {
-			t.Errorf("formatWind(%.4f, ..., %v) = %q, want %q", tc.kph, tc.imperial, got, tc.want)
+			t.Errorf("FormatWind(%.4f, ..., %v) = %q, want %q", tc.kph, tc.imperial, got, tc.want)
 		}
 	}
 }

@@ -91,17 +91,17 @@ func renderJSON(data RenderData, opts RenderOptions) error {
 			tc := *c.TempC
 			jc.TempC = &tc
 			if imperial {
-				tf := celsiusToFahrenheit(tc)
+				tf := CelsiusToFahrenheit(tc)
 				jc.TempF = &tf
 			}
 		}
 
 		// Feels like (wind chill or heat index)
-		if fl := feelsLikeTemp(c.WindChillC, c.HeatIndexC); fl != nil {
+		if fl := FeelsLikeTemp(c.WindChillC, c.HeatIndexC); fl != nil {
 			flC := *fl
 			jc.FeelsLikeC = &flC
 			if imperial {
-				flF := celsiusToFahrenheit(flC)
+				flF := CelsiusToFahrenheit(flC)
 				jc.FeelsLikeF = &flF
 			}
 		}
@@ -111,7 +111,7 @@ func renderJSON(data RenderData, opts RenderOptions) error {
 			dp := *c.DewPointC
 			jc.DewPointC = &dp
 			if imperial {
-				dpF := celsiusToFahrenheit(dp)
+				dpF := CelsiusToFahrenheit(dp)
 				jc.DewPointF = &dpF
 			}
 		}
@@ -121,7 +121,7 @@ func renderJSON(data RenderData, opts RenderOptions) error {
 			kph := *c.WindKPH
 			jc.WindKPH = &kph
 			if imperial {
-				mph := kphToMPH(kph)
+				mph := KphToMPH(kph)
 				jc.WindMPH = &mph
 			}
 		}
@@ -129,12 +129,12 @@ func renderJSON(data RenderData, opts RenderOptions) error {
 			gust := *c.WindGustKPH
 			jc.WindGustKPH = &gust
 			if imperial {
-				mph := kphToMPH(gust)
+				mph := KphToMPH(gust)
 				jc.WindGustMPH = &mph
 			}
 		}
 		if c.WindDegrees != nil {
-			jc.WindDir = degreesToCompass(*c.WindDegrees)
+			jc.WindDir = DegreesToCompass(*c.WindDegrees)
 		}
 
 		// Pressure
@@ -174,8 +174,8 @@ func renderJSON(data RenderData, opts RenderOptions) error {
 				DetailedDesc: p.DetailedDesc,
 			}
 			if imperial {
-				jp.TempF = celsiusToFahrenheit(p.TempC)
-				jp.WindMPH = kphToMPH(p.WindKPH)
+				jp.TempF = CelsiusToFahrenheit(p.TempC)
+				jp.WindMPH = KphToMPH(p.WindKPH)
 			}
 			periods = append(periods, jp)
 		}
