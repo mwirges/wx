@@ -103,6 +103,7 @@ wx monitor                        # current conditions + forecast, auto-detected
 wx monitor --location "Chicago, IL"
 wx monitor --units metric
 wx monitor --interval 5m          # refresh interval (default 15m)
+wx monitor --notify               # enable desktop notifications for new weather alerts
 ```
 
 The monitor shows current conditions, active alerts, and a scrollable 7-day forecast. Press `R` to toggle a live radar panel alongside the weather data.
@@ -127,8 +128,11 @@ wx config set --location 64101
 # Set default units
 wx config set --units metric
 
-# Set both at once
-wx config set --location "Denver, CO" --units imperial
+# Set default desktop notifications
+wx config set --notifications true
+
+# Set multiple options at once
+wx config set --location "Denver, CO" --units imperial --notifications true
 
 # Clear a value (pass empty string)
 wx config set --location ""
@@ -143,7 +147,8 @@ wx config show
 ```json
 {
   "default_location": "Kansas City, MO",
-  "units": "imperial"
+  "units": "imperial",
+  "notifications": true
 }
 ```
 
@@ -151,6 +156,7 @@ wx config show
 
 **Precedence:** `--location` flag → `default_location` in config → IP auto-detect.
 **Units precedence:** `--units` flag → `units` in config → `imperial`.
+**Notifications precedence:** `--notify` flag → `notifications` in config → `false` (disabled by default).
 
 ## Cache
 

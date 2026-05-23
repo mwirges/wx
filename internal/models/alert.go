@@ -4,6 +4,7 @@ import "time"
 
 // Alert represents an active NWS weather alert or special statement.
 type Alert struct {
+	ID          string // Unique alert ID
 	Event       string // "Tornado Warning", "Winter Storm Watch", etc.
 	Headline    string
 	Description string

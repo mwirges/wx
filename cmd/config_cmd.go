@@ -47,6 +47,11 @@ func configCommand() *cli.Command {
 						Aliases: []string{"u"},
 						Usage:   "default units: imperial or metric (empty to clear)",
 					},
+					&cli.StringFlag{
+						Name:    "notifications",
+						Aliases: []string{"n"},
+						Usage:   "default desktop notifications: true or false (empty to clear)",
+					},
 				},
 				Action: configSet,
 			},
@@ -69,6 +74,12 @@ func configShow(c *cli.Context) error {
 
 	printConfigField("default_location", cfg.DefaultLocation)
 	printConfigField("units", cfg.Units)
+
+	notifVal := ""
+	if cfg.Notifications != nil {
+		notifVal = fmt.Sprintf("%t", *cfg.Notifications)
+	}
+	printConfigField("notifications", notifVal)
 	fmt.Println()
 
 	return nil
@@ -84,8 +95,8 @@ func printConfigField(key, value string) {
 }
 
 func configSet(c *cli.Context) error {
-	if !c.IsSet("location") && !c.IsSet("units") {
-		return fmt.Errorf("provide at least one flag: --location or --units (see: wx config set --help)")
+	if !c.IsSet("location") && !c.IsSet("units") && !c.IsSet("notifications") {
+		return fmt.Errorf("provide at least one flag: --location, --units, or --notifications (see: wx config set --help)")
 	}
 
 	path, err := config.Path()
@@ -108,6 +119,20 @@ func configSet(c *cli.Context) error {
 		}
 		cfg.Units = v
 	}
+	if c.IsSet("notifications") {
+		v := c.String("notifications")
+		if v == "" {
+			cfg.Notifications = nil
+		} else if v == "true" {
+			val := true
+			cfg.Notifications = &val
+		} else if v == "false" {
+			val := false
+			cfg.Notifications = &val
+		} else {
+			return fmt.Errorf("invalid notifications %q: must be true or false", v)
+		}
+	}
 
 	if err := config.Save(path, cfg); err != nil {
 		return err
@@ -116,6 +141,12 @@ func configSet(c *cli.Context) error {
 	fmt.Printf("%s %s\n\n", styleConfigSaved.Render("Saved:"), styleConfigPath.Render(path))
 	printConfigField("default_location", cfg.DefaultLocation)
 	printConfigField("units", cfg.Units)
+
+	notifVal := ""
+	if cfg.Notifications != nil {
+		notifVal = fmt.Sprintf("%t", *cfg.Notifications)
+	}
+	printConfigField("notifications", notifVal)
 	fmt.Println()
 
 	return nil

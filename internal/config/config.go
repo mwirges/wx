@@ -19,6 +19,9 @@ type Config struct {
 	// Units sets the default display units: "imperial" or "metric".
 	// Overridden by --units on the command line.
 	Units string `json:"units"`
+
+	// Notifications enables or disables desktop notifications for active alerts.
+	Notifications *bool `json:"notifications,omitempty"`
 }
 
 // Path returns the canonical config file path: ~/.config/wx/config.json.

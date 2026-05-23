@@ -45,6 +45,10 @@ func monitorCommand() *cli.Command {
 				Value: 15 * time.Minute,
 				Usage: "background weather refresh interval (e.g. 5m, 1h)",
 			},
+			&cli.BoolFlag{
+				Name:  "notify",
+				Usage: "enable desktop notifications for new alerts",
+			},
 		},
 		Action: monitorAction,
 	}
@@ -100,12 +104,22 @@ func monitorAction(c *cli.Context) error {
 		radarProv = rp
 	}
 
+	// Notifications precedence: CLI flag > config file > built-in default (false)
+	enableNotifications := false
+	if cfg.Notifications != nil {
+		enableNotifications = *cfg.Notifications
+	}
+	if c.Bool("notify") {
+		enableNotifications = true
+	}
+
 	mcfg := monitor.MonitorConfig{
-		WeatherProv:     weatherProv,
-		RadarProv:       radarProv,
-		Cache:           ch,
-		Imperial:        units != "metric",
-		RefreshInterval: c.Duration("interval"),
+		WeatherProv:         weatherProv,
+		RadarProv:           radarProv,
+		Cache:               ch,
+		Imperial:            units != "metric",
+		RefreshInterval:     c.Duration("interval"),
+		EnableNotifications: enableNotifications,
 	}
 
 	m := monitor.New(mcfg, loc)

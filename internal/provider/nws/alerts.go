@@ -12,6 +12,7 @@ import (
 
 type alertsResponse struct {
 	Features []struct {
+		ID         string `json:"id"`
 		Properties struct {
 			Event       string `json:"event"`
 			Headline    string `json:"headline"`
@@ -49,6 +50,7 @@ func (p *Provider) Alerts(ctx context.Context, loc location.Location, c *cache.C
 		expires, _ := time.Parse(time.RFC3339, f.Properties.Expires)
 
 		alerts = append(alerts, models.Alert{
+			ID:          f.ID,
 			Event:       f.Properties.Event,
 			Headline:    f.Properties.Headline,
 			Description: f.Properties.Description,

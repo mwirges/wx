@@ -3,6 +3,7 @@ package monitor
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -43,11 +44,13 @@ type locationErrMsg struct{ err error }
 
 // MonitorConfig holds immutable configuration for the monitor TUI.
 type MonitorConfig struct {
-	WeatherProv     provider.WeatherProvider
-	RadarProv       radar.Provider
-	Cache           *cache.Cache
-	Imperial        bool
-	RefreshInterval time.Duration
+	WeatherProv         provider.WeatherProvider
+	RadarProv           radar.Provider
+	Cache               *cache.Cache
+	Imperial            bool
+	RefreshInterval     time.Duration
+	EnableNotifications bool
+	NotifyFunc          func(title, message string) error
 }
 
 // ── Model ─────────────────────────────────────────────────────────────────────
@@ -86,14 +89,21 @@ type MonitorModel struct {
 	radarLoading   bool
 
 	quitting bool
+
+	// notified alerts tracking
+	notifiedAlerts map[string]bool
 }
 
 // New creates the initial MonitorModel.
 func New(cfg MonitorConfig, loc location.Location) MonitorModel {
+	if cfg.NotifyFunc == nil {
+		cfg.NotifyFunc = notify
+	}
 	return MonitorModel{
 		cfg:            cfg,
 		loc:            loc,
 		weatherLoading: true,
+		notifiedAlerts: make(map[string]bool),
 	}
 }
 
@@ -135,11 +145,36 @@ func (m MonitorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.fetchErr = nil
 		m.conditions = msg.conditions
 		m.forecast = msg.forecast
+
+		var notifyCmds []tea.Cmd
+		// Handle desktop notifications for new alerts
+		if m.cfg.EnableNotifications {
+			if m.lastFetch.IsZero() {
+				// Initialize notifiedAlerts with current alerts to prevent startup noise
+				for _, a := range msg.alerts {
+					id := alertUniqueID(a)
+					m.notifiedAlerts[id] = true
+				}
+			} else {
+				newNotified := make(map[string]bool)
+				for _, a := range msg.alerts {
+					id := alertUniqueID(a)
+					if !m.notifiedAlerts[id] {
+						title := fmt.Sprintf("Weather Alert: %s", a.Event)
+						message := a.Headline
+						notifyCmds = append(notifyCmds, triggerNotificationCmd(m.cfg.NotifyFunc, title, message))
+					}
+					newNotified[id] = true
+				}
+				m.notifiedAlerts = newNotified
+			}
+		}
+
 		m.alerts = msg.alerts
 		m.lastFetch = msg.fetchedAt
 		m.forecastVisible = computeForecastVisible(m.height, alertCount(m.alerts))
 		m.forecastOffset = clampOffset(m.forecastOffset, forecastLen(m.forecast), m.forecastVisible)
-		return m, nil
+		return m, batchCmds(notifyCmds)
 
 	case weatherErrMsg:
 		m.weatherLoading = false
@@ -417,4 +452,31 @@ func computeForecastVisible(termH, numAlerts int) int {
 		return maxForecastPeriods
 	}
 	return available
+}
+
+// alertUniqueID returns a unique identifier for an alert, falling back to a hash of its fields if ID is empty.
+func alertUniqueID(a models.Alert) string {
+	if a.ID != "" {
+		return a.ID
+	}
+	return fmt.Sprintf("%s-%s-%d", a.Event, a.Severity, a.Effective.Unix())
+}
+
+// triggerNotificationCmd returns a tea.Cmd that triggers the notification function.
+func triggerNotificationCmd(notifyFunc func(string, string) error, title, message string) tea.Cmd {
+	return func() tea.Msg {
+		_ = notifyFunc(title, message)
+		return nil
+	}
+}
+
+// batchCmds is a helper to combine a slice of tea.Cmd. If empty, returns nil. If length 1, returns that command directly to make testing easier.
+func batchCmds(cmds []tea.Cmd) tea.Cmd {
+	if len(cmds) == 0 {
+		return nil
+	}
+	if len(cmds) == 1 {
+		return cmds[0]
+	}
+	return tea.Batch(cmds...)
 }

@@ -13,8 +13,9 @@ import (
 
 func testConfig() MonitorConfig {
 	return MonitorConfig{
-		Imperial:        true,
-		RefreshInterval: 15 * time.Minute,
+		Imperial:            true,
+		RefreshInterval:     15 * time.Minute,
+		EnableNotifications: false,
 	}
 }
 
@@ -495,5 +496,80 @@ func TestSplitAndStripRadarLines(t *testing.T) {
 		if lines[i] != want {
 			t.Errorf("line[%d] = %q, want %q", i, lines[i], want)
 		}
+	}
+}
+
+// ── Notifications ──────────────────────────────────────────────────────────────
+
+func TestUpdate_WeatherMsg_Notifications(t *testing.T) {
+	var notifiedTitle, notifiedMsg string
+	cfg := testConfig()
+	cfg.EnableNotifications = true
+	cfg.NotifyFunc = func(title, message string) error {
+		notifiedTitle = title
+		notifiedMsg = message
+		return nil
+	}
+
+	m := New(cfg, testLoc())
+	m.weatherLoading = true
+
+	// First fetch should NOT trigger notification (populate initial)
+	msg1 := weatherMsg{
+		alerts: []models.Alert{
+			{ID: "alert-1", Event: "Tornado Warning", Headline: "Tornado Warning issued"},
+		},
+		fetchedAt: time.Now(),
+	}
+	m2, cmd1 := m.Update(msg1)
+	m2Model := m2.(MonitorModel)
+	if cmd1 != nil {
+		t.Errorf("expected nil cmd on initial fetch, got %v", cmd1)
+	}
+	if notifiedTitle != "" {
+		t.Errorf("expected no notification on initial fetch, got %q", notifiedTitle)
+	}
+
+	// Subsequent fetch with a NEW alert should trigger notification cmd
+	msg2 := weatherMsg{
+		alerts: []models.Alert{
+			{ID: "alert-1", Event: "Tornado Warning", Headline: "Tornado Warning issued"},
+			{ID: "alert-2", Event: "Severe Thunderstorm Warning", Headline: "Severe Thunderstorm Warning issued"},
+		},
+		fetchedAt: time.Now(),
+	}
+	m3, cmd2 := m2Model.Update(msg2)
+	m3Model := m3.(MonitorModel)
+	if cmd2 == nil {
+		t.Fatal("expected non-nil cmd for new alert notification")
+	}
+
+	// Run the returned tea.Cmd synchronously
+	cmd2()
+
+	if notifiedTitle != "Weather Alert: Severe Thunderstorm Warning" {
+		t.Errorf("expected notification title %q, got %q", "Weather Alert: Severe Thunderstorm Warning", notifiedTitle)
+	}
+	if notifiedMsg != "Severe Thunderstorm Warning issued" {
+		t.Errorf("expected notification msg %q, got %q", "Severe Thunderstorm Warning issued", notifiedMsg)
+	}
+
+	// Reset mock vars
+	notifiedTitle, notifiedMsg = "", ""
+
+	// Subsequent fetch with NO new alerts should NOT trigger notification cmd
+	msg3 := weatherMsg{
+		alerts: []models.Alert{
+			{ID: "alert-1", Event: "Tornado Warning", Headline: "Tornado Warning issued"},
+			{ID: "alert-2", Event: "Severe Thunderstorm Warning", Headline: "Severe Thunderstorm Warning issued"},
+		},
+		fetchedAt: time.Now(),
+	}
+	_, cmd3 := m3Model.Update(msg3)
+	if cmd3 != nil {
+		t.Errorf("expected nil cmd when no new alerts, got %v", cmd3)
+	}
+	if notifiedTitle != "" {
+		t.Errorf("expected no notification when no new alerts, got %q", notifiedTitle)
 	}
 }
