@@ -14,3 +14,6 @@
 # Environment / secrets
 .env
 .env.*
+
+# Antigravity CLI
+.antigravitycli/
