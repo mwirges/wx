@@ -42,6 +42,34 @@ func TestScaleImage_TransparentToBlack(t *testing.T) {
 	}
 }
 
+func TestScaleImage_ThinLinePreserved(t *testing.T) {
+	// A 16×16 source with a single white pixel row (simulating a 1-px state
+	// border line) at y=0 against a dark background. When scaled 2x down,
+	// max-luminance sampling must surface the white line in the first output row.
+	src := image.NewRGBA(image.Rect(0, 0, 16, 16))
+	dark := color.RGBA{20, 20, 20, 255}
+	white := color.RGBA{255, 255, 255, 255}
+	for y := 0; y < 16; y++ {
+		for x := 0; x < 16; x++ {
+			src.Set(x, y, dark)
+		}
+	}
+	// Single-pixel bright line at y=0.
+	for x := 0; x < 16; x++ {
+		src.Set(x, 0, white)
+	}
+	dst := scaleImage(src, 8, 8)
+	got := dst.At(0, 0).(color.RGBA)
+	if got.R < 200 || got.G < 200 || got.B < 200 {
+		t.Errorf("thin line not preserved: got %v, want near-white", got)
+	}
+	// Rows below the line should remain dark.
+	got2 := dst.At(0, 1).(color.RGBA)
+	if got2.R > 50 {
+		t.Errorf("row below line should be dark: got %v", got2)
+	}
+}
+
 func TestProductLabel(t *testing.T) {
 	cases := []struct {
 		p    Product

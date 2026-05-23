@@ -154,31 +154,102 @@ func ProductLabel(p Product) string {
 	}
 }
 
-// scaleImage returns a new *image.RGBA scaled to (w, h) via nearest-neighbour.
-// Transparent source pixels are composited onto black.
+// scaleImage returns a new *image.RGBA scaled to (w, h).
+//
+// Radar pixels are area-averaged across the source region for smooth output.
+// Geographic boundary lines (white/gray, low color saturation) are detected
+// separately: if any source pixel in the region looks like a border (sat < 40,
+// luminance > ~30), it is overlaid on top of the averaged radar color. This
+// makes state and county lines visible without causing isolated bright radar
+// returns to bloat and dominate their source regions.
+// Fully-transparent regions are composited onto black.
 func scaleImage(src image.Image, w, h int) *image.RGBA {
 	dst := image.NewRGBA(image.Rect(0, 0, w, h))
 	sb := src.Bounds()
 	srcW, srcH := sb.Dx(), sb.Dy()
 	for dy := 0; dy < h; dy++ {
-		sy := sb.Min.Y + dy*srcH/h
+		sy0 := sb.Min.Y + dy*srcH/h
+		sy1 := sb.Min.Y + (dy+1)*srcH/h
+		if sy1 > sb.Max.Y {
+			sy1 = sb.Max.Y
+		}
+		if sy1 <= sy0 {
+			sy1 = sy0 + 1
+		}
 		for dx := 0; dx < w; dx++ {
-			sx := sb.Min.X + dx*srcW/w
-			_, _, _, a := src.At(sx, sy).RGBA()
-			if a == 0 {
-				dst.Set(dx, dy, color.RGBA{0, 0, 0, 255})
+			sx0 := sb.Min.X + dx*srcW/w
+			sx1 := sb.Min.X + (dx+1)*srcW/w
+			if sx1 > sb.Max.X {
+				sx1 = sb.Max.X
+			}
+			if sx1 <= sx0 {
+				sx1 = sx0 + 1
+			}
+
+			var sumR, sumG, sumB, n uint32
+			var lineR, lineG, lineB uint8
+			var bestLineLum uint32
+			hasLine := false
+
+			for sy := sy0; sy < sy1; sy++ {
+				for sx := sx0; sx < sx1; sx++ {
+					r32, g32, b32, a32 := src.At(sx, sy).RGBA()
+					if a32 == 0 {
+						continue
+					}
+					r, g, b := uint8(r32>>8), uint8(g32>>8), uint8(b32>>8)
+					sumR += uint32(r)
+					sumG += uint32(g)
+					sumB += uint32(b)
+					n++
+
+					// Detect geographic line pixels: bright, unsaturated (white/gray).
+					// IEM draws state borders in white and county lines in light gray;
+					// radar returns are always highly saturated colors (yellow/red/purple).
+					maxC := maxUint8(r, g, b)
+					minC := minUint8(r, g, b)
+					sat := uint32(maxC - minC)
+					lum := uint32(r)*299 + uint32(g)*587 + uint32(b)*114
+					if sat < 40 && lum > 30000 {
+						if !hasLine || lum > bestLineLum {
+							lineR, lineG, lineB = r, g, b
+							bestLineLum = lum
+							hasLine = true
+						}
+					}
+				}
+			}
+
+			if hasLine {
+				dst.Set(dx, dy, color.RGBA{lineR, lineG, lineB, 255})
+			} else if n > 0 {
+				dst.Set(dx, dy, color.RGBA{uint8(sumR / n), uint8(sumG / n), uint8(sumB / n), 255})
 			} else {
-				r, g, b, _ := src.At(sx, sy).RGBA()
-				dst.Set(dx, dy, color.RGBA{
-					R: uint8(r >> 8),
-					G: uint8(g >> 8),
-					B: uint8(b >> 8),
-					A: 255,
-				})
+				dst.Set(dx, dy, color.RGBA{0, 0, 0, 255})
 			}
 		}
 	}
 	return dst
+}
+
+func maxUint8(a, b, c uint8) uint8 {
+	if a >= b && a >= c {
+		return a
+	}
+	if b >= c {
+		return b
+	}
+	return c
+}
+
+func minUint8(a, b, c uint8) uint8 {
+	if a <= b && a <= c {
+		return a
+	}
+	if b <= c {
+		return b
+	}
+	return c
 }
 
 // toRGBA extracts 8-bit color components from any color.Color.
