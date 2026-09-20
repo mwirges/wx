@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        installMainMenu()
 
         let status = StatusItemController(store: store)
         status.install()
@@ -38,6 +39,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let openObserver {
             NotificationCenter.default.removeObserver(openObserver)
         }
+    }
+
+
+    /// Minimal main menu so ⌘Q works for an accessory / LSUIElement app.
+    private func installMainMenu() {
+        let mainMenu = NSMenu()
+        let appMenuItem = NSMenuItem()
+        mainMenu.addItem(appMenuItem)
+        let appMenu = NSMenu(title: "wx")
+        let quit = NSMenuItem(
+            title: "Quit wx",
+            action: #selector(NSApplication.terminate(_:)),
+            keyEquivalent: "q"
+        )
+        quit.target = NSApp
+        appMenu.addItem(quit)
+        appMenuItem.submenu = appMenu
+        NSApp.mainMenu = mainMenu
     }
 
     func showDeskWindow() {
