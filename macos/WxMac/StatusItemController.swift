@@ -5,6 +5,7 @@ import SwiftUI
 final class StatusItemController: NSObject {
     private var statusItem: NSStatusItem?
     private var popover: NSPopover?
+    private var statusMenu: NSMenu?
     private let store: WeatherStore
     private var updateObserver: NSObjectProtocol?
 
@@ -20,9 +21,12 @@ final class StatusItemController: NSObject {
             button.image = NSImage(systemSymbolName: store.statusSymbol, accessibilityDescription: "wx")
             button.imagePosition = .imageLeading
             button.title = " \(store.displayTemp)"
-            button.action = #selector(togglePopover(_:))
             button.target = self
+            button.action = #selector(statusItemClick(_:))
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
+
+        statusMenu = buildMenu()
 
         let pop = NSPopover()
         pop.behavior = .transient
@@ -50,6 +54,28 @@ final class StatusItemController: NSObject {
         }
         statusItem = nil
         popover = nil
+        statusMenu = nil
+    }
+
+    private func buildMenu() -> NSMenu {
+        let menu = NSMenu()
+        let openDesk = NSMenuItem(
+            title: "Open Desk",
+            action: #selector(openDesk(_:)),
+            keyEquivalent: ""
+        )
+        openDesk.target = self
+        menu.addItem(openDesk)
+        menu.addItem(.separator())
+        let quit = NSMenuItem(
+            title: "Quit wx",
+            action: #selector(quitWx(_:)),
+            keyEquivalent: "q"
+        )
+        quit.keyEquivalentModifierMask = [.command]
+        quit.target = self
+        menu.addItem(quit)
+        return menu
     }
 
     private func refreshButton() {
@@ -62,6 +88,27 @@ final class StatusItemController: NSObject {
         }
     }
 
+    @objc private func statusItemClick(_ sender: Any?) {
+        guard let event = NSApp.currentEvent else {
+            togglePopover(sender)
+            return
+        }
+        switch event.type {
+        case .rightMouseUp:
+            showStatusMenu()
+        default:
+            togglePopover(sender)
+        }
+    }
+
+    private func showStatusMenu() {
+        guard let button = statusItem?.button, let menu = statusMenu else { return }
+        popover?.performClose(nil)
+        // Pop up under the status item without assigning statusItem.menu (that would steal left-click).
+        let point = NSPoint(x: button.bounds.midX, y: button.bounds.maxY + 2)
+        menu.popUp(positioning: nil, at: point, in: button)
+    }
+
     @objc private func togglePopover(_ sender: Any?) {
         guard let button = statusItem?.button, let popover else { return }
         if popover.isShown {
@@ -70,5 +117,14 @@ final class StatusItemController: NSObject {
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             NSApp.activate()
         }
+    }
+
+    @objc private func openDesk(_ sender: Any?) {
+        popover?.performClose(nil)
+        NotificationCenter.default.post(name: .wxOpenDeskWindow, object: nil)
+    }
+
+    @objc private func quitWx(_ sender: Any?) {
+        NSApp.terminate(nil)
     }
 }
