@@ -4,10 +4,17 @@ options:
   deploymentTarget:
     macOS: "14.0"
   createIntermediateGroups: true
+  # Xcode 27 — keep LastUpgradeCheck locked so regenerate doesn't re-nag.
+  xcodeVersion: "2700"
+attributes:
+  LastUpgradeCheck: "2700"
 settings:
   base:
     SWIFT_VERSION: "5.10"
     MACOSX_DEPLOYMENT_TARGET: "14.0"
+    SDKROOT: macosx
+    SUPPORTED_PLATFORMS: macosx
+    SUPPORTS_MACCATALYST: NO
     CODE_SIGN_IDENTITY: "-"
     CODE_SIGNING_ALLOWED: "YES"
     CODE_SIGNING_REQUIRED: "NO"
@@ -23,6 +30,9 @@ targets:
         PRODUCT_NAME: wx
         INFOPLIST_FILE: WxMac/Info.plist
         GENERATE_INFOPLIST_FILE: false
+        SDKROOT: macosx
+        SUPPORTED_PLATFORMS: macosx
+        SUPPORTS_MACCATALYST: NO
         LD_RUNPATH_SEARCH_PATHS: "@executable_path/../Frameworks"
         ENABLE_HARDENED_RUNTIME: false
         COMBINE_HIDPI_IMAGES: true

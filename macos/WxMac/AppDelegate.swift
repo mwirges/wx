@@ -43,7 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func showDeskWindow() {
         if let deskWindow {
             deskWindow.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+            NSApp.activate()
             return
         }
         let hosting = NSHostingController(rootView: DeskWindowView().environmentObject(store))
@@ -59,7 +59,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.isReleasedWhenClosed = false
         window.makeKeyAndOrderFront(nil)
         deskWindow = window
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
     }
 
     /// Env-gated (`WX_QA_POPOVER=1`) fixed 420×620 surface matching menu popover — for QA screenshots only.

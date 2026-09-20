@@ -15,7 +15,7 @@ final class WeatherStore: ObservableObject {
     @Published var deskWindowOpen = false
 
     private let backend: WeatherBackend
-    private var refreshTimer: Timer?
+    private var refreshTask: Task<Void, Never>?
     private let refreshInterval: TimeInterval = 5 * 60
 
     init(backend: WeatherBackend = WxCLIBackend()) {
@@ -28,17 +28,24 @@ final class WeatherStore: ObservableObject {
 
     func start() {
         Task { await refresh() }
-        refreshTimer?.invalidate()
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: refreshInterval, repeats: true) { [weak self] _ in
-            Task { @MainActor in
+        refreshTask?.cancel()
+        let interval = refreshInterval
+        refreshTask = Task { [weak self] in
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+                } catch {
+                    return
+                }
+                guard !Task.isCancelled else { return }
                 await self?.refresh()
             }
         }
     }
 
     func stop() {
-        refreshTimer?.invalidate()
-        refreshTimer = nil
+        refreshTask?.cancel()
+        refreshTask = nil
     }
 
     func applyLocationAndUnits() async {

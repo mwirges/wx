@@ -1,8 +1,9 @@
-# wx Mac app (SwiftUI) — slice 0.1a
+# wx Mac app (SwiftUI) — slice 0.1a / W1 quiet build
 XCODEGEN ?= /opt/homebrew/bin/xcodegen
 SCHEME   := WxMac
 CONFIG   := Debug
 DERIVED  := build
+DEST     := platform=macOS,arch=arm64
 
 .DEFAULT_GOAL := build
 
@@ -12,9 +13,10 @@ DERIVED  := build
 project:
 	$(XCODEGEN) generate
 
-## build: xcodegen + xcodebuild Debug
+## build: xcodegen + xcodebuild Debug (macOS arm64 only — quiet destination warnings)
 build: project
-	xcodebuild -project WxMac.xcodeproj -scheme $(SCHEME) -configuration $(CONFIG) -derivedDataPath $(DERIVED) build
+	xcodebuild -project WxMac.xcodeproj -scheme $(SCHEME) -configuration $(CONFIG) \
+	  -destination '$(DEST)' -derivedDataPath $(DERIVED) build
 
 ## run: build then open the app
 run: build
