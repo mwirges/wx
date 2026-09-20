@@ -17,3 +17,7 @@
 
 # Antigravity CLI
 .antigravitycli/
+
+# Mac app derived data
+macos/build/
+macos/WxMac.xcodeproj/

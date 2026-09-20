@@ -89,3 +89,15 @@ exe = $(1)$(call ext,$(2))
 
 # ext(os) → .exe on Windows, empty elsewhere.
 ext = $(if $(filter windows,$(1)),.exe,)
+
+# ── Mac app (SwiftUI under macos/) ───────────────────────────────────────────
+
+## mac-build: Build the macOS SwiftUI app (macos/)
+.PHONY: mac-build
+mac-build:
+	$(MAKE) -C macos build
+
+## mac-run: Build and open the macOS app
+.PHONY: mac-run
+mac-run:
+	$(MAKE) -C macos run
