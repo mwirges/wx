@@ -1,0 +1,30 @@
+name: WxMac
+options:
+  bundleIdPrefix: com.mwirges
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGNING_ALLOWED: "YES"
+    CODE_SIGNING_REQUIRED: "NO"
+targets:
+  WxMac:
+    type: application
+    platform: macOS
+    sources:
+      - path: WxMac
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.mwirges.wx
+        PRODUCT_NAME: wx
+        INFOPLIST_FILE: WxMac/Info.plist
+        GENERATE_INFOPLIST_FILE: false
+        LD_RUNPATH_SEARCH_PATHS: "@executable_path/../Frameworks"
+        ENABLE_HARDENED_RUNTIME: false
+        COMBINE_HIDPI_IMAGES: true
+    scheme:
+      testTargets: []
