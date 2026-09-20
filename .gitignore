@@ -21,3 +21,5 @@
 # Mac app derived data
 macos/build/
 macos/WxMac.xcodeproj/
+
+macos/qa-shots/
