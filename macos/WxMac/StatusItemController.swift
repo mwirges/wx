@@ -26,7 +26,7 @@ final class StatusItemController: NSObject {
 
         let pop = NSPopover()
         pop.behavior = .transient
-        pop.contentSize = NSSize(width: 360, height: 480)
+        pop.contentSize = NSSize(width: 420, height: 620)
         pop.contentViewController = NSHostingController(rootView: PopoverView().environmentObject(store))
         popover = pop
 
@@ -68,7 +68,7 @@ final class StatusItemController: NSObject {
             popover.performClose(sender)
         } else {
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-            NSApp.activate(ignoringOtherApps: true)
+            NSApp.activate()
         }
     }
 }

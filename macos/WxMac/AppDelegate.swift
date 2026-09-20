@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let store = WeatherStore()
     private var statusController: StatusItemController?
     private var deskWindow: NSWindow?
+    private var popoverQAWindow: NSWindow?
     private var openObserver: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -26,6 +27,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         store.start()
         // Open desk window on first launch so both surfaces are exercised day one.
         showDeskWindow()
+        if ProcessInfo.processInfo.environment["WX_QA_POPOVER"] == "1" {
+            showPopoverQAWindow()
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -39,12 +43,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func showDeskWindow() {
         if let deskWindow {
             deskWindow.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+            NSApp.activate()
             return
         }
         let hosting = NSHostingController(rootView: DeskWindowView().environmentObject(store))
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 480, height: 640),
+            contentRect: NSRect(x: 0, y: 0, width: 420, height: 620),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
@@ -55,6 +59,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.isReleasedWhenClosed = false
         window.makeKeyAndOrderFront(nil)
         deskWindow = window
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
+    }
+
+    /// Env-gated (`WX_QA_POPOVER=1`) fixed 420×620 surface matching menu popover — for QA screenshots only.
+    func showPopoverQAWindow() {
+        if let popoverQAWindow {
+            popoverQAWindow.makeKeyAndOrderFront(nil)
+            return
+        }
+        let hosting = NSHostingController(rootView: PopoverView().environmentObject(store))
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 420, height: 620),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "wx Popover QA"
+        window.contentViewController = hosting
+        window.setContentSize(NSSize(width: 420, height: 620))
+        window.center()
+        window.isReleasedWhenClosed = false
+        window.makeKeyAndOrderFront(nil)
+        popoverQAWindow = window
     }
 }
+
