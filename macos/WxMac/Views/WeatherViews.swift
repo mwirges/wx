@@ -174,32 +174,23 @@ struct PeriodsListView: View {
 
 struct AlertsListView: View {
     @EnvironmentObject var store: WeatherStore
-    /// Popover: ≤2 collapsed rows; overflow → Open Desk.
+    /// Popover: Option A — one compact badge row + "+N more"; desk shows all with badges.
     var popoverMode: Bool = false
 
     var body: some View {
         let alerts = store.payload?.alerts ?? []
-        if alerts.isEmpty {
+        let withBand: [(Alert, ConditionBand)] = alerts.compactMap { a in
+            guard let b = ConditionBand.from(severity: a.severity) else { return nil }
+            return (a, b)
+        }
+        if withBand.isEmpty {
             EmptyView()
         } else if popoverMode {
-            let shown = Array(alerts.prefix(2))
-            let extra = alerts.count - shown.count
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Alerts").font(.headline).foregroundStyle(WxTheme.text)
-                ForEach(shown) { a in
-                    HStack(alignment: .top, spacing: 8) {
-                        AlertSeverityGlyph(severity: a.severity, size: 18)
-                            .padding(.top, 2)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(a.event)
-                                .font(.callout.weight(.semibold))
-                                .foregroundStyle(WxTheme.text)
-                                .lineLimit(1)
-                            if let h = a.headline {
-                                Text(h).font(.caption).foregroundStyle(WxTheme.textSecondary).lineLimit(1)
-                            }
-                        }
-                    }
+            let shown = Array(withBand.prefix(1))
+            let extra = withBand.count - shown.count
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(shown, id: \.0.id) { item in
+                    compactRow(alert: item.0, band: item.1, badgeSize: 88)
                 }
                 if extra > 0 {
                     Button {
@@ -213,34 +204,49 @@ struct AlertsListView: View {
                 }
             }
         } else {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 10) {
                 Text("Alerts").font(.headline).foregroundStyle(WxTheme.text)
-                ForEach(alerts) { a in
+                ForEach(withBand, id: \.0.id) { item in
                     DisclosureGroup {
                         VStack(alignment: .leading, spacing: 4) {
-                            if let d = a.description { Text(d).font(.caption).foregroundStyle(WxTheme.text) }
-                            if let i = a.instruction { Text(i).font(.caption).foregroundStyle(WxTheme.textSecondary) }
-                        }
-                    } label: {
-                        HStack(alignment: .top) {
-                            AlertSeverityGlyph(severity: a.severity, size: 20)
-                                .padding(.top, 1)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(a.event).font(.callout.weight(.semibold)).foregroundStyle(WxTheme.text)
-                                if let h = a.headline {
-                                    Text(h).font(.caption).foregroundStyle(WxTheme.textSecondary).lineLimit(2)
-                                }
-                                HStack {
-                                    if let exp = a.expires { Text("Expires \(exp)").font(.caption2) }
-                                    if let area = a.area { Text(area).font(.caption2).lineLimit(1) }
-                                }
-                                .foregroundStyle(WxTheme.textSecondary.opacity(0.8))
+                            if let d = item.0.description {
+                                Text(d).font(.caption).foregroundStyle(WxTheme.text)
+                            }
+                            if let i = item.0.instruction {
+                                Text(i).font(.caption).foregroundStyle(WxTheme.textSecondary)
                             }
                         }
+                    } label: {
+                        compactRow(alert: item.0, band: item.1, badgeSize: 100)
                     }
                     .tint(WxTheme.accentSecondary)
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func compactRow(alert: Alert, band: ConditionBand, badgeSize: CGFloat) -> some View {
+        HStack(alignment: .center, spacing: 10) {
+            ConditionPanel(band: band, size: badgeSize)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(alert.event)
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(WxTheme.text)
+                    .lineLimit(1)
+                if let h = alert.headline {
+                    Text(h)
+                        .font(.caption)
+                        .foregroundStyle(WxTheme.textSecondary)
+                        .lineLimit(popoverMode ? 1 : 2)
+                } else if let exp = alert.expires {
+                    Text("Expires \(exp)")
+                        .font(.caption2)
+                        .foregroundStyle(WxTheme.textSecondary.opacity(0.8))
+                        .lineLimit(1)
+                }
+            }
+            Spacer(minLength: 0)
         }
     }
 }
