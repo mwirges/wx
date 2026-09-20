@@ -9,6 +9,9 @@ enum WxTheme {
     static let textSecondary = Color(red: 0x9A / 255, green: 0xA8 / 255, blue: 0xC2 / 255)
     static let warn = Color(red: 0xE6 / 255, green: 0xC3 / 255, blue: 0x5C / 255)
     static let alert = Color(red: 0xFF / 255, green: 0x5C / 255, blue: 0x7A / 255)
+    /// Pure tactical red for ConditionPanel (ref-matched; distinct from rose alert chips).
+    static let conditionRed = Color(red: 0xD0 / 255, green: 0x00 / 255, blue: 0x00 / 255)
+    static let conditionYellow = Color(red: 0xE6 / 255, green: 0xB8 / 255, blue: 0x00 / 255)
     static let border = accent.opacity(0.30)
     static let corner: CGFloat = 12
     static let popoverSize = CGSize(width: 420, height: 620)

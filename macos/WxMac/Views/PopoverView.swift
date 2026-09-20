@@ -3,10 +3,12 @@ import SwiftUI
 struct PopoverView: View {
     @EnvironmentObject var store: WeatherStore
 
-    private var periodLimit: Int {
-        let alerts = store.payload?.alerts ?? []
-        return alerts.isEmpty ? 6 : 5
+    private var hasConditionAlerts: Bool {
+        (store.payload?.alerts ?? []).contains { ConditionBand.from(severity: $0.severity) != nil }
     }
+
+    /// Fit: badge (~88) steals period budget → 4 periods when alerts present; else 6.
+    private var periodLimit: Int { hasConditionAlerts ? 4 : 6 }
 
     private var updatedSubtitle: String? {
         store.lastRefreshed.map { $0.formatted(date: .omitted, time: .shortened) }
