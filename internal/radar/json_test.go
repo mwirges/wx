@@ -49,6 +49,17 @@ func TestRenderJSON(t *testing.T) {
 		ValidTime:    "2026-09-25T18:00:00Z",
 		ImageBase64:  "dGVzdA==",
 		RadiusKM:     200,
+		Raw:          true,
+		BBox: &JSONBBox{
+			MinLat: 39.0,
+			MinLon: -86.0,
+			MaxLat: 42.0,
+			MaxLon: -83.0,
+		},
+		Center: &JSONCenter{
+			Lat: 41.0,
+			Lon: -85.0,
+		},
 		Frames: []JSONFrame{
 			{ValidTime: "2026-09-25T18:00:00Z", ImageBase64: "dGVzdA=="},
 		},
@@ -62,6 +73,16 @@ func TestRenderJSON(t *testing.T) {
 	var decoded JSONRadarOutput
 	if err := json.Unmarshal(buf.Bytes(), &decoded); err != nil {
 		t.Fatalf("Unmarshal failed: %v", err)
+	}
+
+	if !decoded.Raw {
+		t.Error("expected raw to be true")
+	}
+	if decoded.BBox == nil || decoded.BBox.MinLat != 39.0 {
+		t.Errorf("bbox = %v, want minLat 39.0", decoded.BBox)
+	}
+	if decoded.Center == nil || decoded.Center.Lat != 41.0 {
+		t.Errorf("center = %v, want lat 41.0", decoded.Center)
 	}
 
 	if decoded.Product != out.Product {

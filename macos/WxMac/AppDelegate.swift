@@ -41,6 +41,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         store.start()
+        if ProcessInfo.processInfo.environment["WX_DESK_TAB"] == "radar" {
+            store.selectedDeskTab = .radar
+            Task { await store.refreshRadar() }
+        }
         // Open desk window on first launch so both surfaces are exercised day one.
         showDeskWindow()
         if ProcessInfo.processInfo.environment["WX_QA_POPOVER"] == "1" {
@@ -85,7 +89,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         let hosting = NSHostingController(rootView: DeskWindowView().environmentObject(store))
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 420, height: 620),
+            contentRect: NSRect(x: 0, y: 0, width: 440, height: 690),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false

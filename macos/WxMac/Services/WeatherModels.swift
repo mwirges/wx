@@ -140,6 +140,25 @@ struct RadarFrame: Decodable, Sendable {
     }
 }
 
+struct RadarBBox: Decodable, Sendable {
+    var minLat: Double
+    var minLon: Double
+    var maxLat: Double
+    var maxLon: Double
+
+    enum CodingKeys: String, CodingKey {
+        case minLat = "min_lat"
+        case minLon = "min_lon"
+        case maxLat = "max_lat"
+        case maxLon = "max_lon"
+    }
+}
+
+struct RadarCenter: Decodable, Sendable {
+    var lat: Double
+    var lon: Double
+}
+
 struct RadarPayload: Decodable, Sendable {
     var product: String
     var productLabel: String
@@ -148,6 +167,9 @@ struct RadarPayload: Decodable, Sendable {
     var validTime: String
     var imageBase64: String
     var radiusKm: Double?
+    var raw: Bool?
+    var bbox: RadarBBox?
+    var center: RadarCenter?
     var frames: [RadarFrame]
 
     enum CodingKeys: String, CodingKey {
@@ -158,6 +180,9 @@ struct RadarPayload: Decodable, Sendable {
         case validTime = "valid_time"
         case imageBase64 = "image_base64"
         case radiusKm = "radius_km"
+        case raw
+        case bbox
+        case center
         case frames
     }
 
@@ -170,6 +195,9 @@ struct RadarPayload: Decodable, Sendable {
         validTime = try c.decode(String.self, forKey: .validTime)
         imageBase64 = try c.decode(String.self, forKey: .imageBase64)
         radiusKm = try c.decodeIfPresent(Double.self, forKey: .radiusKm)
+        raw = try c.decodeIfPresent(Bool.self, forKey: .raw)
+        bbox = try c.decodeIfPresent(RadarBBox.self, forKey: .bbox)
+        center = try c.decodeIfPresent(RadarCenter.self, forKey: .center)
         frames = try c.decodeIfPresent([RadarFrame].self, forKey: .frames) ?? []
     }
 }

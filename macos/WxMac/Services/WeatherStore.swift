@@ -97,7 +97,8 @@ final class WeatherStore: ObservableObject {
             let res = try await backend.fetchRadar(
                 location: loc.isEmpty ? nil : loc,
                 product: selectedRadarProduct,
-                radiusKm: selectedRadarRadius
+                radiusKm: selectedRadarRadius,
+                raw: true
             )
             radarPayload = res
             if let data = Data(base64Encoded: res.imageBase64),

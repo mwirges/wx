@@ -188,11 +188,15 @@ enum WxCLI {
         location: String?,
         product: String? = nil,
         radiusKm: Double? = nil,
+        raw: Bool = true,
         timeoutSeconds: TimeInterval = 45
     ) throws -> RadarPayload {
         guard let binary = locateBinary() else { throw WxCLIError.binaryMissing }
 
         var args = ["radar", "--json"]
+        if raw {
+            args.append("--raw")
+        }
         if let location, !location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             args += ["--location", location.trimmingCharacters(in: .whitespacesAndNewlines)]
         }

@@ -82,14 +82,22 @@ func radarCommand() *cli.Command {
 				Name:  "no-labels",
 				Usage: "do not overlay city labels on radar image in JSON or inline modes",
 			},
+			&cli.BoolFlag{
+				Name:  "raw",
+				Usage: "fetch raw transparent radar imagery without background map or labels",
+			},
+			&cli.StringFlag{
+				Name:  "save",
+				Usage: "save radar image directly to a PNG file path",
+			},
 		},
 		Action: radarAction,
 	}
 }
 
 func radarAction(c *cli.Context) error {
-	if !term.IsTerminal(int(os.Stdout.Fd())) && !c.Bool("json") {
-		return fmt.Errorf("radar rendering requires a TTY (use --json for machine-readable output) — pipe output is not supported")
+	if !term.IsTerminal(int(os.Stdout.Fd())) && !c.Bool("json") && c.String("save") == "" {
+		return fmt.Errorf("radar rendering requires a TTY (use --json for machine-readable output or --save to write to file) — pipe output is not supported")
 	}
 
 	termW, termH := 120, 40
@@ -151,7 +159,29 @@ func radarAction(c *cli.Context) error {
 	opts := radar.Options{
 		Product:  radar.Product(c.String("product")),
 		RadiusKM: c.Float64("radius"),
+		Raw:      c.Bool("raw"),
 	}
+
+	if savePath := c.String("save"); savePath != "" {
+		frame, err := prov.CurrentFrame(ctx, loc, opts, ch)
+		if err != nil {
+			return fmt.Errorf("radar: %w", err)
+		}
+		img := frame.Img
+		if !opts.Raw && !c.Bool("no-labels") {
+			img = radar.DrawCityLabels(img, frame.BBox)
+		}
+		pngBytes, err := radar.EncodePNG(img)
+		if err != nil {
+			return fmt.Errorf("encode png: %w", err)
+		}
+		if err := os.WriteFile(savePath, pngBytes, 0644); err != nil {
+			return fmt.Errorf("save image: %w", err)
+		}
+		fmt.Fprintf(os.Stderr, "Saved radar image to %s\n", savePath)
+		return nil
+	}
+
 	mode := radar.DetectTerminal()
 	if c.Bool("no-inline") {
 		mode = radar.TermHalfBlock
@@ -258,6 +288,12 @@ func runRadarJSON(
 	nFrames int,
 	ch *cache.Cache,
 ) error {
+	var bbox *radar.JSONBBox
+	center := &radar.JSONCenter{
+		Lat: loc.Lat,
+		Lon: loc.Lon,
+	}
+
 	if loop {
 		frames, err := prov.RecentFrames(ctx, loc, opts, nFrames, ch)
 		if err != nil {
@@ -269,7 +305,7 @@ func runRadarJSON(
 		jsonFrames := make([]radar.JSONFrame, len(frames))
 		for i, f := range frames {
 			img := f.Img
-			if !noLabels {
+			if !opts.Raw && !noLabels {
 				img = radar.DrawCityLabels(img, f.BBox)
 			}
 			b64, err := radar.EncodeBase64PNG(img)
@@ -282,6 +318,14 @@ func runRadarJSON(
 			}
 		}
 		latest := frames[len(frames)-1]
+		if latest.BBox != nil {
+			bbox = &radar.JSONBBox{
+				MinLat: latest.BBox.MinLat,
+				MinLon: latest.BBox.MinLon,
+				MaxLat: latest.BBox.MaxLat,
+				MaxLon: latest.BBox.MaxLon,
+			}
+		}
 		latestB64 := jsonFrames[len(jsonFrames)-1].ImageBase64
 		out := radar.JSONRadarOutput{
 			Product:      string(opts.Product),
@@ -291,6 +335,9 @@ func runRadarJSON(
 			ValidTime:    latest.ValidTime.UTC().Format(time.RFC3339),
 			ImageBase64:  latestB64,
 			RadiusKM:     opts.RadiusKM,
+			Raw:          opts.Raw,
+			BBox:         bbox,
+			Center:       center,
 			Frames:       jsonFrames,
 		}
 		return radar.RenderJSON(os.Stdout, out)
@@ -301,12 +348,20 @@ func runRadarJSON(
 		return fmt.Errorf("radar: %w", err)
 	}
 	img := frame.Img
-	if !noLabels {
+	if !opts.Raw && !noLabels {
 		img = radar.DrawCityLabels(img, frame.BBox)
 	}
 	b64, err := radar.EncodeBase64PNG(img)
 	if err != nil {
 		return fmt.Errorf("encode frame: %w", err)
+	}
+	if frame.BBox != nil {
+		bbox = &radar.JSONBBox{
+			MinLat: frame.BBox.MinLat,
+			MinLon: frame.BBox.MinLon,
+			MaxLat: frame.BBox.MaxLat,
+			MaxLon: frame.BBox.MaxLon,
+		}
 	}
 	out := radar.JSONRadarOutput{
 		Product:      string(opts.Product),
@@ -316,6 +371,9 @@ func runRadarJSON(
 		ValidTime:    frame.ValidTime.UTC().Format(time.RFC3339),
 		ImageBase64:  b64,
 		RadiusKM:     opts.RadiusKM,
+		Raw:          opts.Raw,
+		BBox:         bbox,
+		Center:       center,
 		Frames: []radar.JSONFrame{
 			{
 				ValidTime:   frame.ValidTime.UTC().Format(time.RFC3339),

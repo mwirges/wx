@@ -54,6 +54,7 @@ func IsStationProduct(p Product) bool {
 type Options struct {
 	Product  Product
 	RadiusKM float64 // km radius around the location center; default 200
+	Raw      bool    // fetch raw transparent radar data without background map or labels
 }
 
 // DefaultOptions returns sensible defaults.
