@@ -10,7 +10,7 @@ enum WxCLIError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .binaryMissing:
-            return "wx binary not found on PATH. Install or build the Go CLI (`make build`) and ensure `wx` is on your PATH."
+            return "wx CLI binary not found. Build the project (`make build` or `make mac-build`) or ensure `wx` is installed on PATH."
         case .timeout:
             return "wx timed out after 35s."
         case .failed(let status, let stderr):
@@ -26,27 +26,64 @@ enum WxCLIError: LocalizedError {
 
 enum WxCLI {
     static func locateBinary() -> String? {
+        // 1. Explicit environment override
         if let path = ProcessInfo.processInfo.environment["WX_BINARY"], !path.isEmpty,
            FileManager.default.isExecutableFile(atPath: path) {
             return path
         }
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: "/usr/bin/which")
-        proc.arguments = ["wx"]
-        let out = Pipe()
-        proc.standardOutput = out
-        proc.standardError = Pipe()
-        do {
-            try proc.run()
-            proc.waitUntilExit()
-        } catch {
-            return nil
+
+        // 2. Embedded helper in the app bundle (Contents/MacOS/wx-cli)
+        if let bundled = Bundle.main.url(forAuxiliaryExecutable: "wx-cli")?.path,
+           FileManager.default.isExecutableFile(atPath: bundled) {
+            return bundled
         }
-        guard proc.terminationStatus == 0 else { return nil }
-        let path = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let path, !path.isEmpty, FileManager.default.isExecutableFile(atPath: path) else { return nil }
-        return path
+        if let bundledAux = Bundle.main.url(forAuxiliaryExecutable: "wx")?.path,
+           bundledAux != Bundle.main.executablePath,
+           FileManager.default.isExecutableFile(atPath: bundledAux) {
+            return bundledAux
+        }
+
+        // 3. Resources inside app bundle (Contents/Resources/wx-cli or wx)
+        if let resURL = Bundle.main.resourceURL {
+            let resCli = resURL.appendingPathComponent("wx-cli").path
+            if FileManager.default.isExecutableFile(atPath: resCli) { return resCli }
+            let resWx = resURL.appendingPathComponent("wx").path
+            if FileManager.default.isExecutableFile(atPath: resWx) { return resWx }
+        }
+
+        // 4. Sibling binary in build directory during local dev
+        let siblingBuild = Bundle.main.bundleURL.deletingLastPathComponent().appendingPathComponent("wx").path
+        if FileManager.default.isExecutableFile(atPath: siblingBuild) {
+            return siblingBuild
+        }
+
+        // 5. User PATH entries
+        if let pathVar = ProcessInfo.processInfo.environment["PATH"] {
+            for dir in pathVar.split(separator: ":") {
+                let candidate = URL(fileURLWithPath: String(dir)).appendingPathComponent("wx").path
+                if FileManager.default.isExecutableFile(atPath: candidate) {
+                    return candidate
+                }
+            }
+        }
+
+        // 6. Common macOS install locations (Homebrew, user ~/bin, Go bin, local bin)
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let commonLocations: [String] = [
+            home.appendingPathComponent("bin/wx").path,
+            home.appendingPathComponent("go/bin/wx").path,
+            home.appendingPathComponent(".local/bin/wx").path,
+            "/opt/homebrew/bin/wx",
+            "/usr/local/bin/wx",
+            "/usr/bin/wx",
+        ]
+        for candidate in commonLocations {
+            if FileManager.default.isExecutableFile(atPath: candidate) {
+                return candidate
+            }
+        }
+
+        return nil
     }
 
     static func fetch(location: String?, units: String?, timeoutSeconds: TimeInterval = 35) throws -> WxPayload {

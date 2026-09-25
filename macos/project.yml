@@ -36,5 +36,20 @@ targets:
         LD_RUNPATH_SEARCH_PATHS: "@executable_path/../Frameworks"
         ENABLE_HARDENED_RUNTIME: false
         COMBINE_HIDPI_IMAGES: true
+    postBuildScripts:
+      - name: Embed wx CLI
+        basedOnDependencyAnalysis: false
+        script: |
+          CLI_SRC="${PROJECT_DIR}/../build/wx"
+          if [ ! -f "${CLI_SRC}" ]; then
+            (cd "${PROJECT_DIR}/.." && make build)
+          fi
+          if [ -f "${CLI_SRC}" ]; then
+            DEST="${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Contents/MacOS/wx-cli"
+            mkdir -p "$(dirname "${DEST}")"
+            cp -f "${CLI_SRC}" "${DEST}"
+            chmod +x "${DEST}"
+            codesign --force --sign - --timestamp=none "${DEST}" 2>/dev/null || true
+          fi
     scheme:
       testTargets: []
