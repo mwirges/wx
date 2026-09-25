@@ -86,17 +86,18 @@ enum WxCLI {
         return nil
     }
 
-    static func fetch(location: String?, units: String?, timeoutSeconds: TimeInterval = 35) throws -> WxPayload {
-        guard let binary = locateBinary() else { throw WxCLIError.binaryMissing }
+    private struct ProcessResult {
+        let stdout: Data
+        let stderr: String
+        let exitCode: Int32
+        let timedOut: Bool
+    }
 
-        var args = ["--json", "--forecast", "--alerts"]
-        if let location, !location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            args += ["--location", location.trimmingCharacters(in: .whitespacesAndNewlines)]
-        }
-        if let units, !units.isEmpty {
-            args += ["--units", units]
-        }
-
+    private static func runProcess(
+        binary: String,
+        args: [String],
+        timeoutSeconds: TimeInterval
+    ) throws -> ProcessResult {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: binary)
         proc.arguments = args
@@ -105,8 +106,6 @@ enum WxCLI {
         proc.standardOutput = outPipe
         proc.standardError = errPipe
 
-        let group = DispatchGroup()
-        group.enter()
         var timedOut = false
         let timer = DispatchSource.makeTimerSource(queue: .global())
         timer.schedule(deadline: .now() + timeoutSeconds)
@@ -119,27 +118,62 @@ enum WxCLI {
         timer.resume()
 
         try proc.run()
+
+        var stdoutData = Data()
+        var stderrData = Data()
+        let readGroup = DispatchGroup()
+
+        readGroup.enter()
+        DispatchQueue.global().async {
+            stdoutData = outPipe.fileHandleForReading.readDataToEndOfFile()
+            readGroup.leave()
+        }
+
+        readGroup.enter()
+        DispatchQueue.global().async {
+            stderrData = errPipe.fileHandleForReading.readDataToEndOfFile()
+            readGroup.leave()
+        }
+
         proc.waitUntilExit()
+        readGroup.wait()
         timer.cancel()
-        group.leave()
 
-        let stdout = outPipe.fileHandleForReading.readDataToEndOfFile()
-        let stderr = String(data: errPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        let stderr = String(data: stderrData, encoding: .utf8) ?? ""
+        return ProcessResult(
+            stdout: stdoutData,
+            stderr: stderr,
+            exitCode: proc.terminationStatus,
+            timedOut: timedOut
+        )
+    }
 
-        if timedOut { throw WxCLIError.timeout }
+    static func fetch(location: String?, units: String?, timeoutSeconds: TimeInterval = 35) throws -> WxPayload {
+        guard let binary = locateBinary() else { throw WxCLIError.binaryMissing }
+
+        var args = ["--json", "--forecast", "--alerts"]
+        if let location, !location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            args += ["--location", location.trimmingCharacters(in: .whitespacesAndNewlines)]
+        }
+        if let units, !units.isEmpty {
+            args += ["--units", units]
+        }
+
+        let res = try runProcess(binary: binary, args: args, timeoutSeconds: timeoutSeconds)
+        if res.timedOut { throw WxCLIError.timeout }
 
         // Conditions hard-fail → non-zero. Forecast/alerts may still produce partial JSON with warnings on stderr.
-        if proc.terminationStatus != 0 && stdout.isEmpty {
-            throw WxCLIError.failed(status: proc.terminationStatus, stderr: stderr)
+        if res.exitCode != 0 && res.stdout.isEmpty {
+            throw WxCLIError.failed(status: res.exitCode, stderr: res.stderr)
         }
 
         do {
-            var payload = try JSONDecoder().decode(WxPayload.self, from: stdout)
-            if payload.conditions == nil && proc.terminationStatus != 0 {
-                throw WxCLIError.failed(status: proc.terminationStatus, stderr: stderr)
+            var payload = try JSONDecoder().decode(WxPayload.self, from: res.stdout)
+            if payload.conditions == nil && res.exitCode != 0 {
+                throw WxCLIError.failed(status: res.exitCode, stderr: res.stderr)
             }
             if payload.warning == nil {
-                let warn = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+                let warn = res.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !warn.isEmpty { payload.warning = warn }
             }
             return payload
@@ -169,43 +203,15 @@ enum WxCLI {
             args += ["--radius", String(format: "%.0f", radius)]
         }
 
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: binary)
-        proc.arguments = args
-        let outPipe = Pipe()
-        let errPipe = Pipe()
-        proc.standardOutput = outPipe
-        proc.standardError = errPipe
+        let res = try runProcess(binary: binary, args: args, timeoutSeconds: timeoutSeconds)
+        if res.timedOut { throw WxCLIError.timeout }
 
-        let group = DispatchGroup()
-        group.enter()
-        var timedOut = false
-        let timer = DispatchSource.makeTimerSource(queue: .global())
-        timer.schedule(deadline: .now() + timeoutSeconds)
-        timer.setEventHandler {
-            if proc.isRunning {
-                timedOut = true
-                proc.terminate()
-            }
-        }
-        timer.resume()
-
-        try proc.run()
-        proc.waitUntilExit()
-        timer.cancel()
-        group.leave()
-
-        let stdout = outPipe.fileHandleForReading.readDataToEndOfFile()
-        let stderr = String(data: errPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-
-        if timedOut { throw WxCLIError.timeout }
-
-        if proc.terminationStatus != 0 && stdout.isEmpty {
-            throw WxCLIError.failed(status: proc.terminationStatus, stderr: stderr)
+        if res.exitCode != 0 && res.stdout.isEmpty {
+            throw WxCLIError.failed(status: res.exitCode, stderr: res.stderr)
         }
 
         do {
-            return try JSONDecoder().decode(RadarPayload.self, from: stdout)
+            return try JSONDecoder().decode(RadarPayload.self, from: res.stdout)
         } catch let e as WxCLIError {
             throw e
         } catch {

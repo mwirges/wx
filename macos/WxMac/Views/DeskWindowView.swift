@@ -20,6 +20,11 @@ struct DeskWindowView: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
+                .onChange(of: store.selectedDeskTab) { _, newTab in
+                    if newTab == .radar && store.radarImage == nil && !store.isRadarLoading {
+                        Task { await store.refreshRadar() }
+                    }
+                }
 
                 Rectangle()
                     .fill(WxTheme.border)
