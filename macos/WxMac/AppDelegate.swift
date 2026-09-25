@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var deskWindow: NSWindow?
     private var popoverQAWindow: NSWindow?
     private var openObserver: NSObjectProtocol?
+    private var openRadarObserver: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -25,6 +26,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor in self?.showDeskWindow() }
         }
 
+        openRadarObserver = NotificationCenter.default.addObserver(
+            forName: .wxOpenDeskRadar,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.store.selectedDeskTab = .radar
+                self?.showDeskWindow()
+                if self?.store.radarImage == nil {
+                    await self?.store.refreshRadar()
+                }
+            }
+        }
+
         store.start()
         // Open desk window on first launch so both surfaces are exercised day one.
         showDeskWindow()
@@ -38,6 +53,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusController?.tearDown()
         if let openObserver {
             NotificationCenter.default.removeObserver(openObserver)
+        }
+        if let openRadarObserver {
+            NotificationCenter.default.removeObserver(openRadarObserver)
         }
     }
 

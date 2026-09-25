@@ -70,8 +70,17 @@ func radarCommand() *cli.Command {
 				Usage: "bypass the local cache",
 			},
 			&cli.BoolFlag{
-				Name:  "no-inline",
-				Usage: "force half-block rendering even when the terminal supports inline images",
+				Name:    "no-inline",
+				Usage:   "force half-block rendering even when the terminal supports inline images",
+			},
+			&cli.BoolFlag{
+				Name:    "json",
+				Aliases: []string{"j"},
+				Usage:   "output radar frame data as JSON (base64 PNG)",
+			},
+			&cli.BoolFlag{
+				Name:  "no-labels",
+				Usage: "do not overlay city labels on radar image in JSON or inline modes",
 			},
 		},
 		Action: radarAction,
@@ -79,13 +88,15 @@ func radarCommand() *cli.Command {
 }
 
 func radarAction(c *cli.Context) error {
-	if !term.IsTerminal(int(os.Stdout.Fd())) {
-		return fmt.Errorf("radar rendering requires a TTY — pipe output is not supported")
+	if !term.IsTerminal(int(os.Stdout.Fd())) && !c.Bool("json") {
+		return fmt.Errorf("radar rendering requires a TTY (use --json for machine-readable output) — pipe output is not supported")
 	}
 
-	termW, termH, err := term.GetSize(int(os.Stdout.Fd()))
-	if err != nil {
-		termW, termH = 120, 40
+	termW, termH := 120, 40
+	if term.IsTerminal(int(os.Stdout.Fd())) {
+		if w, h, err := term.GetSize(int(os.Stdout.Fd())); err == nil {
+			termW, termH = w, h
+		}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
@@ -93,7 +104,10 @@ func radarAction(c *cli.Context) error {
 
 	cfg, _ := config.Load()
 
-	var ch *cache.Cache
+	var (
+		ch  *cache.Cache
+		err error
+	)
 	if c.Bool("no-cache") {
 		ch = cache.NewNoOp()
 	} else {
@@ -141,6 +155,10 @@ func radarAction(c *cli.Context) error {
 	mode := radar.DetectTerminal()
 	if c.Bool("no-inline") {
 		mode = radar.TermHalfBlock
+	}
+
+	if c.Bool("json") {
+		return runRadarJSON(ctx, prov, loc, opts, c.String("station"), c.Bool("no-labels"), c.Bool("loop"), c.Int("frames"), ch)
 	}
 
 	// Interactive mode — full TUI with keyboard controls.
@@ -227,4 +245,83 @@ func runRadarLoop(
 		case <-ticker.C:
 		}
 	}
+}
+
+func runRadarJSON(
+	ctx context.Context,
+	prov radar.Provider,
+	loc location.Location,
+	opts radar.Options,
+	stationID string,
+	noLabels bool,
+	loop bool,
+	nFrames int,
+	ch *cache.Cache,
+) error {
+	if loop {
+		frames, err := prov.RecentFrames(ctx, loc, opts, nFrames, ch)
+		if err != nil {
+			return fmt.Errorf("radar loop: %w", err)
+		}
+		if len(frames) == 0 {
+			return fmt.Errorf("radar: no frames available")
+		}
+		jsonFrames := make([]radar.JSONFrame, len(frames))
+		for i, f := range frames {
+			img := f.Img
+			if !noLabels {
+				img = radar.DrawCityLabels(img, f.BBox)
+			}
+			b64, err := radar.EncodeBase64PNG(img)
+			if err != nil {
+				return fmt.Errorf("encode frame %d: %w", i, err)
+			}
+			jsonFrames[i] = radar.JSONFrame{
+				ValidTime:   f.ValidTime.UTC().Format(time.RFC3339),
+				ImageBase64: b64,
+			}
+		}
+		latest := frames[len(frames)-1]
+		latestB64 := jsonFrames[len(jsonFrames)-1].ImageBase64
+		out := radar.JSONRadarOutput{
+			Product:      string(opts.Product),
+			ProductLabel: radar.ProductLabel(opts.Product),
+			Location:     loc.DisplayName,
+			Station:      stationID,
+			ValidTime:    latest.ValidTime.UTC().Format(time.RFC3339),
+			ImageBase64:  latestB64,
+			RadiusKM:     opts.RadiusKM,
+			Frames:       jsonFrames,
+		}
+		return radar.RenderJSON(os.Stdout, out)
+	}
+
+	frame, err := prov.CurrentFrame(ctx, loc, opts, ch)
+	if err != nil {
+		return fmt.Errorf("radar: %w", err)
+	}
+	img := frame.Img
+	if !noLabels {
+		img = radar.DrawCityLabels(img, frame.BBox)
+	}
+	b64, err := radar.EncodeBase64PNG(img)
+	if err != nil {
+		return fmt.Errorf("encode frame: %w", err)
+	}
+	out := radar.JSONRadarOutput{
+		Product:      string(opts.Product),
+		ProductLabel: radar.ProductLabel(opts.Product),
+		Location:     loc.DisplayName,
+		Station:      stationID,
+		ValidTime:    frame.ValidTime.UTC().Format(time.RFC3339),
+		ImageBase64:  b64,
+		RadiusKM:     opts.RadiusKM,
+		Frames: []radar.JSONFrame{
+			{
+				ValidTime:   frame.ValidTime.UTC().Format(time.RFC3339),
+				ImageBase64: b64,
+			},
+		},
+	}
+	return radar.RenderJSON(os.Stdout, out)
 }

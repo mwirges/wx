@@ -129,3 +129,47 @@ struct Alert: Decodable, Identifiable, Sendable {
     var description: String?
     var instruction: String?
 }
+
+struct RadarFrame: Decodable, Sendable {
+    var validTime: String?
+    var imageBase64: String
+
+    enum CodingKeys: String, CodingKey {
+        case validTime = "valid_time"
+        case imageBase64 = "image_base64"
+    }
+}
+
+struct RadarPayload: Decodable, Sendable {
+    var product: String
+    var productLabel: String
+    var location: String
+    var station: String?
+    var validTime: String
+    var imageBase64: String
+    var radiusKm: Double?
+    var frames: [RadarFrame]
+
+    enum CodingKeys: String, CodingKey {
+        case product
+        case productLabel = "product_label"
+        case location
+        case station
+        case validTime = "valid_time"
+        case imageBase64 = "image_base64"
+        case radiusKm = "radius_km"
+        case frames
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        product = try c.decode(String.self, forKey: .product)
+        productLabel = try c.decode(String.self, forKey: .productLabel)
+        location = try c.decode(String.self, forKey: .location)
+        station = try c.decodeIfPresent(String.self, forKey: .station)
+        validTime = try c.decode(String.self, forKey: .validTime)
+        imageBase64 = try c.decode(String.self, forKey: .imageBase64)
+        radiusKm = try c.decodeIfPresent(Double.self, forKey: .radiusKm)
+        frames = try c.decodeIfPresent([RadarFrame].self, forKey: .frames) ?? []
+    }
+}

@@ -149,4 +149,67 @@ enum WxCLI {
             throw WxCLIError.decode(error.localizedDescription)
         }
     }
+
+    static func fetchRadar(
+        location: String?,
+        product: String? = nil,
+        radiusKm: Double? = nil,
+        timeoutSeconds: TimeInterval = 45
+    ) throws -> RadarPayload {
+        guard let binary = locateBinary() else { throw WxCLIError.binaryMissing }
+
+        var args = ["radar", "--json"]
+        if let location, !location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            args += ["--location", location.trimmingCharacters(in: .whitespacesAndNewlines)]
+        }
+        if let product, !product.isEmpty {
+            args += ["--product", product]
+        }
+        if let radius = radiusKm, radius > 0 {
+            args += ["--radius", String(format: "%.0f", radius)]
+        }
+
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: binary)
+        proc.arguments = args
+        let outPipe = Pipe()
+        let errPipe = Pipe()
+        proc.standardOutput = outPipe
+        proc.standardError = errPipe
+
+        let group = DispatchGroup()
+        group.enter()
+        var timedOut = false
+        let timer = DispatchSource.makeTimerSource(queue: .global())
+        timer.schedule(deadline: .now() + timeoutSeconds)
+        timer.setEventHandler {
+            if proc.isRunning {
+                timedOut = true
+                proc.terminate()
+            }
+        }
+        timer.resume()
+
+        try proc.run()
+        proc.waitUntilExit()
+        timer.cancel()
+        group.leave()
+
+        let stdout = outPipe.fileHandleForReading.readDataToEndOfFile()
+        let stderr = String(data: errPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+
+        if timedOut { throw WxCLIError.timeout }
+
+        if proc.terminationStatus != 0 && stdout.isEmpty {
+            throw WxCLIError.failed(status: proc.terminationStatus, stderr: stderr)
+        }
+
+        do {
+            return try JSONDecoder().decode(RadarPayload.self, from: stdout)
+        } catch let e as WxCLIError {
+            throw e
+        } catch {
+            throw WxCLIError.decode(error.localizedDescription)
+        }
+    }
 }
