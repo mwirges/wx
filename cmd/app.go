@@ -38,6 +38,11 @@ func NewApp() *cli.App {
 				Usage:   "show 7-day forecast",
 			},
 			&cli.BoolFlag{
+				Name:    "hourly",
+				Aliases: []string{"H"},
+				Usage:   "show hourly forecast (implies --forecast)",
+			},
+			&cli.BoolFlag{
 				Name:    "alerts",
 				Aliases: []string{"a"},
 				Usage:   "show active weather alerts",
@@ -59,7 +64,7 @@ func NewApp() *cli.App {
 			},
 		},
 		Action:   action,
-		Commands: []*cli.Command{configCommand(), radarCommand(), monitorCommand()},
+		Commands: []*cli.Command{configCommand(), radarCommand(), monitorCommand(), hourlyCommand()},
 		ExitErrHandler: func(c *cli.Context, err error) {
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -72,7 +77,25 @@ func NewApp() *cli.App {
 	return app
 }
 
+type weatherOpts struct {
+	showForecast bool
+	showHourly   bool
+	showAlerts   bool
+}
+
 func action(c *cli.Context) error {
+	showHourly := c.Bool("hourly")
+	showForecast := c.Bool("forecast") || showHourly
+	showAlerts := c.Bool("alerts")
+
+	return runWeather(c, weatherOpts{
+		showForecast: showForecast,
+		showHourly:   showHourly,
+		showAlerts:   showAlerts,
+	})
+}
+
+func runWeather(c *cli.Context, opts weatherOpts) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -112,9 +135,6 @@ func action(c *cli.Context) error {
 		return err
 	}
 
-	showForecast := c.Bool("forecast")
-	showAlerts := c.Bool("alerts")
-
 	// Units precedence: --units flag > config units > "imperial"
 	units := "imperial"
 	if cfg.Units != "" {
@@ -141,15 +161,15 @@ func action(c *cli.Context) error {
 		cond, condErr = prov.CurrentConditions(ctx, loc, ch)
 	}()
 
-	if showForecast {
+	if opts.showForecast {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			fc, fcErr = prov.Forecast(ctx, loc, false, ch)
+			fc, fcErr = prov.Forecast(ctx, loc, opts.showHourly, ch)
 		}()
 	}
 
-	if showAlerts {
+	if opts.showAlerts {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -176,7 +196,8 @@ func action(c *cli.Context) error {
 	}, output.RenderOptions{
 		ForceJSON:    c.Bool("json"),
 		Units:        units,
-		ShowForecast: showForecast,
-		ShowAlerts:   showAlerts,
+		ShowForecast: opts.showForecast,
+		ShowAlerts:   opts.showAlerts,
+		ShowHourly:   opts.showHourly,
 	})
 }

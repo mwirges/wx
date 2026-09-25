@@ -131,21 +131,52 @@ func renderPretty(data RenderData, opts RenderOptions) error {
 
 	// ── Forecast ───────────────────────────────────────────────────
 	if data.Forecast != nil && len(data.Forecast.Periods) > 0 {
-		fmt.Println(styleForecastHeader.Render("Forecast"))
-		fmt.Println(styleLabel.Render(strings.Repeat("─", 60)))
+		if opts.ShowHourly {
+			fmt.Println(styleForecastHeader.Render("Hourly Forecast (Next 24 Hours)"))
+			fmt.Println(styleLabel.Render(strings.Repeat("─", 65)))
 
-		for _, p := range data.Forecast.Periods {
-			tempStr := FormatTemp(p.TempC, imperial)
-			var tempStyled string
-			if p.IsDaytime {
-				tempStyled = styleForecastHigh.Render("High " + tempStr)
-			} else {
-				tempStyled = styleForecastLow.Render("Low  " + tempStr)
+			limit := 24
+			if len(data.Forecast.Periods) < limit {
+				limit = len(data.Forecast.Periods)
 			}
-			desc := styleForecastDesc.Render(p.ShortDesc)
-			fmt.Printf("  %s %s   %s\n", styleForecastName.Render(p.Name), tempStyled, desc)
+			for _, p := range data.Forecast.Periods[:limit] {
+				tempStr := FormatTemp(p.TempC, imperial)
+				tempStyled := TempStyle(p.TempC, imperial).Width(7).Render(tempStr)
+
+				precipStr := "  — "
+				if p.ProbabilityOfPrecipitation != nil && *p.ProbabilityOfPrecipitation > 0 {
+					precipStr = fmt.Sprintf("%2.0f%%", *p.ProbabilityOfPrecipitation)
+				}
+				precipStyled := styleForecastLow.Width(6).Render(precipStr)
+
+				windStr := FormatWind(p.WindKPH, nil, imperial)
+				if p.WindDir != "" {
+					windStr = p.WindDir + " " + windStr
+				}
+				windStyled := styleLabel.Width(14).Render(windStr)
+
+				desc := styleForecastDesc.Render(p.ShortDesc)
+				timeStyled := styleForecastName.Width(12).Render(p.Name)
+				fmt.Printf("  %s %s  %s  %s  %s\n", timeStyled, tempStyled, precipStyled, windStyled, desc)
+			}
+			fmt.Println()
+		} else {
+			fmt.Println(styleForecastHeader.Render("Forecast"))
+			fmt.Println(styleLabel.Render(strings.Repeat("─", 60)))
+
+			for _, p := range data.Forecast.Periods {
+				tempStr := FormatTemp(p.TempC, imperial)
+				var tempStyled string
+				if p.IsDaytime {
+					tempStyled = styleForecastHigh.Render("High " + tempStr)
+				} else {
+					tempStyled = styleForecastLow.Render("Low  " + tempStr)
+				}
+				desc := styleForecastDesc.Render(p.ShortDesc)
+				fmt.Printf("  %s %s   %s\n", styleForecastName.Render(p.Name), tempStyled, desc)
+			}
+			fmt.Println()
 		}
-		fmt.Println()
 	}
 
 	return nil

@@ -219,3 +219,56 @@ func TestRenderJSON_Alerts(t *testing.T) {
 		t.Errorf("event = %q, want %q", result.Alerts[0].Event, "Wind Advisory")
 	}
 }
+
+func TestRenderJSON_ForecastWithQuantitative(t *testing.T) {
+	pop := 40.0
+	dewC := 10.0
+	hum := 75.0
+	data := RenderData{
+		Forecast: &models.Forecast{
+			GeneratedAt: time.Date(2026, 3, 22, 18, 0, 0, 0, time.UTC),
+			Periods: []models.Period{
+				{
+					Name:                       "Tonight",
+					StartTime:                  time.Date(2026, 3, 22, 18, 0, 0, 0, time.UTC),
+					TempC:                      15.0,
+					WindKPH:                    16.0,
+					ProbabilityOfPrecipitation: &pop,
+					DewPointC:                  &dewC,
+					HumidityPct:                &hum,
+				},
+			},
+		},
+	}
+
+	out := captureStdout(t, func() {
+		renderJSON(data, RenderOptions{Units: "imperial"})
+	})
+
+	var result struct {
+		Forecast struct {
+			Periods []struct {
+				PoP       *float64 `json:"probability_of_precipitation"`
+				DewPointC *float64 `json:"dew_point_c"`
+				DewPointF *float64 `json:"dew_point_f"`
+				Humidity  *float64 `json:"humidity_pct"`
+			} `json:"periods"`
+		} `json:"forecast"`
+	}
+	if err := json.Unmarshal(out, &result); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(result.Forecast.Periods) != 1 {
+		t.Fatalf("periods = %d, want 1", len(result.Forecast.Periods))
+	}
+	p := result.Forecast.Periods[0]
+	if p.PoP == nil || *p.PoP != 40.0 {
+		t.Errorf("PoP = %v, want 40.0", p.PoP)
+	}
+	if p.DewPointF == nil || *p.DewPointF != 50.0 {
+		t.Errorf("DewPointF = %v, want 50.0", p.DewPointF)
+	}
+	if p.Humidity == nil || *p.Humidity != 75.0 {
+		t.Errorf("Humidity = %v, want 75.0", p.Humidity)
+	}
+}

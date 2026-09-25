@@ -94,6 +94,10 @@ struct Period: Decodable, Identifiable, Sendable {
     var windDirection: String?
     var shortDescription: String?
     var detailedDescription: String?
+    var probabilityOfPrecipitation: Double?
+    var dewPointC: Double?
+    var dewPointF: Double?
+    var humidityPct: Double?
 
     enum CodingKeys: String, CodingKey {
         case name
@@ -106,6 +110,10 @@ struct Period: Decodable, Identifiable, Sendable {
         case windDirection = "wind_direction"
         case shortDescription = "short_description"
         case detailedDescription = "detailed_description"
+        case probabilityOfPrecipitation = "probability_of_precipitation"
+        case dewPointC = "dew_point_c"
+        case dewPointF = "dew_point_f"
+        case humidityPct = "humidity_pct"
     }
 }
 
