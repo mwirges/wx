@@ -117,6 +117,40 @@ func mockNWSServer(t *testing.T) *httptest.Server {
 		})
 	})
 
+	// forecast hourly
+	mux.HandleFunc("/gridpoints/EAX/32,50/forecast/hourly", func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{
+			"properties": map[string]any{
+				"generatedAt": "2026-03-22T18:00:00Z",
+				"periods": []map[string]any{
+					{
+						"name":            "",
+						"startTime":       "2026-03-22T18:00:00-05:00",
+						"endTime":         "2026-03-22T19:00:00-05:00",
+						"isDaytime":       false,
+						"temperature":     42,
+						"temperatureUnit": "F",
+						"windSpeed":       "8 mph",
+						"windDirection":   "NE",
+						"shortForecast":   "Partly Cloudy",
+						"probabilityOfPrecipitation": map[string]any{
+							"unitCode": "wmoUnit:percent",
+							"value":    20.0,
+						},
+						"dewpoint": map[string]any{
+							"unitCode": "wmoUnit:degC",
+							"value":    5.5,
+						},
+						"relativeHumidity": map[string]any{
+							"unitCode": "wmoUnit:percent",
+							"value":    68.0,
+						},
+					},
+				},
+			},
+		})
+	})
+
 	// alerts
 	mux.HandleFunc("/alerts/active", func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]any{
@@ -240,6 +274,37 @@ func TestForecast(t *testing.T) {
 	wantKPH := mphToKPH(15)
 	if p0.WindKPH != wantKPH {
 		t.Errorf("WindKPH = %.4f, want %.4f", p0.WindKPH, wantKPH)
+	}
+}
+
+func TestForecast_Hourly(t *testing.T) {
+	srv := mockNWSServer(t)
+	defer srv.Close()
+
+	p := newTestProvider(srv.URL)
+	c := cache.NewNoOp()
+	loc := location.Location{Lat: 39.1004, Lon: -94.5785, CountryCode: "US"}
+
+	fc, err := p.Forecast(context.Background(), loc, true, c)
+	if err != nil {
+		t.Fatalf("Forecast: %v", err)
+	}
+
+	if len(fc.Periods) != 1 {
+		t.Fatalf("len(Periods) = %d, want 1", len(fc.Periods))
+	}
+	p0 := fc.Periods[0]
+	if p0.Name == "" {
+		t.Error("Period name should not be empty for hourly period")
+	}
+	if p0.ProbabilityOfPrecipitation == nil || *p0.ProbabilityOfPrecipitation != 20.0 {
+		t.Errorf("PoP = %v, want 20.0", p0.ProbabilityOfPrecipitation)
+	}
+	if p0.DewPointC == nil || *p0.DewPointC != 5.5 {
+		t.Errorf("DewPointC = %v, want 5.5", p0.DewPointC)
+	}
+	if p0.HumidityPct == nil || *p0.HumidityPct != 68.0 {
+		t.Errorf("HumidityPct = %v, want 68.0", p0.HumidityPct)
 	}
 }
 

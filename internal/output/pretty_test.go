@@ -1,9 +1,13 @@
 package output
 
 import (
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/mwirges/wx/internal/models"
 )
 
 func TestFormatTemp_Imperial(t *testing.T) {
@@ -229,5 +233,47 @@ func TestFormatWind(t *testing.T) {
 		if got != tc.want {
 			t.Errorf("FormatWind(%.4f, ..., %v) = %q, want %q", tc.kph, tc.imperial, got, tc.want)
 		}
+	}
+}
+
+func TestRenderPretty_Hourly(t *testing.T) {
+	pop := 30.0
+	data := RenderData{
+		Forecast: &models.Forecast{
+			GeneratedAt: time.Date(2026, 3, 22, 18, 0, 0, 0, time.UTC),
+			Periods: []models.Period{
+				{
+					Name:                       "Mon 3 PM",
+					StartTime:                  time.Date(2026, 3, 22, 18, 0, 0, 0, time.UTC),
+					TempC:                      18.0,
+					WindKPH:                    16.0,
+					WindDir:                    "NW",
+					ShortDesc:                  "Partly Cloudy",
+					ProbabilityOfPrecipitation: &pop,
+				},
+			},
+		},
+	}
+	opts := RenderOptions{
+		ShowForecast: true,
+		ShowHourly:   true,
+		Units:        "imperial",
+	}
+
+	out := captureStdout(t, func() {
+		if err := renderPretty(data, opts); err != nil {
+			t.Errorf("renderPretty: %v", err)
+		}
+	})
+
+	outStr := string(out)
+	if !strings.Contains(outStr, "Hourly Forecast") {
+		t.Errorf("output does not contain 'Hourly Forecast': %s", outStr)
+	}
+	if !strings.Contains(outStr, "Mon 3 PM") {
+		t.Errorf("output does not contain 'Mon 3 PM': %s", outStr)
+	}
+	if !strings.Contains(outStr, "30%") {
+		t.Errorf("output does not contain '30%%': %s", outStr)
 	}
 }

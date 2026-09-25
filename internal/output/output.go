@@ -14,6 +14,7 @@ type RenderOptions struct {
 	Units        string // "imperial" or "metric"
 	ShowForecast bool
 	ShowAlerts   bool
+	ShowHourly   bool
 }
 
 // RenderData holds all data to be rendered.

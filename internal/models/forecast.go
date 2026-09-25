@@ -20,4 +20,9 @@ type Period struct {
 	WindDir      string  // compass direction, e.g. "NW"
 	ShortDesc    string
 	DetailedDesc string
+
+	// Quantitative fields (Phase 1)
+	ProbabilityOfPrecipitation *float64 // 0-100, nil if not reported
+	DewPointC                  *float64 // °C, nil if not reported
+	HumidityPct                *float64 // 0-100, nil if not reported
 }

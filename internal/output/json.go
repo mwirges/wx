@@ -43,8 +43,12 @@ type jsonPeriod struct {
 	WindMPH      float64 `json:"wind_mph,omitempty"`
 	WindKPH      float64 `json:"wind_kph,omitempty"`
 	WindDir      string  `json:"wind_direction,omitempty"`
-	ShortDesc    string  `json:"short_description,omitempty"`
-	DetailedDesc string  `json:"detailed_description,omitempty"`
+	ShortDesc                  string   `json:"short_description,omitempty"`
+	DetailedDesc               string   `json:"detailed_description,omitempty"`
+	ProbabilityOfPrecipitation *float64 `json:"probability_of_precipitation,omitempty"`
+	DewPointC                  *float64 `json:"dew_point_c,omitempty"`
+	DewPointF                  *float64 `json:"dew_point_f,omitempty"`
+	HumidityPct                *float64 `json:"humidity_pct,omitempty"`
 }
 
 type jsonForecast struct {
@@ -164,14 +168,24 @@ func renderJSON(data RenderData, opts RenderOptions) error {
 		periods := make([]jsonPeriod, 0, len(data.Forecast.Periods))
 		for _, p := range data.Forecast.Periods {
 			jp := jsonPeriod{
-				Name:         p.Name,
-				StartTime:    p.StartTime.Format(time.RFC3339),
-				IsDaytime:    p.IsDaytime,
-				TempC:        p.TempC,
-				WindKPH:      p.WindKPH,
-				WindDir:      p.WindDir,
-				ShortDesc:    p.ShortDesc,
-				DetailedDesc: p.DetailedDesc,
+				Name:                       p.Name,
+				StartTime:                  p.StartTime.Format(time.RFC3339),
+				IsDaytime:                  p.IsDaytime,
+				TempC:                      p.TempC,
+				WindKPH:                    p.WindKPH,
+				WindDir:                    p.WindDir,
+				ShortDesc:                  p.ShortDesc,
+				DetailedDesc:               p.DetailedDesc,
+				ProbabilityOfPrecipitation: p.ProbabilityOfPrecipitation,
+				HumidityPct:                p.HumidityPct,
+			}
+			if p.DewPointC != nil {
+				dpC := *p.DewPointC
+				jp.DewPointC = &dpC
+				if imperial {
+					dpF := CelsiusToFahrenheit(dpC)
+					jp.DewPointF = &dpF
+				}
 			}
 			if imperial {
 				jp.TempF = CelsiusToFahrenheit(p.TempC)

@@ -19,21 +19,29 @@ type forecastResponse struct {
 	} `json:"properties"`
 }
 
+type quantitativeValue struct {
+	UnitCode string   `json:"unitCode"`
+	Value    *float64 `json:"value"`
+}
+
 type forecastPeriod struct {
-	Name             string `json:"name"`
-	StartTime        string `json:"startTime"`
-	EndTime          string `json:"endTime"`
-	IsDaytime        bool   `json:"isDaytime"`
-	Temperature      int    `json:"temperature"`
-	TemperatureUnit  string `json:"temperatureUnit"` // "F" or "C"
-	WindSpeed        string `json:"windSpeed"`       // "10 mph", "5 to 15 mph"
-	WindDirection    string `json:"windDirection"`   // "NW"
-	ShortForecast    string `json:"shortForecast"`
-	DetailedForecast string `json:"detailedForecast"`
+	Name                       string             `json:"name"`
+	StartTime                  string             `json:"startTime"`
+	EndTime                    string             `json:"endTime"`
+	IsDaytime                  bool               `json:"isDaytime"`
+	Temperature                int                `json:"temperature"`
+	TemperatureUnit            string             `json:"temperatureUnit"` // "F" or "C"
+	WindSpeed                  string             `json:"windSpeed"`       // "10 mph", "5 to 15 mph"
+	WindDirection              string             `json:"windDirection"`   // "NW"
+	ShortForecast              string             `json:"shortForecast"`
+	DetailedForecast           string             `json:"detailedForecast"`
+	ProbabilityOfPrecipitation *quantitativeValue `json:"probabilityOfPrecipitation"`
+	Dewpoint                   *quantitativeValue `json:"dewpoint"`
+	RelativeHumidity           *quantitativeValue `json:"relativeHumidity"`
 }
 
 // Forecast fetches the 7-day or hourly forecast.
-// Cached for 1 hour.
+// Cached for 1 hour (7-day) or 30 minutes (hourly).
 func (p *Provider) Forecast(ctx context.Context, loc location.Location, hourly bool, c *cache.Cache) (*models.Forecast, error) {
 	cacheKeySuffix := "forecast"
 	if hourly {
@@ -73,16 +81,45 @@ func (p *Provider) Forecast(ctx context.Context, loc location.Location, hourly b
 			tempC = fahrenheitToCelsius(tempC)
 		}
 
+		name := fp.Name
+		if name == "" && !start.IsZero() {
+			name = start.Local().Format("Mon 3 PM")
+		}
+
+		var pop *float64
+		if fp.ProbabilityOfPrecipitation != nil && fp.ProbabilityOfPrecipitation.Value != nil {
+			v := *fp.ProbabilityOfPrecipitation.Value
+			pop = &v
+		}
+
+		var dewPointC *float64
+		if fp.Dewpoint != nil && fp.Dewpoint.Value != nil {
+			v := *fp.Dewpoint.Value
+			if strings.HasSuffix(fp.Dewpoint.UnitCode, "degF") {
+				v = fahrenheitToCelsius(v)
+			}
+			dewPointC = &v
+		}
+
+		var humidity *float64
+		if fp.RelativeHumidity != nil && fp.RelativeHumidity.Value != nil {
+			v := *fp.RelativeHumidity.Value
+			humidity = &v
+		}
+
 		periods = append(periods, models.Period{
-			Name:         fp.Name,
-			StartTime:    start,
-			EndTime:      end,
-			IsDaytime:    fp.IsDaytime,
-			TempC:        tempC,
-			WindKPH:      parseWindKPH(fp.WindSpeed),
-			WindDir:      fp.WindDirection,
-			ShortDesc:    fp.ShortForecast,
-			DetailedDesc: fp.DetailedForecast,
+			Name:                       name,
+			StartTime:                  start,
+			EndTime:                    end,
+			IsDaytime:                  fp.IsDaytime,
+			TempC:                      tempC,
+			WindKPH:                    parseWindKPH(fp.WindSpeed),
+			WindDir:                    fp.WindDirection,
+			ShortDesc:                  fp.ShortForecast,
+			DetailedDesc:               fp.DetailedForecast,
+			ProbabilityOfPrecipitation: pop,
+			DewPointC:                  dewPointC,
+			HumidityPct:                humidity,
 		})
 	}
 
@@ -91,7 +128,11 @@ func (p *Provider) Forecast(ctx context.Context, loc location.Location, hourly b
 		Periods:     periods,
 	}
 
-	_ = c.Set(cacheKey, fc, 1*time.Hour)
+	cacheTTL := 1 * time.Hour
+	if hourly {
+		cacheTTL = 30 * time.Minute
+	}
+	_ = c.Set(cacheKey, fc, cacheTTL)
 	return &fc, nil
 }
 
