@@ -5,8 +5,15 @@ import Foundation
 /// Later: c-shared / GTK host must expose the same JSON contract — not a second NWS client.
 protocol WeatherBackend: Sendable {
     func fetch(location: String?, units: String?) async throws -> WxPayload
+    func fetchRadar(location: String?, product: String?, radiusKm: Double?, raw: Bool) async throws -> RadarPayload
     func persistConfig(location: String?, units: String?) async throws
     var isAvailable: Bool { get }
+}
+
+extension WeatherBackend {
+    func fetchRadar(location: String?, product: String?, radiusKm: Double?, raw: Bool = true) async throws -> RadarPayload {
+        try await fetchRadar(location: location, product: product, radiusKm: radiusKm, raw: raw)
+    }
 }
 
 /// PATH-based Go CLI adapter (data path A).
@@ -16,6 +23,12 @@ struct WxCLIBackend: WeatherBackend {
     func fetch(location: String?, units: String?) async throws -> WxPayload {
         try await Task.detached(priority: .userInitiated) {
             try WxCLI.fetch(location: location, units: units)
+        }.value
+    }
+
+    func fetchRadar(location: String?, product: String?, radiusKm: Double?, raw: Bool = true) async throws -> RadarPayload {
+        try await Task.detached(priority: .userInitiated) {
+            try WxCLI.fetchRadar(location: location, product: product, radiusKm: radiusKm, raw: raw)
         }.value
     }
 

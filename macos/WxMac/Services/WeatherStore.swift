@@ -2,6 +2,13 @@ import Foundation
 import Combine
 import AppKit
 
+enum DeskTab: String, CaseIterable, Identifiable {
+    case weather = "Weather"
+    case radar = "Radar"
+
+    var id: String { rawValue }
+}
+
 /// Presentation store. Fetches only through `WeatherBackend` (default: WxCLI).
 /// Views stay dumb — no provider/cache/NWS policy here.
 @MainActor
@@ -13,6 +20,14 @@ final class WeatherStore: ObservableObject {
     @Published var units: String = "imperial"
     @Published var lastRefreshed: Date?
     @Published var deskWindowOpen = false
+    @Published var selectedDeskTab: DeskTab = .weather
+
+    @Published var radarPayload: RadarPayload?
+    @Published var radarImage: NSImage?
+    @Published var isRadarLoading = false
+    @Published var radarErrorMessage: String?
+    @Published var selectedRadarProduct: String = "composite-reflectivity"
+    @Published var selectedRadarRadius: Double = 200
 
     private let backend: WeatherBackend
     private var refreshTask: Task<Void, Never>?
@@ -62,6 +77,40 @@ final class WeatherStore: ObservableObject {
             errorMessage = error.localizedDescription
         }
         await refresh()
+        if radarPayload != nil || selectedDeskTab == .radar {
+            await refreshRadar()
+        }
+    }
+
+    func refreshRadar() async {
+        isRadarLoading = true
+        radarErrorMessage = nil
+        defer { isRadarLoading = false }
+
+        guard backend.isAvailable else {
+            radarErrorMessage = WxCLIError.binaryMissing.errorDescription
+            return
+        }
+
+        let loc = locationInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        do {
+            let res = try await backend.fetchRadar(
+                location: loc.isEmpty ? nil : loc,
+                product: selectedRadarProduct,
+                radiusKm: selectedRadarRadius,
+                raw: true
+            )
+            radarPayload = res
+            if let data = Data(base64Encoded: res.imageBase64),
+               let img = NSImage(data: data) {
+                radarImage = img
+            } else {
+                radarImage = nil
+                radarErrorMessage = "Failed to decode radar image"
+            }
+        } catch {
+            radarErrorMessage = error.localizedDescription
+        }
     }
 
     func refresh() async {
@@ -112,4 +161,5 @@ final class WeatherStore: ObservableObject {
 extension Notification.Name {
     static let wxWeatherDidUpdate = Notification.Name("wxWeatherDidUpdate")
     static let wxOpenDeskWindow = Notification.Name("wxOpenDeskWindow")
+    static let wxOpenDeskRadar = Notification.Name("wxOpenDeskRadar")
 }

@@ -9,14 +9,31 @@ import (
 	"io"
 )
 
+// EncodePNG returns the PNG-encoded bytes of img.
+func EncodePNG(img image.Image) ([]byte, error) {
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		return nil, fmt.Errorf("encode png: %w", err)
+	}
+	return buf.Bytes(), nil
+}
+
+// EncodeBase64PNG returns the PNG-encoded image as a base64 string.
+func EncodeBase64PNG(img image.Image) (string, error) {
+	b, err := EncodePNG(img)
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(b), nil
+}
+
 // renderInlineImage sends img to the terminal using the appropriate inline
 // image protocol. cols and rows specify the display area in character cells.
 func renderInlineImage(w io.Writer, img image.Image, cols, rows int, mode TermCapability) error {
-	var buf bytes.Buffer
-	if err := png.Encode(&buf, img); err != nil {
+	b64, err := EncodeBase64PNG(img)
+	if err != nil {
 		return fmt.Errorf("encode inline image: %w", err)
 	}
-	b64 := base64.StdEncoding.EncodeToString(buf.Bytes())
 
 	switch mode {
 	case TermITerm2:

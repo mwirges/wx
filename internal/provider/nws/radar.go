@@ -230,6 +230,35 @@ func (p *RadarProvider) CurrentFrame(ctx context.Context, loc location.Location,
 	}
 
 	bb := boundingBox(loc.Lat, loc.Lon, opts.RadiusKM)
+
+	if opts.Raw {
+		layer, ok := nwsWMSLayers[opts.Product]
+		if !ok {
+			return nil, fmt.Errorf("nws radar: product %q does not support raw mode (use composite-reflectivity, base-reflectivity, or echo-tops)", opts.Product)
+		}
+		rawKey := fmt.Sprintf("nws:radar:raw:v2:%s:%.4f,%.4f:%.0f", opts.Product, loc.Lat, loc.Lon, opts.RadiusKM)
+		if f := p.imgGet(rawKey); f != nil {
+			return f, nil
+		}
+		if f, ok := p.diskGet(c, rawKey); ok {
+			p.imgSet(rawKey, f, currentFrameTTL)
+			return f, nil
+		}
+		img, validTime, err := p.fetchWMSFrame(ctx, layer, bb, "")
+		if err != nil {
+			return nil, fmt.Errorf("nws radar raw WMS: %w", err)
+		}
+		f := &radar.Frame{
+			Img:       img,
+			ValidTime: validTime,
+			Product:   opts.Product,
+			BBox:      &radar.BBox{MinLat: bb.MinLat, MinLon: bb.MinLon, MaxLat: bb.MaxLat, MaxLon: bb.MaxLon},
+		}
+		p.diskSet(c, rawKey, f, currentFrameTTL)
+		p.imgSet(rawKey, f, currentFrameTTL)
+		return f, nil
+	}
+
 	key := fmt.Sprintf("nws:radar:cur:v3:%s:%.4f,%.4f:%.0f", opts.Product, loc.Lat, loc.Lon, opts.RadiusKM)
 
 	// L1: in-process (avoids re-decoding PNG within the same invocation)
@@ -310,6 +339,71 @@ func (p *RadarProvider) addRadarLayers(params url.Values, loc location.Location,
 func (p *RadarProvider) RecentFrames(ctx context.Context, loc location.Location, opts radar.Options, n int, c *cache.Cache) ([]*radar.Frame, error) {
 	if _, ok := iemProducts[opts.Product]; !ok {
 		return nil, fmt.Errorf("nws radar: unsupported product %q for loop", opts.Product)
+	}
+
+	if opts.Raw {
+		layer, ok := nwsWMSLayers[opts.Product]
+		if !ok {
+			return nil, fmt.Errorf("nws radar: product %q does not support raw mode for loop", opts.Product)
+		}
+		bb := boundingBox(loc.Lat, loc.Lon, opts.RadiusKM)
+		now := time.Now().UTC().Truncate(radarFrameInterval)
+
+		type result struct {
+			frame *radar.Frame
+			err   error
+		}
+		results := make([]result, n)
+		var wg sync.WaitGroup
+		sem := make(chan struct{}, 3)
+		for i := 0; i < n; i++ {
+			ts := now.Add(-time.Duration(n-1-i) * radarFrameInterval)
+			wg.Add(1)
+			go func(idx int, ts time.Time) {
+				defer wg.Done()
+				sem <- struct{}{}
+				defer func() { <-sem }()
+				timeStr := ts.Format(time.RFC3339)
+				key := fmt.Sprintf("nws:radar:raw:wms:v1:%s:%.4f,%.4f:%.0f:%s",
+					opts.Product, (bb.MinLat+bb.MaxLat)/2, (bb.MinLon+bb.MaxLon)/2,
+					opts.RadiusKM, timeStr)
+				if f := p.imgGet(key); f != nil {
+					results[idx] = result{f, nil}
+					return
+				}
+				if f, ok := p.diskGet(c, key); ok {
+					p.imgSet(key, f, historicalFrameTTL)
+					results[idx] = result{f, nil}
+					return
+				}
+				img, validTime, err := p.fetchWMSFrame(ctx, layer, bb, timeStr)
+				if err != nil {
+					results[idx] = result{nil, err}
+					return
+				}
+				f := &radar.Frame{
+					Img:       img,
+					ValidTime: validTime,
+					Product:   opts.Product,
+					BBox:      &radar.BBox{MinLat: bb.MinLat, MinLon: bb.MinLon, MaxLat: bb.MaxLat, MaxLon: bb.MaxLon},
+				}
+				p.diskSet(c, key, f, historicalFrameTTL)
+				p.imgSet(key, f, historicalFrameTTL)
+				results[idx] = result{f, nil}
+			}(i, ts)
+		}
+		wg.Wait()
+
+		var frames []*radar.Frame
+		for _, r := range results {
+			if r.frame != nil {
+				frames = append(frames, r.frame)
+			}
+		}
+		if len(frames) == 0 {
+			return nil, fmt.Errorf("nws radar: no frames available for raw loop")
+		}
+		return frames, nil
 	}
 
 	bb := boundingBox(loc.Lat, loc.Lon, opts.RadiusKM)

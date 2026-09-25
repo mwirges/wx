@@ -284,6 +284,15 @@ struct ControlsBar: View {
                 }
                 if showOpenWindow {
                     Button {
+                        NotificationCenter.default.post(name: .wxOpenDeskRadar, object: nil)
+                    } label: {
+                        Image(systemName: "dot.radiowaves.left.and.right")
+                            .foregroundStyle(WxTheme.accent)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Open Radar")
+
+                    Button {
                         NotificationCenter.default.post(name: .wxOpenDeskWindow, object: nil)
                     } label: {
                         Image(systemName: "macwindow")

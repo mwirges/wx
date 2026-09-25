@@ -6,6 +6,12 @@ import (
 	"image/draw"
 )
 
+// DrawCityLabels renders city name labels directly onto the image for inline
+// image rendering or graphical GUI display where text overlay is needed.
+func DrawCityLabels(src image.Image, bb *BBox) image.Image {
+	return drawCityLabels(src, bb)
+}
+
 // drawCityLabels renders city name labels directly onto the image for inline
 // image rendering modes where half-block text overlay isn't available.
 func drawCityLabels(src image.Image, bb *BBox) image.Image {
