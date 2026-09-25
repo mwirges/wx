@@ -1,16 +1,16 @@
 import SwiftUI
 
-/// Warp Glass & Star Trek: Strange New Worlds (SNW) Bridge Console visual tokens.
+/// Visual design tokens inspired by modern glass aerospace consoles.
 enum WxTheme {
     // Core Backgrounds
     static let bg = Color(red: 0x06 / 255, green: 0x0A / 255, blue: 0x14 / 255).opacity(0.96)
     static let snwChassis = Color(red: 0x0A / 255, green: 0x12 / 255, blue: 0x22 / 255)
     static let snwPanel = Color(red: 0x0E / 255, green: 0x1A / 255, blue: 0x2D / 255).opacity(0.88)
     
-    // SNW Bridge Console Signature Palette
-    static let accent = Color(red: 0x38 / 255, green: 0xE1 / 255, blue: 0xFF / 255) // Phaser / Sensor Cyan
+    // Console Signature Palette
+    static let accent = Color(red: 0x38 / 255, green: 0xE1 / 255, blue: 0xFF / 255) // Telemetry Cyan
     static let snwCyan = Color(red: 0x38 / 255, green: 0xE1 / 255, blue: 0xFF / 255)
-    static let snwGold = Color(red: 0xF5 / 255, green: 0xA6 / 255, blue: 0x23 / 255) // Command Gold
+    static let snwGold = Color(red: 0xF5 / 255, green: 0xA6 / 255, blue: 0x23 / 255) // Attention Gold
     static let snwAmber = Color(red: 0xFF / 255, green: 0x9F / 255, blue: 0x0A / 255) // Nav Amber
     static let snwRed = Color(red: 0xFF / 255, green: 0x3B / 255, blue: 0x56 / 255) // Condition Red Alert
     static let snwGreen = Color(red: 0x30 / 255, green: 0xD1 / 255, blue: 0x58 / 255) // Sensors Nominal Green
@@ -39,7 +39,7 @@ enum WxTheme {
     }
 }
 
-/// Starfleet bridge tactical corner brackets framing panels.
+/// Tactical corner reticle brackets framing console panels.
 struct SNWCornerBrackets: View {
     var color: Color = WxTheme.snwCyan.opacity(0.55)
     var length: CGFloat = 7
@@ -77,7 +77,7 @@ struct SNWCornerBrackets: View {
     }
 }
 
-/// Bridge console section card with technical header and corner brackets.
+/// Console section card with technical telemetry header and corner brackets.
 struct SNWConsoleCard<Content: View>: View {
     var title: String?
     var tag: String?
@@ -134,10 +134,11 @@ struct SNWConsoleCard<Content: View>: View {
     }
 }
 
-/// Starship Bridge Telemetry Header Pill
+/// Telemetry header pill displaying active system status and timestamp sync.
 struct SNWHeaderPill: View {
     let title: String
     let subtitle: String?
+    var badge: String = "WX.DESK"
 
     var body: some View {
         HStack(spacing: 8) {
@@ -146,7 +147,7 @@ struct SNWHeaderPill: View {
                     .fill(WxTheme.snwGreen)
                     .frame(width: 5, height: 5)
                     .shadow(color: WxTheme.snwGreen.opacity(0.8), radius: 3)
-                Text("NCC-1701")
+                Text(badge)
                     .font(.system(size: 9, weight: .black, design: .monospaced))
                     .foregroundStyle(WxTheme.snwGold)
             }
@@ -179,7 +180,7 @@ struct SNWHeaderPill: View {
     }
 }
 
-/// Starfleet Sensor Readout Tile
+/// Precision sensor readout tile.
 struct SNWMetricTile: View {
     let label: String
     let value: String
@@ -226,6 +227,6 @@ struct PillHeader: View {
     let subtitle: String?
 
     var body: some View {
-        SNWHeaderPill(title: title, subtitle: subtitle)
+        SNWHeaderPill(title: title, subtitle: subtitle, badge: "WX")
     }
 }

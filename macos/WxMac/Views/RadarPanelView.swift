@@ -32,9 +32,9 @@ struct RadarPanelView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             // Product selector
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 5) {
                 Picker("Radar Product", selection: $store.selectedRadarProduct) {
                     ForEach(radarProducts) { prod in
                         Text(prod.label.uppercased()).tag(prod.id)
@@ -81,7 +81,6 @@ struct RadarPanelView: View {
             ZStack {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(Color.black.opacity(0.7))
-                    .aspectRatio(1, contentMode: .fit)
 
                 if let img = store.radarImage, let payload = store.radarPayload, payload.bbox != nil, payload.center != nil {
                     ZStack(alignment: .top) {
@@ -161,7 +160,7 @@ struct RadarPanelView: View {
                         ProgressView()
                             .controlSize(.regular)
                             .tint(WxTheme.snwCyan)
-                        Text("ACQUIRING ORBITAL RADAR ARRAY…")
+                        Text("ACQUIRING NOAA MRMS RADAR ARRAY…")
                             .font(.system(size: 10, weight: .bold, design: .monospaced))
                             .foregroundStyle(WxTheme.snwCyan)
                     }
@@ -197,6 +196,8 @@ struct RadarPanelView: View {
                     }
                 }
             }
+            .aspectRatio(1, contentMode: .fit)
+            .frame(maxHeight: 380)
             .overlay(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 1)

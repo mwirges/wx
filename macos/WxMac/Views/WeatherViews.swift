@@ -48,6 +48,9 @@ struct NowBlockView: View {
                 MetricChip(label: "Humidity", value: String(format: "%.0f%%", h))
             }
             if metric {
+                if !popoverMetrics, let dp = c?.dewPointC {
+                    MetricChip(label: "Dew Point", value: String(format: "%.0f°", dp))
+                }
                 if let w = c?.windKph {
                     let dir = c?.windDirection.map { " \($0)" } ?? ""
                     MetricChip(label: "Wind", value: String(format: "%.0f km/h%@", w, dir))
@@ -65,6 +68,9 @@ struct NowBlockView: View {
                     MetricChip(label: "Vis", value: String(format: "%.1f km", v / 1000))
                 }
             } else {
+                if !popoverMetrics, let dp = c?.dewPointF {
+                    MetricChip(label: "Dew Point", value: String(format: "%.0f°", dp))
+                }
                 if let w = c?.windMph {
                     let dir = c?.windDirection.map { " \($0)" } ?? ""
                     MetricChip(label: "Wind", value: String(format: "%.0f mph%@", w, dir))
@@ -135,25 +141,71 @@ struct PeriodsListView: View {
                         .frame(height: WxTheme.periodRowHeight)
                     } else {
                         DisclosureGroup {
-                            if let detail = p.detailedDescription {
-                                Text(detail)
-                                    .font(.caption)
-                                    .foregroundStyle(WxTheme.textSecondary)
-                                    .padding(.vertical, 4)
+                            VStack(alignment: .leading, spacing: 6) {
+                                if let detail = p.detailedDescription {
+                                    Text(detail)
+                                        .font(.caption)
+                                        .foregroundStyle(WxTheme.text)
+                                        .padding(.vertical, 2)
+                                }
+                                HStack(spacing: 12) {
+                                    if let pop = p.probabilityOfPrecipitation {
+                                        Label(String(format: "Precip: %.0f%%", pop), systemImage: "drop.fill")
+                                            .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+                                            .foregroundStyle(WxTheme.snwCyan)
+                                    }
+                                    if let wind = windSummary(p) {
+                                        Label(wind, systemImage: "wind")
+                                            .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+                                            .foregroundStyle(WxTheme.snwSilver)
+                                    }
+                                    if let dp = p.dewPointF, store.units != "metric" {
+                                        Text("Dew Point: \(Int(dp))°")
+                                            .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+                                            .foregroundStyle(WxTheme.snwSilver.opacity(0.8))
+                                    } else if let dp = p.dewPointC, store.units == "metric" {
+                                        Text("Dew Point: \(Int(dp))°")
+                                            .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+                                            .foregroundStyle(WxTheme.snwSilver.opacity(0.8))
+                                    }
+                                }
+                                .padding(.top, 2)
                             }
+                            .padding(.vertical, 4)
                         } label: {
-                            HStack {
+                            HStack(spacing: 8) {
+                                Image(systemName: periodSymbol(p))
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(p.isDaytime == false ? WxTheme.snwSilver : WxTheme.snwGold)
+                                    .frame(width: 14)
+
                                 Text(p.name)
                                     .font(.system(.body, design: .rounded))
                                     .foregroundStyle(WxTheme.text)
                                     .frame(maxWidth: .infinity, alignment: .leading)
+
+                                if let pop = p.probabilityOfPrecipitation, pop > 0 {
+                                    HStack(spacing: 2) {
+                                        Image(systemName: "drop.fill")
+                                            .font(.system(size: 8))
+                                        Text(String(format: "%.0f%%", pop))
+                                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                    }
+                                    .foregroundStyle(WxTheme.snwCyan)
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 2)
+                                    .background(WxTheme.snwCyan.opacity(0.12), in: Capsule())
+                                }
+
                                 Text(tempText(p))
                                     .font(.system(.body, design: .monospaced).weight(.bold))
                                     .foregroundStyle(WxTheme.snwCyan)
+
                                 Text(p.shortDescription ?? "")
                                     .font(.caption)
                                     .foregroundStyle(WxTheme.textSecondary)
                                     .lineLimit(1)
+                                    .frame(maxWidth: 130, alignment: .trailing)
                             }
                             .font(.callout)
                         }
@@ -162,6 +214,27 @@ struct PeriodsListView: View {
                 }
             }
         }
+    }
+
+    private func periodSymbol(_ p: Period) -> String {
+        if let dt = p.isDaytime {
+            return dt ? "sun.max.fill" : "moon.stars.fill"
+        }
+        let lower = p.name.lowercased()
+        if lower.contains("night") || lower.contains("tonight") {
+            return "moon.stars.fill"
+        }
+        return "sun.max.fill"
+    }
+
+    private func windSummary(_ p: Period) -> String? {
+        let dir = p.windDirection ?? ""
+        if store.units == "metric", let w = p.windKph {
+            return String(format: "%.0f km/h %@", w, dir).trimmingCharacters(in: .whitespaces)
+        } else if let w = p.windMph {
+            return String(format: "%.0f mph %@", w, dir).trimmingCharacters(in: .whitespaces)
+        }
+        return nil
     }
 
     private func tempText(_ p: Period) -> String {

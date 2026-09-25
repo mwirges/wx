@@ -13,7 +13,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Full Mac app activation policy: displays system menu bar and Dock icon.
         NSApp.setActivationPolicy(.regular)
-        installMainMenu()
+        DispatchQueue.main.async { [weak self] in
+            self?.installMainMenu()
+        }
 
         let status = StatusItemController(store: store)
         status.install()
@@ -146,11 +148,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 4. View Menu
         let viewMenuItem = NSMenuItem()
         let viewMenu = NSMenu(title: "View")
-        let weatherModeItem = NSMenuItem(title: "Weather Telemetry", action: #selector(selectWeatherTab(_:)), keyEquivalent: "1")
+        let dualModeItem = NSMenuItem(title: "Command Console (Dual)", action: #selector(selectDualTab(_:)), keyEquivalent: "1")
+        dualModeItem.target = self
+        viewMenu.addItem(dualModeItem)
+
+        let weatherModeItem = NSMenuItem(title: "Surface Telemetry", action: #selector(selectWeatherTab(_:)), keyEquivalent: "2")
         weatherModeItem.target = self
         viewMenu.addItem(weatherModeItem)
 
-        let radarModeItem = NSMenuItem(title: "Radar Tactical Display", action: #selector(selectRadarTab(_:)), keyEquivalent: "2")
+        let radarModeItem = NSMenuItem(title: "Radar Tactical Display", action: #selector(selectRadarTab(_:)), keyEquivalent: "3")
         radarModeItem.target = self
         viewMenu.addItem(radarModeItem)
         viewMenu.addItem(.separator())
@@ -201,8 +207,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func showAbout(_ sender: Any?) {
         let alert = NSAlert()
-        alert.messageText = "wx — 23rd Century Meteorological Console"
-        alert.informativeText = "Federation Weather Observation System\nHigh-Resolution MRMS Doppler Radar & Surface Telemetry\nNational Weather Service (NWS) & NOAA MRMS Array"
+        alert.messageText = "wx — Advanced Meteorological Console"
+        alert.informativeText = "High-Resolution MRMS Doppler Radar & Surface Telemetry\nNational Weather Service (NWS) & NOAA MRMS Array"
         alert.alertStyle = .informational
         alert.addButton(withTitle: "Acknowledge")
         alert.runModal()
@@ -220,6 +226,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task {
             await store.refresh()
             await store.refreshRadar()
+        }
+    }
+
+    @objc private func selectDualTab(_ sender: Any?) {
+        store.selectedDeskTab = .dual
+        showDeskWindow()
+        if store.radarImage == nil && !store.isRadarLoading {
+            Task { await store.refreshRadar() }
         }
     }
 
@@ -268,23 +282,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         let hosting = NSHostingController(rootView: DeskWindowView().environmentObject(store))
+        hosting.preferredContentSize = NSSize(width: 940, height: 760)
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 460, height: 720),
+            contentRect: NSRect(x: 0, y: 0, width: 940, height: 760),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
+        window.minSize = NSSize(width: 520, height: 600)
         window.title = "wx"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = true
         window.backgroundColor = .clear
         window.contentViewController = hosting
+        window.setContentSize(NSSize(width: 940, height: 760))
         window.center()
         window.isReleasedWhenClosed = false
         window.makeKeyAndOrderFront(nil)
         deskWindow = window
         NSApp.activate(ignoringOtherApps: true)
+
+        if store.selectedDeskTab == .dual || store.selectedDeskTab == .radar {
+            if store.radarImage == nil && !store.isRadarLoading {
+                Task { await store.refreshRadar() }
+            }
+        }
     }
 
     /// Env-gated (`WX_QA_POPOVER=1`) fixed 420×620 surface matching menu popover — for QA screenshots only.
