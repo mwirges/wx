@@ -99,7 +99,7 @@ struct DeskWindowView: View {
                         ScrollView {
                             VStack(alignment: .leading, spacing: 12) {
                                 SNWConsoleCard(title: "Doppler Radar Array", tag: "NOAA.MRMS") {
-                                    RadarPanelView()
+                                    RadarPanelView(fullScreen: false)
                                 }
                             }
                             .padding(.vertical, 12)
@@ -108,6 +108,10 @@ struct DeskWindowView: View {
                         }
                         .frame(maxWidth: .infinity)
                     }
+                } else if store.selectedDeskTab == .radar {
+                    // Full Screen Edge-to-Edge Doppler Radar Array
+                    RadarPanelView(fullScreen: true)
+                        .frame(width: geo.size.width, height: geo.size.height)
                 } else {
                     // Single Column Responsive Layout
                     ScrollView {
@@ -116,25 +120,19 @@ struct DeskWindowView: View {
                                 ControlsBar(showOpenWindow: false, compact: false)
                             }
 
-                            if store.selectedDeskTab == .radar {
+                            SNWConsoleCard(title: "Atmospheric Telemetry", tag: "GRID.OBS") {
+                                NowBlockView(compact: false, popoverMetrics: false)
+                            }
+
+                            AlertsListView(popoverMode: false)
+
+                            SNWConsoleCard(title: "Synoptic Forecast Log", tag: "NOAA.NWS") {
+                                PeriodsListView(limit: nil, compactRows: false)
+                            }
+
+                            if store.selectedDeskTab == .dual {
                                 SNWConsoleCard(title: "Doppler Radar Array", tag: "NOAA.MRMS") {
-                                    RadarPanelView()
-                                }
-                            } else {
-                                SNWConsoleCard(title: "Atmospheric Telemetry", tag: "GRID.OBS") {
-                                    NowBlockView(compact: false, popoverMetrics: false)
-                                }
-
-                                AlertsListView(popoverMode: false)
-
-                                SNWConsoleCard(title: "Synoptic Forecast Log", tag: "NOAA.NWS") {
-                                    PeriodsListView(limit: nil, compactRows: false)
-                                }
-
-                                if store.selectedDeskTab == .dual {
-                                    SNWConsoleCard(title: "Doppler Radar Array", tag: "NOAA.MRMS") {
-                                        RadarPanelView()
-                                    }
+                                    RadarPanelView(fullScreen: false)
                                 }
                             }
                         }
