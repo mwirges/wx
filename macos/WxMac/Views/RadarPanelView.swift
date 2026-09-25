@@ -37,7 +37,7 @@ struct RadarPanelView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Picker("Radar Product", selection: $store.selectedRadarProduct) {
                     ForEach(radarProducts) { prod in
-                        Text(prod.label).tag(prod.id)
+                        Text(prod.label.uppercased()).tag(prod.id)
                     }
                 }
                 .pickerStyle(.segmented)
@@ -48,9 +48,9 @@ struct RadarPanelView: View {
 
                 HStack {
                     if let sel = radarProducts.first(where: { $0.id == store.selectedRadarProduct }) {
-                        Text(sel.hint)
-                            .font(.caption2)
-                            .foregroundStyle(WxTheme.textSecondary)
+                        Text("// \(sel.hint.uppercased())")
+                            .font(.system(size: 8.5, weight: .medium, design: .monospaced))
+                            .foregroundStyle(WxTheme.snwSilver.opacity(0.8))
                     }
                     Spacer()
                     Button {
@@ -61,12 +61,16 @@ struct RadarPanelView: View {
                                 ProgressView()
                                     .controlSize(.small)
                             } else {
-                                Image(systemName: "arrow.clockwise")
+                                Image(systemName: "arrow.triangle.2.circlepath")
                             }
-                            Text("Refresh")
+                            Text("SCAN ARRAY")
                         }
-                        .font(.caption)
-                        .foregroundStyle(WxTheme.accent)
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .foregroundStyle(WxTheme.snwCyan)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(WxTheme.snwCyan.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
+                        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwCyan.opacity(0.35), lineWidth: 0.8))
                     }
                     .buttonStyle(.plain)
                     .disabled(store.isRadarLoading)
@@ -75,30 +79,30 @@ struct RadarPanelView: View {
 
             // Radar Map Display Area
             ZStack {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.black.opacity(0.6))
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.black.opacity(0.7))
                     .aspectRatio(1, contentMode: .fit)
 
                 if let img = store.radarImage, let payload = store.radarPayload, payload.bbox != nil, payload.center != nil {
                     ZStack(alignment: .top) {
                         RadarMapView(payload: payload, image: img, recenterID: recenterID)
-                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 
-                        // Floating map HUD controls
+                        // Floating tactical HUD controls
                         HStack {
                             Button {
                                 recenterID += 1
                             } label: {
                                 HStack(spacing: 4) {
-                                    Image(systemName: "location.fill")
-                                        .font(.system(size: 10))
-                                    Text("Recenter")
-                                        .font(.system(size: 10, weight: .medium))
+                                    Image(systemName: "scope")
+                                        .font(.system(size: 9))
+                                    Text("RECENTER GRID")
+                                        .font(.system(size: 8.5, weight: .bold, design: .monospaced))
                                 }
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .background(.ultraThinMaterial, in: Capsule())
-                                .overlay(Capsule().strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 0.5))
+                                .background(WxTheme.snwPanel, in: RoundedRectangle(cornerRadius: 4))
+                                .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwCyan.opacity(0.4), lineWidth: 0.8))
                                 .foregroundStyle(WxTheme.text)
                             }
                             .buttonStyle(.plain)
@@ -107,25 +111,30 @@ struct RadarPanelView: View {
 
                             HStack(spacing: 5) {
                                 Circle()
-                                    .fill(Color.green)
-                                    .frame(width: 6, height: 6)
-                                Text("NOAA MRMS 1km")
-                                    .font(.system(size: 10, weight: .semibold))
+                                    .fill(WxTheme.snwGreen)
+                                    .frame(width: 5, height: 5)
+                                    .shadow(color: WxTheme.snwGreen.opacity(0.8), radius: 3)
+                                Text("NOAA MRMS 1KM // LIVE")
+                                    .font(.system(size: 8.5, weight: .bold, design: .monospaced))
                                     .foregroundStyle(WxTheme.text)
                             }
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(.ultraThinMaterial, in: Capsule())
-                            .overlay(Capsule().strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 0.5))
+                            .background(WxTheme.snwPanel, in: RoundedRectangle(cornerRadius: 4))
+                            .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwCyan.opacity(0.4), lineWidth: 0.8))
                         }
                         .padding(10)
 
                         if store.isRadarLoading {
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(Color.black.opacity(0.45))
-                            ProgressView("Updating radar…")
-                                .tint(WxTheme.accent)
-                                .foregroundStyle(WxTheme.text)
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(Color.black.opacity(0.55))
+                            VStack(spacing: 6) {
+                                ProgressView()
+                                    .tint(WxTheme.snwCyan)
+                                Text("DOWNLINKING MRMS TELEMETRY…")
+                                    .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(WxTheme.snwCyan)
+                            }
                         }
                     }
                     .aspectRatio(1, contentMode: .fit)
@@ -135,13 +144,14 @@ struct RadarPanelView: View {
                         Image(nsImage: img)
                             .resizable()
                             .aspectRatio(1, contentMode: .fit)
-                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 
                         if store.isRadarLoading {
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(Color.black.opacity(0.45))
-                            ProgressView("Updating radar…")
-                                .tint(WxTheme.accent)
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(Color.black.opacity(0.55))
+                            ProgressView("UPDATING SENSORS…")
+                                .tint(WxTheme.snwCyan)
+                                .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                                 .foregroundStyle(WxTheme.text)
                         }
                     }
@@ -150,64 +160,67 @@ struct RadarPanelView: View {
                     VStack(spacing: 8) {
                         ProgressView()
                             .controlSize(.regular)
-                            .tint(WxTheme.accent)
-                        Text("Fetching high-res radar…")
-                            .font(.callout)
-                            .foregroundStyle(WxTheme.textSecondary)
+                            .tint(WxTheme.snwCyan)
+                        Text("ACQUIRING ORBITAL RADAR ARRAY…")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .foregroundStyle(WxTheme.snwCyan)
                     }
                 } else if let err = store.radarErrorMessage {
                     VStack(spacing: 8) {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.title2)
-                            .foregroundStyle(WxTheme.warn)
-                        Text(err)
-                            .font(.caption)
-                            .foregroundStyle(WxTheme.textSecondary)
+                            .foregroundStyle(WxTheme.snwRed)
+                        Text("// TELEMETRY FAULT: \(err)")
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundStyle(WxTheme.snwRed)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 16)
-                        Button("Retry") {
+                        Button("RETRY SCAN") {
                             Task { await store.refreshRadar() }
                         }
-                        .foregroundStyle(WxTheme.accent)
+                        .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                        .foregroundStyle(WxTheme.snwCyan)
                     }
                 } else {
                     VStack(spacing: 8) {
                         Image(systemName: "dot.radiowaves.left.and.right")
                             .font(.title)
-                            .foregroundStyle(WxTheme.accent.opacity(0.6))
-                        Text("No radar image loaded")
-                            .font(.callout)
+                            .foregroundStyle(WxTheme.snwCyan.opacity(0.6))
+                        Text("RADAR ARRAY OFFLINE")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
                             .foregroundStyle(WxTheme.textSecondary)
-                        Button("Load Radar") {
+                        Button("ENGAGE SCAN") {
                             Task { await store.refreshRadar() }
                         }
-                        .foregroundStyle(WxTheme.accent)
+                        .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                        .foregroundStyle(WxTheme.snwCyan)
                     }
                 }
             }
             .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(WxTheme.border, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 1)
             )
+            .overlay(SNWCornerBrackets(color: WxTheme.snwCyan.opacity(0.8), length: 12, thickness: 1.5))
 
             // Metadata footer & legend
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     if let loc = store.radarPayload?.location {
-                        Text(loc)
-                            .font(.caption.weight(.medium))
+                        Text(loc.uppercased())
+                            .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                             .foregroundStyle(WxTheme.text)
                     }
                     if let st = store.radarPayload?.station, !st.isEmpty {
-                        Text("· \(st)")
-                            .font(.caption)
-                            .foregroundStyle(WxTheme.textSecondary)
+                        Text("· RADAR // \(st)")
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundStyle(WxTheme.snwSilver)
                     }
                     Spacer()
                     if let vt = formattedValidTime {
-                        Text("Valid: \(vt)")
-                            .font(.caption2)
-                            .foregroundStyle(WxTheme.textSecondary)
+                        Text("VALID // \(vt)")
+                            .font(.system(size: 8.5, design: .monospaced))
+                            .foregroundStyle(WxTheme.snwSilver.opacity(0.8))
                     }
                 }
 
@@ -216,11 +229,11 @@ struct RadarPanelView: View {
                     // Echo Tops Scale (kft)
                     VStack(alignment: .leading, spacing: 3) {
                         HStack(spacing: 2) {
-                            Text("10 kft").font(.system(size: 8)).foregroundStyle(WxTheme.textSecondary)
+                            Text("10 kft").font(.system(size: 8, design: .monospaced)).foregroundStyle(WxTheme.textSecondary)
                             Spacer()
-                            Text("Cloud Top Height").font(.system(size: 8, weight: .semibold)).foregroundStyle(WxTheme.textSecondary)
+                            Text("ECHO TOPS // CLOUD HEIGHT").font(.system(size: 8, weight: .bold, design: .monospaced)).foregroundStyle(WxTheme.snwSilver)
                             Spacer()
-                            Text("60+ kft").font(.system(size: 8)).foregroundStyle(WxTheme.textSecondary)
+                            Text("60+ kft").font(.system(size: 8, design: .monospaced)).foregroundStyle(WxTheme.textSecondary)
                         }
 
                         LinearGradient(
@@ -236,42 +249,42 @@ struct RadarPanelView: View {
                             startPoint: .leading,
                             endPoint: .trailing
                         )
-                        .frame(height: 6)
+                        .frame(height: 5)
                         .clipShape(Capsule())
-                        .overlay(Capsule().strokeBorder(WxTheme.border.opacity(0.5), lineWidth: 0.5))
+                        .overlay(Capsule().strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 0.5))
 
                         HStack {
-                            Text("Low Tops")
-                                .font(.system(size: 9))
+                            Text("LOW TOPS")
+                                .font(.system(size: 8, design: .monospaced))
                                 .foregroundStyle(WxTheme.textSecondary)
                             Spacer()
-                            Text("Mid Level")
-                                .font(.system(size: 9))
+                            Text("MID LEVEL")
+                                .font(.system(size: 8, design: .monospaced))
                                 .foregroundStyle(WxTheme.textSecondary)
                             Spacer()
-                            Text("Severe Convective")
-                                .font(.system(size: 9))
+                            Text("CONVECTIVE CORE")
+                                .font(.system(size: 8, design: .monospaced))
                                 .foregroundStyle(WxTheme.textSecondary)
                         }
                     }
                     .padding(8)
                     .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(WxTheme.accent.opacity(0.06))
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(WxTheme.snwChassis.opacity(0.8))
                             .overlay(
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .strokeBorder(WxTheme.border.opacity(0.3), lineWidth: 1)
+                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    .strokeBorder(WxTheme.border.opacity(0.25), lineWidth: 0.8)
                             )
                     )
                 } else {
                     // dBZ Reflectivity Scale Bar
                     VStack(alignment: .leading, spacing: 3) {
                         HStack(spacing: 2) {
-                            Text("15").font(.system(size: 8)).foregroundStyle(WxTheme.textSecondary)
+                            Text("15").font(.system(size: 8, design: .monospaced)).foregroundStyle(WxTheme.textSecondary)
                             Spacer()
-                            Text("dBZ Intensity").font(.system(size: 8, weight: .semibold)).foregroundStyle(WxTheme.textSecondary)
+                            Text("REFLECTIVITY // dBZ INTENSITY").font(.system(size: 8, weight: .bold, design: .monospaced)).foregroundStyle(WxTheme.snwSilver)
                             Spacer()
-                            Text("70+").font(.system(size: 8)).foregroundStyle(WxTheme.textSecondary)
+                            Text("70+").font(.system(size: 8, design: .monospaced)).foregroundStyle(WxTheme.textSecondary)
                         }
 
                         LinearGradient(
@@ -287,38 +300,38 @@ struct RadarPanelView: View {
                             startPoint: .leading,
                             endPoint: .trailing
                         )
-                        .frame(height: 6)
+                        .frame(height: 5)
                         .clipShape(Capsule())
-                        .overlay(Capsule().strokeBorder(WxTheme.border.opacity(0.5), lineWidth: 0.5))
+                        .overlay(Capsule().strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 0.5))
 
                         HStack {
-                            Text("Light")
-                                .font(.system(size: 9))
+                            Text("LIGHT")
+                                .font(.system(size: 8, design: .monospaced))
                                 .foregroundStyle(WxTheme.textSecondary)
                             Spacer()
-                            Text("Moderate")
-                                .font(.system(size: 9))
+                            Text("MODERATE")
+                                .font(.system(size: 8, design: .monospaced))
                                 .foregroundStyle(WxTheme.textSecondary)
                             Spacer()
-                            Text("Heavy / Severe")
-                                .font(.system(size: 9))
+                            Text("HEAVY / SEVERE")
+                                .font(.system(size: 8, design: .monospaced))
                                 .foregroundStyle(WxTheme.textSecondary)
                         }
                     }
                     .padding(8)
                     .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(WxTheme.accent.opacity(0.06))
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(WxTheme.snwChassis.opacity(0.8))
                             .overlay(
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .strokeBorder(WxTheme.border.opacity(0.3), lineWidth: 1)
+                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    .strokeBorder(WxTheme.border.opacity(0.25), lineWidth: 0.8)
                             )
                     )
                 }
 
-                Text("200 km radius · NOAA MRMS High-Res Vector Overlay")
-                    .font(.caption2)
-                    .foregroundStyle(WxTheme.textSecondary.opacity(0.7))
+                Text("MRMS SENSOR ARRAY · 200 KM SCAN RADIUS · WGS84 VECTOR OVERLAY")
+                    .font(.system(size: 8, weight: .medium, design: .monospaced))
+                    .foregroundStyle(WxTheme.snwSilver.opacity(0.7))
             }
         }
         .onAppear {
