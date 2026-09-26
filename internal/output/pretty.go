@@ -108,6 +108,29 @@ func renderPretty(data RenderData, opts RenderOptions) error {
 				Render(ic.Lines[i])
 			fmt.Printf("  %s  %s\n", iconStr, contents[i])
 		}
+
+		if c.Astronomy != nil {
+			if c.Astronomy.IsPolarDay {
+				fmt.Printf("\n  %s %s\n", styleLabel.Render("Sun:"), styleValue.Render("Polar Day (24h daylight)"))
+			} else if c.Astronomy.IsPolarNight {
+				fmt.Printf("\n  %s %s\n", styleLabel.Render("Sun:"), styleValue.Render("Polar Night (0h daylight)"))
+			} else if c.Astronomy.Sunrise != nil && c.Astronomy.Sunset != nil {
+				sr := c.Astronomy.Sunrise.Local().Format("3:04 PM")
+				ss := c.Astronomy.Sunset.Local().Format("3:04 PM")
+				hours := int(c.Astronomy.DayLength.Hours())
+				mins := int(c.Astronomy.DayLength.Minutes()) % 60
+				dayLenStr := fmt.Sprintf("%dh %dm", hours, mins)
+
+				upArrow := lipgloss.NewStyle().Foreground(lipgloss.Color("220")).Render("↑")   // warm gold
+				downArrow := lipgloss.NewStyle().Foreground(lipgloss.Color("208")).Render("↓") // dusk orange
+				sunLabel := styleLabel.Render("Sun:")
+				srStr := styleValue.Render(sr)
+				ssStr := styleValue.Render(ss)
+				dlStr := styleDesc.Render(fmt.Sprintf("(%s daylight)", dayLenStr))
+
+				fmt.Printf("\n  %s %s %s   %s %s   %s\n", sunLabel, upArrow, srStr, downArrow, ssStr, dlStr)
+			}
+		}
 		fmt.Println()
 	}
 

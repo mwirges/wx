@@ -272,3 +272,61 @@ func TestRenderJSON_ForecastWithQuantitative(t *testing.T) {
 		t.Errorf("Humidity = %v, want 75.0", p.Humidity)
 	}
 }
+
+func TestRenderJSON_Astronomy(t *testing.T) {
+	sr := time.Date(2026, 9, 26, 11, 31, 0, 0, time.UTC)
+	ss := time.Date(2026, 9, 26, 23, 32, 0, 0, time.UTC)
+	sn := time.Date(2026, 9, 26, 17, 32, 0, 0, time.UTC)
+	dl := 12*time.Hour + 1*time.Minute
+
+	data := RenderData{
+		Conditions: &models.CurrentConditions{
+			StationID:  "KFWA",
+			ObservedAt: time.Date(2026, 9, 26, 20, 0, 0, 0, time.UTC),
+			Location:   "Fort Wayne, IN",
+			Astronomy: &models.Astronomy{
+				Sunrise:   &sr,
+				Sunset:    &ss,
+				SolarNoon: sn,
+				DayLength: dl,
+			},
+		},
+	}
+	opts := RenderOptions{Units: "imperial"}
+
+	out := captureStdout(t, func() {
+		if err := renderJSON(data, opts); err != nil {
+			t.Errorf("renderJSON: %v", err)
+		}
+	})
+
+	var result struct {
+		Conditions struct {
+			Astronomy *struct {
+				Sunrise      *string `json:"sunrise"`
+				Sunset       *string `json:"sunset"`
+				SolarNoon    string  `json:"solar_noon"`
+				DayLengthSec int64   `json:"day_length_seconds"`
+				DayLength    string  `json:"day_length"`
+			} `json:"astronomy"`
+		} `json:"conditions"`
+		Astronomy *struct {
+			Sunrise *string `json:"sunrise"`
+		} `json:"astronomy"`
+	}
+
+	if err := json.Unmarshal(out, &result); err != nil {
+		t.Fatalf("unmarshal output: %v\nraw: %s", err, out)
+	}
+
+	if result.Conditions.Astronomy == nil || result.Conditions.Astronomy.Sunrise == nil {
+		t.Fatalf("expected astronomy.sunrise in conditions")
+	}
+	if result.Astronomy == nil || result.Astronomy.Sunrise == nil {
+		t.Fatalf("expected top-level astronomy in output")
+	}
+	if result.Conditions.Astronomy.DayLength != "12h 1m" {
+		t.Errorf("day_length = %q, want %q", result.Conditions.Astronomy.DayLength, "12h 1m")
+	}
+}
+

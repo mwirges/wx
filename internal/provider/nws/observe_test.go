@@ -219,6 +219,16 @@ func TestCurrentConditions(t *testing.T) {
 	if cond.ConditionCode != "clear-day" {
 		t.Errorf("ConditionCode = %q, want %q", cond.ConditionCode, "clear-day")
 	}
+	if cond.Astronomy == nil {
+		t.Errorf("Astronomy is nil, expected calculated astronomy")
+	} else {
+		if cond.Astronomy.Sunrise == nil || cond.Astronomy.Sunset == nil {
+			t.Errorf("expected non-nil sunrise and sunset in Astronomy")
+		}
+		if cond.Astronomy.DayLength <= 0 {
+			t.Errorf("expected positive DayLength, got %v", cond.Astronomy.DayLength)
+		}
+	}
 }
 
 func TestParseConditionCode(t *testing.T) {

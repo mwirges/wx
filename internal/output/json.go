@@ -2,9 +2,20 @@ package output
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"time"
 )
+
+type jsonAstronomy struct {
+	Sunrise      *string `json:"sunrise,omitempty"`
+	Sunset       *string `json:"sunset,omitempty"`
+	SolarNoon    string  `json:"solar_noon,omitempty"`
+	DayLengthSec int64   `json:"day_length_seconds"`
+	DayLength    string  `json:"day_length"`
+	IsPolarDay   bool    `json:"is_polar_day,omitempty"`
+	IsPolarNight bool    `json:"is_polar_night,omitempty"`
+}
 
 type jsonConditions struct {
 	Station     string   `json:"station"`
@@ -32,6 +43,8 @@ type jsonConditions struct {
 	PressureInHg *float64 `json:"pressure_inhg,omitempty"`
 	VisibilityM  *float64 `json:"visibility_m,omitempty"`
 	VisibilityMi *float64 `json:"visibility_mi,omitempty"`
+
+	Astronomy *jsonAstronomy `json:"astronomy,omitempty"`
 }
 
 type jsonPeriod struct {
@@ -72,6 +85,7 @@ type jsonOutput struct {
 	Conditions *jsonConditions `json:"conditions,omitempty"`
 	Forecast   *jsonForecast   `json:"forecast,omitempty"`
 	Alerts     []jsonAlert     `json:"alerts,omitempty"`
+	Astronomy  *jsonAstronomy  `json:"astronomy,omitempty"`
 }
 
 func renderJSON(data RenderData, opts RenderOptions) error {
@@ -159,6 +173,26 @@ func renderJSON(data RenderData, opts RenderOptions) error {
 				mi := m / 1609.344
 				jc.VisibilityMi = &mi
 			}
+		}
+
+		if c.Astronomy != nil {
+			ja := &jsonAstronomy{
+				SolarNoon:    c.Astronomy.SolarNoon.Format(time.RFC3339),
+				DayLengthSec: int64(c.Astronomy.DayLength.Seconds()),
+				DayLength:    fmt.Sprintf("%dh %dm", int(c.Astronomy.DayLength.Hours()), int(c.Astronomy.DayLength.Minutes())%60),
+				IsPolarDay:   c.Astronomy.IsPolarDay,
+				IsPolarNight: c.Astronomy.IsPolarNight,
+			}
+			if c.Astronomy.Sunrise != nil {
+				sr := c.Astronomy.Sunrise.Format(time.RFC3339)
+				ja.Sunrise = &sr
+			}
+			if c.Astronomy.Sunset != nil {
+				ss := c.Astronomy.Sunset.Format(time.RFC3339)
+				ja.Sunset = &ss
+			}
+			jc.Astronomy = ja
+			out.Astronomy = ja
 		}
 
 		out.Conditions = jc

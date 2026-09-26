@@ -30,4 +30,8 @@ type CurrentConditions struct {
 	// ConditionCode is a normalized icon key (e.g. "clear-day", "rain", "snow").
 	// Set by the provider; empty string means unknown.
 	ConditionCode string
+
+	// Astronomy contains calculated sunrise, sunset, and daylight duration.
+	// Nil if unavailable or calculation failed.
+	Astronomy *Astronomy
 }

@@ -88,6 +88,25 @@ struct NowBlockView: View {
                     MetricChip(label: "Vis", value: String(format: "%.1f mi", v))
                 }
             }
+
+            // Solar Telemetry
+            if let astro = c?.astronomy ?? store.payload?.astronomy {
+                if astro.isPolarDay == true {
+                    MetricChip(label: "Sun", value: "Polar Day")
+                } else if astro.isPolarNight == true {
+                    MetricChip(label: "Sun", value: "Polar Night")
+                } else if let sr = astro.sunriseFormatted, let ss = astro.sunsetFormatted {
+                    if popoverMetrics {
+                        MetricChip(label: "Sun", value: "↑\(sr) ↓\(ss)")
+                    } else {
+                        MetricChip(label: "Sunrise", value: sr)
+                        MetricChip(label: "Sunset", value: ss)
+                        if let dl = astro.dayLength {
+                            MetricChip(label: "Daylight", value: dl)
+                        }
+                    }
+                }
+            }
         }
     }
 }

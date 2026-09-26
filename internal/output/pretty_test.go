@@ -277,3 +277,86 @@ func TestRenderPretty_Hourly(t *testing.T) {
 		t.Errorf("output does not contain '30%%': %s", outStr)
 	}
 }
+
+func TestRenderPretty_Astronomy(t *testing.T) {
+	sr := time.Date(2026, 9, 26, 7, 31, 0, 0, time.Local)
+	ss := time.Date(2026, 9, 26, 19, 32, 0, 0, time.Local)
+	temp := 15.0
+
+	t.Run("Standard Sunrise Sunset", func(t *testing.T) {
+		data := RenderData{
+			Conditions: &models.CurrentConditions{
+				Location:      "Fort Wayne, IN",
+				ObservedAt:    time.Date(2026, 9, 26, 12, 0, 0, 0, time.Local),
+				TempC:         &temp,
+				ConditionCode: "clear-day",
+				Astronomy: &models.Astronomy{
+					Sunrise:   &sr,
+					Sunset:    &ss,
+					DayLength: 12*time.Hour + 1*time.Minute,
+				},
+			},
+		}
+		out := captureStdout(t, func() {
+			renderPretty(data, RenderOptions{Units: "imperial"})
+		})
+		outStr := string(out)
+		if !strings.Contains(outStr, "Sun:") {
+			t.Errorf("expected 'Sun:', got %q", outStr)
+		}
+		if !strings.Contains(outStr, "7:31 AM") {
+			t.Errorf("expected '7:31 AM', got %q", outStr)
+		}
+		if !strings.Contains(outStr, "7:32 PM") {
+			t.Errorf("expected '7:32 PM', got %q", outStr)
+		}
+		if !strings.Contains(outStr, "12h 1m daylight") {
+			t.Errorf("expected '12h 1m daylight', got %q", outStr)
+		}
+	})
+
+	t.Run("Polar Day", func(t *testing.T) {
+		data := RenderData{
+			Conditions: &models.CurrentConditions{
+				Location:      "Barrow, AK",
+				ObservedAt:    time.Date(2026, 6, 21, 12, 0, 0, 0, time.Local),
+				TempC:         &temp,
+				ConditionCode: "clear-day",
+				Astronomy: &models.Astronomy{
+					IsPolarDay: true,
+					DayLength:  24 * time.Hour,
+				},
+			},
+		}
+		out := captureStdout(t, func() {
+			renderPretty(data, RenderOptions{Units: "imperial"})
+		})
+		outStr := string(out)
+		if !strings.Contains(outStr, "Polar Day") {
+			t.Errorf("expected 'Polar Day', got %q", outStr)
+		}
+	})
+
+	t.Run("Polar Night", func(t *testing.T) {
+		data := RenderData{
+			Conditions: &models.CurrentConditions{
+				Location:      "Barrow, AK",
+				ObservedAt:    time.Date(2026, 12, 21, 12, 0, 0, 0, time.Local),
+				TempC:         &temp,
+				ConditionCode: "clear-night",
+				Astronomy: &models.Astronomy{
+					IsPolarNight: true,
+					DayLength:    0,
+				},
+			},
+		}
+		out := captureStdout(t, func() {
+			renderPretty(data, RenderOptions{Units: "imperial"})
+		})
+		outStr := string(out)
+		if !strings.Contains(outStr, "Polar Night") {
+			t.Errorf("expected 'Polar Night', got %q", outStr)
+		}
+	})
+}
+
