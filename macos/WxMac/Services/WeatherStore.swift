@@ -3,6 +3,7 @@ import Combine
 import AppKit
 
 enum DeskTab: String, CaseIterable, Identifiable {
+    case dual = "Dual"
     case weather = "Weather"
     case radar = "Radar"
 
@@ -20,7 +21,7 @@ final class WeatherStore: ObservableObject {
     @Published var units: String = "imperial"
     @Published var lastRefreshed: Date?
     @Published var deskWindowOpen = false
-    @Published var selectedDeskTab: DeskTab = .weather
+    @Published var selectedDeskTab: DeskTab = .dual
 
     @Published var radarPayload: RadarPayload?
     @Published var radarImage: NSImage?
@@ -42,7 +43,12 @@ final class WeatherStore: ObservableObject {
     }
 
     func start() {
-        Task { await refresh() }
+        Task {
+            await refresh()
+            if selectedDeskTab == .dual || selectedDeskTab == .radar {
+                await refreshRadar()
+            }
+        }
         refreshTask?.cancel()
         let interval = refreshInterval
         refreshTask = Task { [weak self] in

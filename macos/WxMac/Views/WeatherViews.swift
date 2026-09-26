@@ -11,26 +11,30 @@ struct NowBlockView: View {
         VStack(alignment: .leading, spacing: compact ? 6 : 10) {
             HStack(alignment: .firstTextBaseline) {
                 Image(systemName: store.statusSymbol)
-                    .font(compact ? .title2 : .largeTitle)
-                    .foregroundStyle(WxTheme.accent)
+                    .font(compact ? .title2 : .system(size: 38))
+                    .foregroundStyle(WxTheme.snwCyan)
+                    .shadow(color: WxTheme.snwCyan.opacity(0.4), radius: 5)
                 Text(store.displayTemp)
-                    .font(compact ? .title.weight(.semibold) : .system(size: 44, weight: .semibold, design: .rounded))
+                    .font(compact ? .title.weight(.semibold) : .system(size: 46, weight: .bold, design: .rounded))
                     .foregroundStyle(WxTheme.text)
+                    .shadow(color: WxTheme.snwCyan.opacity(0.18), radius: 6)
                 Spacer()
                 if store.isLoading {
-                    ProgressView().controlSize(.small).tint(WxTheme.accent)
+                    ProgressView().controlSize(.small).tint(WxTheme.snwCyan)
                 }
             }
             Text(c?.location ?? "—")
                 .font(.headline)
                 .foregroundStyle(WxTheme.text)
             if let desc = c?.description, !desc.isEmpty {
-                Text(desc).foregroundStyle(WxTheme.textSecondary)
+                Text(desc)
+                    .font(.subheadline)
+                    .foregroundStyle(WxTheme.textSecondary)
             }
             if !popoverMetrics, let station = c?.station, let observed = c?.observedAt {
-                Text("Station \(station) · \(observed)")
-                    .font(.caption)
-                    .foregroundStyle(WxTheme.textSecondary.opacity(0.8))
+                Text("STATION // \(station) · OBSERVED // \(observed)")
+                    .font(.system(size: 8.5, weight: .medium, design: .monospaced))
+                    .foregroundStyle(WxTheme.snwSilver.opacity(0.75))
             }
             metricsGrid(c)
         }
@@ -44,6 +48,9 @@ struct NowBlockView: View {
                 MetricChip(label: "Humidity", value: String(format: "%.0f%%", h))
             }
             if metric {
+                if !popoverMetrics, let dp = c?.dewPointC {
+                    MetricChip(label: "Dew Point", value: String(format: "%.0f°", dp))
+                }
                 if let w = c?.windKph {
                     let dir = c?.windDirection.map { " \($0)" } ?? ""
                     MetricChip(label: "Wind", value: String(format: "%.0f km/h%@", w, dir))
@@ -61,6 +68,9 @@ struct NowBlockView: View {
                     MetricChip(label: "Vis", value: String(format: "%.1f km", v / 1000))
                 }
             } else {
+                if !popoverMetrics, let dp = c?.dewPointF {
+                    MetricChip(label: "Dew Point", value: String(format: "%.0f°", dp))
+                }
                 if let w = c?.windMph {
                     let dir = c?.windDirection.map { " \($0)" } ?? ""
                     MetricChip(label: "Wind", value: String(format: "%.0f mph%@", w, dir))
@@ -86,17 +96,7 @@ struct MetricChip: View {
     let label: String
     let value: String
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label).font(.caption2).foregroundStyle(WxTheme.textSecondary)
-            Text(value).font(.caption.weight(.medium)).foregroundStyle(WxTheme.text)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(
-            Capsule(style: .continuous)
-                .fill(WxTheme.accent.opacity(0.10))
-                .overlay(Capsule(style: .continuous).strokeBorder(WxTheme.border, lineWidth: 1))
-        )
+        SNWMetricTile(label: label, value: value)
     }
 }
 
@@ -122,9 +122,6 @@ struct PeriodsListView: View {
             EmptyView()
         } else {
             VStack(alignment: .leading, spacing: compactRows ? 0 : 4) {
-                Text("Forecast")
-                    .font(.headline)
-                    .foregroundStyle(WxTheme.text)
                 ForEach(periods) { p in
                     if compactRows {
                         HStack {
@@ -133,7 +130,7 @@ struct PeriodsListView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             Text(tempText(p))
                                 .fontWeight(.semibold)
-                                .foregroundStyle(WxTheme.accent)
+                                .foregroundStyle(WxTheme.snwCyan)
                                 .frame(width: 44, alignment: .trailing)
                             Text(p.shortDescription ?? "")
                                 .foregroundStyle(WxTheme.textSecondary)
@@ -144,25 +141,100 @@ struct PeriodsListView: View {
                         .frame(height: WxTheme.periodRowHeight)
                     } else {
                         DisclosureGroup {
-                            if let detail = p.detailedDescription {
-                                Text(detail).font(.caption).foregroundStyle(WxTheme.textSecondary)
+                            VStack(alignment: .leading, spacing: 6) {
+                                if let detail = p.detailedDescription {
+                                    Text(detail)
+                                        .font(.caption)
+                                        .foregroundStyle(WxTheme.text)
+                                        .padding(.vertical, 2)
+                                }
+                                HStack(spacing: 12) {
+                                    if let pop = p.probabilityOfPrecipitation {
+                                        Label(String(format: "Precip: %.0f%%", pop), systemImage: "drop.fill")
+                                            .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+                                            .foregroundStyle(WxTheme.snwCyan)
+                                    }
+                                    if let wind = windSummary(p) {
+                                        Label(wind, systemImage: "wind")
+                                            .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+                                            .foregroundStyle(WxTheme.snwSilver)
+                                    }
+                                    if let dp = p.dewPointF, store.units != "metric" {
+                                        Text("Dew Point: \(Int(dp))°")
+                                            .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+                                            .foregroundStyle(WxTheme.snwSilver.opacity(0.8))
+                                    } else if let dp = p.dewPointC, store.units == "metric" {
+                                        Text("Dew Point: \(Int(dp))°")
+                                            .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+                                            .foregroundStyle(WxTheme.snwSilver.opacity(0.8))
+                                    }
+                                }
+                                .padding(.top, 2)
                             }
+                            .padding(.vertical, 4)
                         } label: {
-                            HStack {
-                                Text(p.name).frame(maxWidth: .infinity, alignment: .leading)
+                            HStack(spacing: 8) {
+                                Image(systemName: periodSymbol(p))
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(p.isDaytime == false ? WxTheme.snwSilver : WxTheme.snwGold)
+                                    .frame(width: 14)
+
+                                Text(p.name)
+                                    .font(.system(.body, design: .rounded))
                                     .foregroundStyle(WxTheme.text)
-                                Text(tempText(p)).bold().foregroundStyle(WxTheme.accent)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                                if let pop = p.probabilityOfPrecipitation, pop > 0 {
+                                    HStack(spacing: 2) {
+                                        Image(systemName: "drop.fill")
+                                            .font(.system(size: 8))
+                                        Text(String(format: "%.0f%%", pop))
+                                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                    }
+                                    .foregroundStyle(WxTheme.snwCyan)
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 2)
+                                    .background(WxTheme.snwCyan.opacity(0.12), in: Capsule())
+                                }
+
+                                Text(tempText(p))
+                                    .font(.system(.body, design: .monospaced).weight(.bold))
+                                    .foregroundStyle(WxTheme.snwCyan)
+
                                 Text(p.shortDescription ?? "")
+                                    .font(.caption)
                                     .foregroundStyle(WxTheme.textSecondary)
                                     .lineLimit(1)
+                                    .frame(maxWidth: 130, alignment: .trailing)
                             }
                             .font(.callout)
                         }
-                        .tint(WxTheme.accentSecondary)
+                        .tint(WxTheme.snwCyan.opacity(0.8))
                     }
                 }
             }
         }
+    }
+
+    private func periodSymbol(_ p: Period) -> String {
+        if let dt = p.isDaytime {
+            return dt ? "sun.max.fill" : "moon.stars.fill"
+        }
+        let lower = p.name.lowercased()
+        if lower.contains("night") || lower.contains("tonight") {
+            return "moon.stars.fill"
+        }
+        return "sun.max.fill"
+    }
+
+    private func windSummary(_ p: Period) -> String? {
+        let dir = p.windDirection ?? ""
+        if store.units == "metric", let w = p.windKph {
+            return String(format: "%.0f km/h %@", w, dir).trimmingCharacters(in: .whitespaces)
+        } else if let w = p.windMph {
+            return String(format: "%.0f mph %@", w, dir).trimmingCharacters(in: .whitespaces)
+        }
+        return nil
     }
 
     private func tempText(_ p: Period) -> String {
@@ -205,7 +277,15 @@ struct AlertsListView: View {
             }
         } else {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Alerts").font(.headline).foregroundStyle(WxTheme.text)
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(WxTheme.snwRed)
+                        .frame(width: 6, height: 6)
+                        .shadow(color: WxTheme.snwRed.opacity(0.8), radius: 3)
+                    Text("TACTICAL ALERTS // NWS WATCHES & WARNINGS")
+                        .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                        .foregroundStyle(WxTheme.snwRed)
+                }
                 ForEach(withBand, id: \.0.id) { item in
                     DisclosureGroup {
                         VStack(alignment: .leading, spacing: 4) {
@@ -227,12 +307,13 @@ struct AlertsListView: View {
 
     @ViewBuilder
     private func compactRow(alert: Alert, band: ConditionBand, badgeSize: CGFloat) -> some View {
+        let alertColor = (band == .red ? WxTheme.snwRed : WxTheme.snwGold)
         HStack(alignment: .center, spacing: 10) {
             ConditionPanel(band: band, size: badgeSize)
             VStack(alignment: .leading, spacing: 2) {
-                Text(alert.event)
-                    .font(.callout.weight(.semibold))
-                    .foregroundStyle(WxTheme.text)
+                Text(alert.event.uppercased())
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .foregroundStyle(alertColor)
                     .lineLimit(1)
                 if let h = alert.headline {
                     Text(h)
@@ -240,14 +321,24 @@ struct AlertsListView: View {
                         .foregroundStyle(WxTheme.textSecondary)
                         .lineLimit(popoverMode ? 1 : 2)
                 } else if let exp = alert.expires {
-                    Text("Expires \(exp)")
-                        .font(.caption2)
-                        .foregroundStyle(WxTheme.textSecondary.opacity(0.8))
+                    Text("EXPIRES // \(exp)")
+                        .font(.system(size: 8.5, design: .monospaced))
+                        .foregroundStyle(WxTheme.snwSilver.opacity(0.8))
                         .lineLimit(1)
                 }
             }
             Spacer(minLength: 0)
         }
+        .padding(8)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(alertColor.opacity(0.10))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .strokeBorder(alertColor.opacity(0.4), lineWidth: 0.8)
+        )
+        .overlay(SNWCornerBrackets(color: alertColor, length: 6, thickness: 1))
     }
 }
 
@@ -259,73 +350,115 @@ struct ControlsBar: View {
     var body: some View {
         VStack(spacing: compact ? 6 : 8) {
             HStack(spacing: 8) {
-                TextField("Zip or City, ST", text: $store.locationInput)
-                    .textFieldStyle(.plain)
-                    .padding(6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(WxTheme.accent.opacity(0.08))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .strokeBorder(WxTheme.border, lineWidth: 1)
-                            )
-                    )
-                    .foregroundStyle(WxTheme.text)
-                    .onSubmit { Task { await store.applyLocationAndUnits() } }
+                HStack(spacing: 6) {
+                    Image(systemName: "scope")
+                        .font(.system(size: 11))
+                        .foregroundStyle(WxTheme.snwCyan.opacity(0.8))
+                    TextField("Zip or City, ST", text: $store.locationInput)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 12, weight: .medium, design: .monospaced))
+                        .foregroundStyle(WxTheme.text)
+                        .onSubmit { Task { await store.applyLocationAndUnits() } }
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(WxTheme.snwChassis.opacity(0.85))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 0.8)
+                        )
+                )
+
                 Picker("Units", selection: $store.units) {
                     Text("°F").tag("imperial")
                     Text("°C").tag("metric")
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .frame(width: 90)
+                .frame(width: 82)
                 .onChange(of: store.units) { _, _ in
                     Task { await store.applyLocationAndUnits() }
                 }
+
                 if showOpenWindow {
                     Button {
                         NotificationCenter.default.post(name: .wxOpenDeskRadar, object: nil)
                     } label: {
                         Image(systemName: "dot.radiowaves.left.and.right")
-                            .foregroundStyle(WxTheme.accent)
+                            .foregroundStyle(WxTheme.snwCyan)
                     }
                     .buttonStyle(.plain)
-                    .help("Open Radar")
+                    .help("Open Radar Array")
 
                     Button {
                         NotificationCenter.default.post(name: .wxOpenDeskWindow, object: nil)
                     } label: {
                         Image(systemName: "macwindow")
-                            .foregroundStyle(WxTheme.accent)
+                            .foregroundStyle(WxTheme.snwCyan)
                     }
                     .buttonStyle(.plain)
-                    .help("Open Desk")
+                    .help("Open Desk Console")
                 }
             }
+
             HStack {
-                Button("Refresh") { Task { await store.refresh() } }
-                    .disabled(store.isLoading)
-                    .foregroundStyle(WxTheme.accent)
-                if !compact {
-                    Button("Apply location") { Task { await store.applyLocationAndUnits() } }
-                        .foregroundStyle(WxTheme.accentSecondary)
+                Button {
+                    Task { await store.refresh() }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 9))
+                        Text("REFRESH SENSORS")
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    }
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3.5)
+                    .background(WxTheme.snwCyan.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
+                    .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwCyan.opacity(0.35), lineWidth: 0.8))
+                    .foregroundStyle(WxTheme.snwCyan)
                 }
+                .buttonStyle(.plain)
+                .disabled(store.isLoading)
+
+                if !compact {
+                    Button {
+                        Task { await store.applyLocationAndUnits() }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "location.fill")
+                                .font(.system(size: 9))
+                            Text("LOCK LOCATION")
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        }
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3.5)
+                        .background(WxTheme.snwGold.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
+                        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwGold.opacity(0.35), lineWidth: 0.8))
+                        .foregroundStyle(WxTheme.snwGold)
+                    }
+                    .buttonStyle(.plain)
+                }
+
                 Spacer()
+
                 if let t = store.lastRefreshed {
-                    Text("Updated \(t.formatted(date: .omitted, time: .shortened))")
-                        .font(.caption2)
-                        .foregroundStyle(WxTheme.textSecondary)
+                    Text("SYNC // \(t.formatted(date: .omitted, time: .shortened))")
+                        .font(.system(size: 8.5, weight: .medium, design: .monospaced))
+                        .foregroundStyle(WxTheme.snwSilver.opacity(0.75))
                 }
             }
+
             if let err = store.errorMessage {
-                Text(err)
-                    .font(.caption)
-                    .foregroundStyle(WxTheme.alert)
+                Text("// ALERT: \(err)")
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .foregroundStyle(WxTheme.snwRed)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else if let warn = store.payload?.warning, !warn.isEmpty {
-                Text(warn)
-                    .font(.caption2)
-                    .foregroundStyle(WxTheme.warn)
+                Text("// ADVISORY: \(warn)")
+                    .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+                    .foregroundStyle(WxTheme.snwAmber)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
