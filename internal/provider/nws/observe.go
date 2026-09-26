@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mwirges/wx/internal/astro"
 	"github.com/mwirges/wx/internal/cache"
 	"github.com/mwirges/wx/internal/location"
 	"github.com/mwirges/wx/internal/models"
@@ -94,6 +95,14 @@ func (p *Provider) CurrentConditions(ctx context.Context, loc location.Location,
 
 		PressureHPA: pressureHPA,
 		VisibilityM: obs.Properties.Visibility.Value,
+	}
+
+	astroTime := t
+	if astroTime.IsZero() {
+		astroTime = time.Now()
+	}
+	if a, err := astro.Calculate(loc.Lat, loc.Lon, astroTime); err == nil {
+		cond.Astronomy = a
 	}
 
 	_ = c.Set(cacheKey, cond, 10*time.Minute)

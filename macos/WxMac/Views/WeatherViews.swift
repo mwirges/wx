@@ -8,33 +8,66 @@ struct NowBlockView: View {
 
     var body: some View {
         let c = store.payload?.conditions
-        VStack(alignment: .leading, spacing: compact ? 6 : 10) {
-            HStack(alignment: .firstTextBaseline) {
-                Image(systemName: store.statusSymbol)
-                    .font(compact ? .title2 : .system(size: 38))
-                    .foregroundStyle(WxTheme.snwCyan)
-                    .shadow(color: WxTheme.snwCyan.opacity(0.4), radius: 5)
-                Text(store.displayTemp)
-                    .font(compact ? .title.weight(.semibold) : .system(size: 46, weight: .bold, design: .rounded))
-                    .foregroundStyle(WxTheme.text)
-                    .shadow(color: WxTheme.snwCyan.opacity(0.18), radius: 6)
-                Spacer()
-                if store.isLoading {
-                    ProgressView().controlSize(.small).tint(WxTheme.snwCyan)
+        VStack(alignment: .leading, spacing: compact ? 8 : 10) {
+            if compact {
+                HStack(alignment: .center, spacing: 10) {
+                    Image(systemName: store.statusSymbol)
+                        .font(.system(size: 32))
+                        .foregroundStyle(WxTheme.snwCyan)
+                        .shadow(color: WxTheme.snwCyan.opacity(0.4), radius: 4)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text(store.displayTemp)
+                                .font(.system(size: 26, weight: .bold, design: .monospaced))
+                                .foregroundStyle(WxTheme.text)
+                            if let desc = c?.description, !desc.isEmpty {
+                                Text(desc)
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(WxTheme.textSecondary)
+                                    .lineLimit(1)
+                            }
+                        }
+                        Text(c?.location ?? "—")
+                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(WxTheme.snwSilver)
+                            .lineLimit(1)
+                    }
+
+                    Spacer()
+
+                    if store.isLoading {
+                        ProgressView().controlSize(.small).tint(WxTheme.snwCyan)
+                    }
                 }
-            }
-            Text(c?.location ?? "—")
-                .font(.headline)
-                .foregroundStyle(WxTheme.text)
-            if let desc = c?.description, !desc.isEmpty {
-                Text(desc)
-                    .font(.subheadline)
-                    .foregroundStyle(WxTheme.textSecondary)
-            }
-            if !popoverMetrics, let station = c?.station, let observed = c?.observedAt {
-                Text("STATION // \(station) · OBSERVED // \(observed)")
-                    .font(.system(size: 8.5, weight: .medium, design: .monospaced))
-                    .foregroundStyle(WxTheme.snwSilver.opacity(0.75))
+            } else {
+                HStack(alignment: .firstTextBaseline) {
+                    Image(systemName: store.statusSymbol)
+                        .font(.system(size: 38))
+                        .foregroundStyle(WxTheme.snwCyan)
+                        .shadow(color: WxTheme.snwCyan.opacity(0.4), radius: 5)
+                    Text(store.displayTemp)
+                        .font(.system(size: 46, weight: .bold, design: .rounded))
+                        .foregroundStyle(WxTheme.text)
+                        .shadow(color: WxTheme.snwCyan.opacity(0.18), radius: 6)
+                    Spacer()
+                    if store.isLoading {
+                        ProgressView().controlSize(.small).tint(WxTheme.snwCyan)
+                    }
+                }
+                Text(c?.location ?? "—")
+                    .font(.headline)
+                    .foregroundStyle(WxTheme.text)
+                if let desc = c?.description, !desc.isEmpty {
+                    Text(desc)
+                        .font(.subheadline)
+                        .foregroundStyle(WxTheme.textSecondary)
+                }
+                if let station = c?.station, let observed = c?.observedAt {
+                    Text("STATION // \(station) · OBSERVED // \(observed)")
+                        .font(.system(size: 8.5, weight: .medium, design: .monospaced))
+                        .foregroundStyle(WxTheme.snwSilver.opacity(0.75))
+                }
             }
             metricsGrid(c)
         }
@@ -48,7 +81,7 @@ struct NowBlockView: View {
                 MetricChip(label: "Humidity", value: String(format: "%.0f%%", h))
             }
             if metric {
-                if !popoverMetrics, let dp = c?.dewPointC {
+                if let dp = c?.dewPointC {
                     MetricChip(label: "Dew Point", value: String(format: "%.0f°", dp))
                 }
                 if let w = c?.windKph {
@@ -64,11 +97,11 @@ struct NowBlockView: View {
                 if let p = c?.pressureHpa {
                     MetricChip(label: "Pressure", value: String(format: "%.0f hPa", p))
                 }
-                if !popoverMetrics, let v = c?.visibilityM {
+                if let v = c?.visibilityM {
                     MetricChip(label: "Vis", value: String(format: "%.1f km", v / 1000))
                 }
             } else {
-                if !popoverMetrics, let dp = c?.dewPointF {
+                if let dp = c?.dewPointF {
                     MetricChip(label: "Dew Point", value: String(format: "%.0f°", dp))
                 }
                 if let w = c?.windMph {
@@ -84,8 +117,27 @@ struct NowBlockView: View {
                 if let p = c?.pressureInhg {
                     MetricChip(label: "Pressure", value: String(format: "%.2f inHg", p))
                 }
-                if !popoverMetrics, let v = c?.visibilityMi {
+                if let v = c?.visibilityMi {
                     MetricChip(label: "Vis", value: String(format: "%.1f mi", v))
+                }
+            }
+
+            // Solar Telemetry
+            if let astro = c?.astronomy ?? store.payload?.astronomy {
+                if astro.isPolarDay == true {
+                    MetricChip(label: "Sun", value: "Polar Day")
+                } else if astro.isPolarNight == true {
+                    MetricChip(label: "Sun", value: "Polar Night")
+                } else if let sr = astro.sunriseFormatted, let ss = astro.sunsetFormatted {
+                    if popoverMetrics {
+                        MetricChip(label: "Sun", value: "↑\(sr) ↓\(ss)")
+                    } else {
+                        MetricChip(label: "Sunrise", value: sr)
+                        MetricChip(label: "Sunset", value: ss)
+                        if let dl = astro.dayLength {
+                            MetricChip(label: "Daylight", value: dl)
+                        }
+                    }
                 }
             }
         }
@@ -124,21 +176,47 @@ struct PeriodsListView: View {
             VStack(alignment: .leading, spacing: compactRows ? 0 : 4) {
                 ForEach(periods) { p in
                     if compactRows {
-                        HStack {
+                        HStack(spacing: 8) {
+                            Image(systemName: periodSymbol(p))
+                                .font(.system(size: 9.5))
+                                .foregroundStyle(p.isDaytime == false ? WxTheme.snwSilver : WxTheme.snwGold)
+                                .frame(width: 14)
+
                             Text(p.name)
+                                .font(.system(size: 11.5, weight: .medium, design: .monospaced))
                                 .foregroundStyle(WxTheme.text)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                            Text(tempText(p))
-                                .fontWeight(.semibold)
+
+                            if let pop = p.probabilityOfPrecipitation, pop > 0 {
+                                HStack(spacing: 2) {
+                                    Image(systemName: "drop.fill")
+                                        .font(.system(size: 7))
+                                    Text(String(format: "%.0f%%", pop))
+                                        .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                                }
                                 .foregroundStyle(WxTheme.snwCyan)
-                                .frame(width: 44, alignment: .trailing)
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 1.5)
+                                .background(WxTheme.snwCyan.opacity(0.12), in: Capsule())
+                            }
+
+                            Text(tempText(p))
+                                .font(.system(size: 11.5, weight: .bold, design: .monospaced))
+                                .foregroundStyle(WxTheme.snwCyan)
+                                .frame(width: 34, alignment: .trailing)
+
                             Text(p.shortDescription ?? "")
+                                .font(.system(size: 10.5))
                                 .foregroundStyle(WxTheme.textSecondary)
                                 .lineLimit(1)
-                                .frame(maxWidth: 160, alignment: .trailing)
+                                .frame(maxWidth: 120, alignment: .trailing)
                         }
-                        .font(.callout)
-                        .frame(height: WxTheme.periodRowHeight)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3.5)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                .fill(WxTheme.snwChassis.opacity(0.45))
+                        )
                     } else {
                         DisclosureGroup {
                             VStack(alignment: .leading, spacing: 6) {
@@ -381,40 +459,20 @@ struct ControlsBar: View {
                 .onChange(of: store.units) { _, _ in
                     Task { await store.applyLocationAndUnits() }
                 }
-
-                if showOpenWindow {
-                    Button {
-                        NotificationCenter.default.post(name: .wxOpenDeskRadar, object: nil)
-                    } label: {
-                        Image(systemName: "dot.radiowaves.left.and.right")
-                            .foregroundStyle(WxTheme.snwCyan)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Open Radar Array")
-
-                    Button {
-                        NotificationCenter.default.post(name: .wxOpenDeskWindow, object: nil)
-                    } label: {
-                        Image(systemName: "macwindow")
-                            .foregroundStyle(WxTheme.snwCyan)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Open Desk Console")
-                }
             }
 
-            HStack {
+            HStack(spacing: 6) {
                 Button {
                     Task { await store.refresh() }
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.triangle.2.circlepath")
                             .font(.system(size: 9))
-                        Text("REFRESH SENSORS")
-                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        Text(compact ? "REFRESH" : "REFRESH SENSORS")
+                            .font(.system(size: 8.5, weight: .bold, design: .monospaced))
                     }
                     .padding(.horizontal, 7)
-                    .padding(.vertical, 3.5)
+                    .padding(.vertical, 4)
                     .background(WxTheme.snwCyan.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
                     .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwCyan.opacity(0.35), lineWidth: 0.8))
                     .foregroundStyle(WxTheme.snwCyan)
@@ -443,7 +501,43 @@ struct ControlsBar: View {
 
                 Spacer()
 
-                if let t = store.lastRefreshed {
+                if showOpenWindow {
+                    Button {
+                        NotificationCenter.default.post(name: .wxOpenDeskRadar, object: nil)
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "dot.radiowaves.left.and.right")
+                                .font(.system(size: 8.5))
+                            Text("RADAR")
+                                .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                        }
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 4)
+                        .background(WxTheme.snwChassis.opacity(0.85), in: RoundedRectangle(cornerRadius: 4))
+                        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwCyan.opacity(0.4), lineWidth: 0.8))
+                        .foregroundStyle(WxTheme.snwCyan)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Open Radar Tactical Array (⌘3)")
+
+                    Button {
+                        NotificationCenter.default.post(name: .wxOpenDeskWindow, object: nil)
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "macwindow")
+                                .font(.system(size: 8.5))
+                            Text("DESK")
+                                .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                        }
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 4)
+                        .background(WxTheme.snwChassis.opacity(0.85), in: RoundedRectangle(cornerRadius: 4))
+                        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwCyan.opacity(0.4), lineWidth: 0.8))
+                        .foregroundStyle(WxTheme.snwCyan)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Open Desk Console (⌘1)")
+                } else if let t = store.lastRefreshed {
                     Text("SYNC // \(t.formatted(date: .omitted, time: .shortened))")
                         .font(.system(size: 8.5, weight: .medium, design: .monospaced))
                         .foregroundStyle(WxTheme.snwSilver.opacity(0.75))

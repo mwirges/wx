@@ -9,6 +9,7 @@ import (
 
 	"github.com/urfave/cli/v2"
 
+	"github.com/mwirges/wx/internal/astro"
 	"github.com/mwirges/wx/internal/cache"
 	"github.com/mwirges/wx/internal/config"
 	"github.com/mwirges/wx/internal/location"
@@ -187,6 +188,16 @@ func runWeather(c *cli.Context, opts weatherOpts) error {
 	}
 	if alErr != nil {
 		fmt.Fprintf(os.Stderr, "warning: alerts unavailable: %v\n", alErr)
+	}
+
+	if cond != nil && cond.Astronomy == nil && (loc.Lat != 0 || loc.Lon != 0) {
+		obsTime := time.Now()
+		if !cond.ObservedAt.IsZero() {
+			obsTime = cond.ObservedAt
+		}
+		if a, err := astro.Calculate(loc.Lat, loc.Lon, obsTime); err == nil {
+			cond.Astronomy = a
+		}
 	}
 
 	return output.Render(output.RenderData{

@@ -25,8 +25,7 @@ enum WxTheme {
     static let conditionYellow = snwGold
     static let border = snwCyan.opacity(0.35)
     static let corner: CGFloat = 8
-    static let popoverSize = CGSize(width: 420, height: 620)
-    static let periodRowHeight: CGFloat = 44
+    static let popoverSize = CGSize(width: 420, height: 580)
 
     static func severityColor(_ s: String?) -> Color {
         switch (s ?? "").lowercased() {

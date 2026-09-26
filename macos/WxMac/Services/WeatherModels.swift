@@ -6,9 +6,10 @@ struct WxPayload: Decodable, Sendable {
     var forecast: Forecast?
     var alerts: [Alert]
     var warning: String?
+    var astronomy: AstronomyDTO?
 
     enum CodingKeys: String, CodingKey {
-        case conditions, forecast, alerts, warning
+        case conditions, forecast, alerts, warning, astronomy
     }
 
     init(from decoder: Decoder) throws {
@@ -17,6 +18,40 @@ struct WxPayload: Decodable, Sendable {
         forecast = try c.decodeIfPresent(Forecast.self, forKey: .forecast)
         alerts = try c.decodeIfPresent([Alert].self, forKey: .alerts) ?? []
         warning = try c.decodeIfPresent(String.self, forKey: .warning)
+        astronomy = try c.decodeIfPresent(AstronomyDTO.self, forKey: .astronomy)
+    }
+}
+
+struct AstronomyDTO: Decodable, Sendable {
+    var sunrise: String?
+    var sunset: String?
+    var solarNoon: String?
+    var dayLengthSeconds: Int64?
+    var dayLength: String?
+    var isPolarDay: Bool?
+    var isPolarNight: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case sunrise, sunset
+        case solarNoon = "solar_noon"
+        case dayLengthSeconds = "day_length_seconds"
+        case dayLength = "day_length"
+        case isPolarDay = "is_polar_day"
+        case isPolarNight = "is_polar_night"
+    }
+
+    var sunriseFormatted: String? {
+        guard let sunrise, let date = ISO8601DateFormatter().date(from: sunrise) else { return nil }
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+
+    var sunsetFormatted: String? {
+        guard let sunset, let date = ISO8601DateFormatter().date(from: sunset) else { return nil }
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
     }
 }
 
@@ -42,6 +77,7 @@ struct Conditions: Decodable, Sendable {
     var pressureInhg: Double?
     var visibilityM: Double?
     var visibilityMi: Double?
+    var astronomy: AstronomyDTO?
 
     enum CodingKeys: String, CodingKey {
         case station, location, description
@@ -63,6 +99,7 @@ struct Conditions: Decodable, Sendable {
         case pressureInhg = "pressure_inhg"
         case visibilityM = "visibility_m"
         case visibilityMi = "visibility_mi"
+        case astronomy
     }
 }
 
