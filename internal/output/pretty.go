@@ -137,10 +137,15 @@ func renderPretty(data RenderData, opts RenderOptions) error {
 		}
 
 		if c.Astronomy != nil {
+			hasSun := c.Astronomy.IsPolarDay || c.Astronomy.IsPolarNight || (c.Astronomy.Sunrise != nil && c.Astronomy.Sunset != nil)
+			hasMoon := c.Astronomy.MoonPhase != ""
+			if hasSun || hasMoon {
+				fmt.Println()
+			}
 			if c.Astronomy.IsPolarDay {
-				fmt.Printf("\n  %s %s\n", styleLabel.Render("Sun:"), styleValue.Render("Polar Day (24h daylight)"))
+				fmt.Printf("  %s  %s\n", styleLabel.Render("Sun:"), styleValue.Render("Polar Day (24h daylight)"))
 			} else if c.Astronomy.IsPolarNight {
-				fmt.Printf("\n  %s %s\n", styleLabel.Render("Sun:"), styleValue.Render("Polar Night (0h daylight)"))
+				fmt.Printf("  %s  %s\n", styleLabel.Render("Sun:"), styleValue.Render("Polar Night (0h daylight)"))
 			} else if c.Astronomy.Sunrise != nil && c.Astronomy.Sunset != nil {
 				sr := c.Astronomy.Sunrise.Local().Format("3:04 PM")
 				ss := c.Astronomy.Sunset.Local().Format("3:04 PM")
@@ -155,7 +160,27 @@ func renderPretty(data RenderData, opts RenderOptions) error {
 				ssStr := styleValue.Render(ss)
 				dlStr := styleDesc.Render(fmt.Sprintf("(%s daylight)", dayLenStr))
 
-				fmt.Printf("\n  %s %s %s   %s %s   %s\n", sunLabel, upArrow, srStr, downArrow, ssStr, dlStr)
+				fmt.Printf("  %s  %s %s   %s %s   %s\n", sunLabel, upArrow, srStr, downArrow, ssStr, dlStr)
+			}
+			if hasMoon {
+				moonLabel := styleLabel.Render("Moon:")
+				phaseStr := styleValue.Render(c.Astronomy.MoonPhase)
+				icon := c.Astronomy.MoonPhaseIcon
+				if icon != "" {
+					icon = icon + " "
+				}
+				var details []string
+				if c.Astronomy.MoonIlluminationPct != nil {
+					details = append(details, c.Astronomy.MoonIlluminationStr()+" illuminated")
+				}
+				if c.Astronomy.MoonAgeDays != nil {
+					details = append(details, c.Astronomy.MoonAgeStr()+" age")
+				}
+				detailStr := ""
+				if len(details) > 0 {
+					detailStr = "   " + styleDesc.Render(fmt.Sprintf("(%s)", strings.Join(details, ", ")))
+				}
+				fmt.Printf("  %s %s%s%s\n", moonLabel, icon, phaseStr, detailStr)
 			}
 		}
 		fmt.Println()

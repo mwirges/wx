@@ -272,13 +272,66 @@ func (m MonitorModel) renderConditions(w int) []string {
 	}
 
 	// Build 5 icon+content lines
-	out := make([]string, 5)
+	out := make([]string, 0, conditionsBlockLines)
 	for i := 0; i < 5; i++ {
 		iconStr := lipgloss.NewStyle().
 			Foreground(ic.Colors[i]).
 			Width(output.IconWidth).
 			Render(ic.Lines[i])
-		out[i] = "  " + iconStr + "  " + slots[i]
+		out = append(out, truncateStr("  "+iconStr+"  "+slots[i], w))
+	}
+
+	if c.Astronomy != nil {
+		var sunLine string
+		if c.Astronomy.IsPolarDay {
+			sunLine = fmt.Sprintf("  %s  %s", styleLabel.Render("Sun:"), styleValue.Render("Polar Day (24h daylight)"))
+		} else if c.Astronomy.IsPolarNight {
+			sunLine = fmt.Sprintf("  %s  %s", styleLabel.Render("Sun:"), styleValue.Render("Polar Night (0h daylight)"))
+		} else if c.Astronomy.Sunrise != nil && c.Astronomy.Sunset != nil {
+			sr := c.Astronomy.Sunrise.Local().Format("3:04 PM")
+			ss := c.Astronomy.Sunset.Local().Format("3:04 PM")
+			hours := int(c.Astronomy.DayLength.Hours())
+			mins := int(c.Astronomy.DayLength.Minutes()) % 60
+			dayLenStr := fmt.Sprintf("%dh %dm", hours, mins)
+
+			upArrow := lipgloss.NewStyle().Foreground(lipgloss.Color("220")).Render("↑")   // warm gold
+			downArrow := lipgloss.NewStyle().Foreground(lipgloss.Color("208")).Render("↓") // dusk orange
+			sunLine = fmt.Sprintf("  %s  %s %s  %s %s  %s",
+				styleLabel.Render("Sun:"),
+				upArrow, styleValue.Render(sr),
+				downArrow, styleValue.Render(ss),
+				styleDesc.Render("("+dayLenStr+")"),
+			)
+		}
+		if sunLine != "" {
+			out = append(out, truncateStr(sunLine, w))
+		}
+
+		if c.Astronomy.MoonPhase != "" {
+			moonLabel := styleLabel.Render("Moon:")
+			icon := c.Astronomy.MoonPhaseIcon
+			if icon != "" {
+				icon += " "
+			}
+			phaseStr := styleValue.Render(c.Astronomy.MoonPhase)
+			var details []string
+			if c.Astronomy.MoonIlluminationPct != nil {
+				details = append(details, c.Astronomy.MoonIlluminationStr()+" illuminated")
+			}
+			if c.Astronomy.MoonAgeDays != nil {
+				details = append(details, c.Astronomy.MoonAgeStr()+" age")
+			}
+			detailStr := ""
+			if len(details) > 0 {
+				detailStr = "  " + styleDesc.Render(fmt.Sprintf("(%s)", strings.Join(details, ", ")))
+			}
+			moonLine := fmt.Sprintf("  %s %s%s%s", moonLabel, icon, phaseStr, detailStr)
+			out = append(out, truncateStr(moonLine, w))
+		}
+	}
+
+	if len(out) > conditionsBlockLines {
+		out = out[:conditionsBlockLines]
 	}
 
 	// Pad to conditionsBlockLines (7)

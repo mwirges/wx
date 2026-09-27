@@ -72,15 +72,21 @@ type TemplateConditions struct {
 	Astronomy     *TemplateAstronomy
 }
 
-// TemplateAstronomy provides calculated solar times.
+// TemplateAstronomy provides calculated solar and lunar times.
 type TemplateAstronomy struct {
-	Sunrise          string
-	Sunset           string
-	SolarNoon        string
-	DayLength        string
-	DayLengthSeconds int64
-	IsPolarDay       bool
-	IsPolarNight     bool
+	Sunrise             string
+	Sunset              string
+	SolarNoon           string
+	DayLength           string
+	DayLengthSeconds    int64
+	IsPolarDay          bool
+	IsPolarNight        bool
+	MoonPhase           string
+	MoonPhaseIcon       string
+	MoonIllumination    *float64
+	MoonIlluminationStr string
+	MoonAgeDays         *float64
+	MoonAgeStr          string
 }
 
 // TemplateForecast provides structured forecast information.
@@ -262,10 +268,16 @@ func BuildTemplateContext(data RenderData, opts RenderOptions) TemplateContext {
 
 		if a := c.Astronomy; a != nil {
 			ta := &TemplateAstronomy{
-				DayLength:        fmt.Sprintf("%dh %dm", int(a.DayLength.Hours()), int(a.DayLength.Minutes())%60),
-				DayLengthSeconds: int64(a.DayLength.Seconds()),
-				IsPolarDay:       a.IsPolarDay,
-				IsPolarNight:     a.IsPolarNight,
+				DayLength:           fmt.Sprintf("%dh %dm", int(a.DayLength.Hours()), int(a.DayLength.Minutes())%60),
+				DayLengthSeconds:    int64(a.DayLength.Seconds()),
+				IsPolarDay:          a.IsPolarDay,
+				IsPolarNight:        a.IsPolarNight,
+				MoonPhase:           a.MoonPhase,
+				MoonPhaseIcon:       a.MoonPhaseIcon,
+				MoonIllumination:    a.MoonIlluminationPct,
+				MoonIlluminationStr: a.MoonIlluminationStr(),
+				MoonAgeDays:         a.MoonAgeDays,
+				MoonAgeStr:          a.MoonAgeStr(),
 			}
 			if a.Sunrise != nil {
 				ta.Sunrise = a.Sunrise.Local().Format("3:04 PM")

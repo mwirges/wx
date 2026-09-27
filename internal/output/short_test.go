@@ -149,6 +149,28 @@ func TestFormatShort_AstronomyPolar(t *testing.T) {
 	}
 }
 
+func TestFormatShort_AstronomyMoon(t *testing.T) {
+	tempC := 20.0
+	sr := time.Date(2026, 9, 26, 7, 31, 0, 0, time.Local)
+	ss := time.Date(2026, 9, 26, 19, 32, 0, 0, time.Local)
+	data := RenderData{
+		Conditions: &models.CurrentConditions{
+			Location: "Fort Wayne, IN",
+			TempC:    &tempC,
+			Astronomy: &models.Astronomy{
+				Sunrise:       &sr,
+				Sunset:        &ss,
+				MoonPhase:     "Full Moon",
+				MoonPhaseIcon: "🌕",
+			},
+		},
+	}
+	got := FormatShort(data, RenderOptions{Units: "imperial"})
+	if !strings.Contains(got, "↑7:31 AM ↓7:32 PM 🌕") {
+		t.Errorf("got %q, expected '↑7:31 AM ↓7:32 PM 🌕'", got)
+	}
+}
+
 func TestFormatShort_Alerts(t *testing.T) {
 	tempC := 22.0
 	data := RenderData{

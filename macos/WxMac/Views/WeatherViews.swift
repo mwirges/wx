@@ -139,6 +139,23 @@ struct NowBlockView: View {
                         }
                     }
                 }
+
+                // Lunar Telemetry
+                if let phase = astro.moonPhase {
+                    let icon = astro.moonPhaseIcon.map { "\($0) " } ?? ""
+                    if popoverMetrics {
+                        let illum = astro.moonIlluminationPct.map { String(format: " (%.0f%%)", $0) } ?? ""
+                        MetricChip(label: "Moon", value: "\(icon)\(phase)\(illum)")
+                    } else {
+                        MetricChip(label: "Moon", value: "\(icon)\(phase)")
+                        if let illum = astro.moonIlluminationPct {
+                            MetricChip(label: "Moon Illum", value: String(format: "%.0f%%", illum))
+                        }
+                        if let age = astro.moonAgeDays {
+                            MetricChip(label: "Moon Age", value: String(format: "%.1fd", age))
+                        }
+                    }
+                }
             }
         }
     }
