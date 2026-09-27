@@ -68,6 +68,7 @@ struct RadarMapView: NSViewRepresentable {
         mapView.showsZoomControls = true
         mapView.showsCompass = false
         mapView.showsScale = false
+        mapView.autoresizingMask = [.width, .height]
 
         context.coordinator.update(mapView: mapView, payload: payload, image: image, forceCenter: true)
         return mapView

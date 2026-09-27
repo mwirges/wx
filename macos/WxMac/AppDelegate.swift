@@ -13,6 +13,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Full Mac app activation policy: displays system menu bar and Dock icon.
         NSApp.setActivationPolicy(.regular)
+        if let icon = NSImage(named: "AppIcon") ?? Bundle.main.image(forResource: "AppIcon") ?? Bundle.main.path(forResource: "AppIcon", ofType: "icns").flatMap({ NSImage(contentsOfFile: $0) }) {
+            NSApp.applicationIconImage = icon
+        }
         DispatchQueue.main.async { [weak self] in
             self?.installMainMenu()
         }
@@ -210,6 +213,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.messageText = "wx — Advanced Meteorological Console"
         alert.informativeText = "High-Resolution MRMS Doppler Radar & Surface Telemetry\nNational Weather Service (NWS) & NOAA MRMS Array"
         alert.alertStyle = .informational
+        if let icon = NSApp.applicationIconImage {
+            alert.icon = icon
+        }
         alert.addButton(withTitle: "Acknowledge")
         alert.runModal()
     }

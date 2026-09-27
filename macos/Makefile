@@ -29,6 +29,8 @@ embed-cli:
 	cp -f "../build/wx" "$(DERIVED)/Build/Products/$(CONFIG)/wx.app/Contents/MacOS/wx-cli"
 	chmod +x "$(DERIVED)/Build/Products/$(CONFIG)/wx.app/Contents/MacOS/wx-cli"
 	codesign --force --sign - --timestamp=none "$(DERIVED)/Build/Products/$(CONFIG)/wx.app/Contents/MacOS/wx-cli" 2>/dev/null || true
+	touch "$(DERIVED)/Build/Products/$(CONFIG)/wx.app"
+	/System/Library/Frameworks/CoreServices.framework/Versions/Current/Frameworks/LaunchServices.framework/Versions/Current/Support/lsregister -f "$(DERIVED)/Build/Products/$(CONFIG)/wx.app" 2>/dev/null || true
 
 ## run: build then open the app
 run: build
