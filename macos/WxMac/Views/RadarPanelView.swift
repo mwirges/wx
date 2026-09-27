@@ -380,12 +380,12 @@ struct RadarPanelView: View {
                             }
                         }
                     }
-                    .aspectRatio(1, contentMode: .fit)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if let img = store.radarImage {
                     ZStack {
                         Image(nsImage: img)
                             .resizable()
-                            .aspectRatio(1, contentMode: .fit)
+                            .aspectRatio(contentMode: .fit)
                             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 
                         if store.isRadarLoading {
@@ -397,7 +397,7 @@ struct RadarPanelView: View {
                                 .foregroundStyle(WxTheme.text)
                         }
                     }
-                    .aspectRatio(1, contentMode: .fit)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if store.isRadarLoading {
                     VStack(spacing: 8) {
                         ProgressView()
@@ -407,6 +407,7 @@ struct RadarPanelView: View {
                             .font(.system(size: 10, weight: .bold, design: .monospaced))
                             .foregroundStyle(WxTheme.snwCyan)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if let err = store.radarErrorMessage {
                     VStack(spacing: 8) {
                         Image(systemName: "exclamationmark.triangle")
@@ -423,6 +424,7 @@ struct RadarPanelView: View {
                         .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                         .foregroundStyle(WxTheme.snwCyan)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     VStack(spacing: 8) {
                         Image(systemName: "dot.radiowaves.left.and.right")
@@ -437,10 +439,11 @@ struct RadarPanelView: View {
                         .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                         .foregroundStyle(WxTheme.snwCyan)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
-            .aspectRatio(1, contentMode: .fit)
-            .frame(maxHeight: 380)
+            .frame(maxWidth: .infinity)
+            .frame(height: 380)
             .overlay(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 1)
