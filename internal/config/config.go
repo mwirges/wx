@@ -15,6 +15,14 @@ type LocationEntry struct {
 	Value string `json:"value"` // same formats as --location (zip code, "City, ST", etc.)
 }
 
+// PerLocationSettings defines custom user settings for a specific location.
+type PerLocationSettings struct {
+	Units               string  `json:"units,omitempty"`                 // "imperial" | "metric"
+	DefaultRadarProduct string  `json:"default_radar_product,omitempty"` // e.g. "composite-reflectivity"
+	DefaultRadarRadius  float64 `json:"default_radar_radius,omitempty"`  // e.g. 150
+	RadarStation        string  `json:"radar_station,omitempty"`         // e.g. "KIWX"
+}
+
 // Config holds user-level preferences loaded from ~/.config/wx/config.json.
 // All fields are optional; missing fields leave the app using its built-in defaults.
 type Config struct {
@@ -35,6 +43,9 @@ type Config struct {
 
 	// RecentLocations tracks the most recently queried locations (capped at 10).
 	RecentLocations []string `json:"recent_locations,omitempty"`
+
+	// PerLocation stores customized settings per location (alias, zip, or city name).
+	PerLocation map[string]PerLocationSettings `json:"per_location,omitempty"`
 }
 
 // GetFavorite looks up a favorite location by name (case-insensitive).
@@ -111,6 +122,89 @@ func (c *Config) ResolveLocation(input string) string {
 			return val
 		}
 		return c.DefaultLocation
+	}
+	return ""
+}
+
+// GetLocationSettings retrieves PerLocationSettings for a location (case-insensitive key match).
+func (c *Config) GetLocationSettings(loc string) (PerLocationSettings, bool) {
+	if c.PerLocation == nil || loc == "" {
+		return PerLocationSettings{}, false
+	}
+	for k, v := range c.PerLocation {
+		if strings.EqualFold(k, loc) {
+			return v, true
+		}
+	}
+	return PerLocationSettings{}, false
+}
+
+// SetLocationSettings stores PerLocationSettings for a location.
+func (c *Config) SetLocationSettings(loc string, settings PerLocationSettings) {
+	if c.PerLocation == nil {
+		c.PerLocation = make(map[string]PerLocationSettings)
+	}
+	for k := range c.PerLocation {
+		if strings.EqualFold(k, loc) {
+			delete(c.PerLocation, k)
+			break
+		}
+	}
+	c.PerLocation[loc] = settings
+}
+
+// GetEffectiveUnits returns the units to use for a given location, checking candidate keys
+// in priority order, then global config units, defaulting to "imperial".
+func (c *Config) GetEffectiveUnits(locs ...string) string {
+	for _, l := range locs {
+		if l == "" {
+			continue
+		}
+		if s, ok := c.GetLocationSettings(l); ok && s.Units != "" {
+			return s.Units
+		}
+	}
+	if c.Units != "" {
+		return c.Units
+	}
+	return "imperial"
+}
+
+// GetEffectiveRadarProduct returns the default radar product configured for any candidate location.
+func (c *Config) GetEffectiveRadarProduct(locs ...string) string {
+	for _, l := range locs {
+		if l == "" {
+			continue
+		}
+		if s, ok := c.GetLocationSettings(l); ok && s.DefaultRadarProduct != "" {
+			return s.DefaultRadarProduct
+		}
+	}
+	return ""
+}
+
+// GetEffectiveRadarRadius returns the default radar radius configured for any candidate location (or 0 if unset).
+func (c *Config) GetEffectiveRadarRadius(locs ...string) float64 {
+	for _, l := range locs {
+		if l == "" {
+			continue
+		}
+		if s, ok := c.GetLocationSettings(l); ok && s.DefaultRadarRadius > 0 {
+			return s.DefaultRadarRadius
+		}
+	}
+	return 0
+}
+
+// GetEffectiveRadarStation returns the radar station configured for any candidate location.
+func (c *Config) GetEffectiveRadarStation(locs ...string) string {
+	for _, l := range locs {
+		if l == "" {
+			continue
+		}
+		if s, ok := c.GetLocationSettings(l); ok && s.RadarStation != "" {
+			return s.RadarStation
+		}
 	}
 	return ""
 }

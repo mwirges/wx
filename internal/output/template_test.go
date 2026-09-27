@@ -177,3 +177,41 @@ func TestExecuteTemplate_Errors(t *testing.T) {
 		}
 	})
 }
+
+func TestExecuteTemplate_FreshnessAndAstronomy(t *testing.T) {
+	tempC := 22.0
+	sr := time.Date(2026, 9, 26, 7, 0, 0, 0, time.Local)
+	ss := time.Date(2026, 9, 26, 19, 0, 0, 0, time.Local)
+	obs := time.Now().Add(-10 * time.Minute)
+
+	data := RenderData{
+		Conditions: &models.CurrentConditions{
+			Location:   "Chicago, IL",
+			TempC:      &tempC,
+			ObservedAt: obs,
+			Astronomy: &models.Astronomy{
+				Sunrise:   &sr,
+				Sunset:    &ss,
+				DayLength: 12 * time.Hour,
+			},
+		},
+	}
+
+	tmpl := `{{.Conditions.Location}}: {{.Conditions.TempStr}} | {{.Astronomy.Sunrise}} | {{.Freshness.AgeString}}`
+	var buf bytes.Buffer
+	err := ExecuteTemplate(tmpl, data, RenderOptions{Units: "imperial"}, &buf)
+	if err != nil {
+		t.Fatalf("ExecuteTemplate failed: %v", err)
+	}
+
+	got := buf.String()
+	if !strings.Contains(got, "Chicago, IL: 72°F") {
+		t.Errorf("expected 'Chicago, IL: 72°F', got %q", got)
+	}
+	if !strings.Contains(got, "7:00 AM") {
+		t.Errorf("expected '7:00 AM', got %q", got)
+	}
+	if !strings.Contains(got, "10m ago") {
+		t.Errorf("expected '10m ago', got %q", got)
+	}
+}

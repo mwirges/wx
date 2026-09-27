@@ -23,8 +23,9 @@ type RenderOptions struct {
 // RenderData holds all data to be rendered.
 type RenderData struct {
 	Conditions *models.CurrentConditions
-	Forecast   *models.Forecast  // nil if not requested
-	Alerts     []models.Alert    // nil if not requested
+	Forecast   *models.Forecast // nil if not requested
+	Alerts     []models.Alert   // nil if not requested
+	Freshness  Freshness
 }
 
 var isTTY bool
@@ -35,6 +36,9 @@ func init() {
 
 // Render dispatches to JSON, template, short, or pretty (TTY) output.
 func Render(data RenderData, opts RenderOptions) error {
+	if data.Conditions != nil && data.Freshness.ObservedAt.IsZero() && !data.Conditions.ObservedAt.IsZero() {
+		data.Freshness.ObservedAt = data.Conditions.ObservedAt
+	}
 	if opts.ForceJSON {
 		return renderJSON(data, opts)
 	}

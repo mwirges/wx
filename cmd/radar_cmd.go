@@ -154,7 +154,11 @@ func radarAction(c *cli.Context) error {
 	// If a station ID was provided, override the center location with the
 	// station's coordinates. The provider selection above uses the resolved
 	// loc for country-code matching; we type-assert to StationLookup after.
-	if stationID := c.String("station"); stationID != "" {
+	stationID := c.String("station")
+	if stationID == "" {
+		stationID = cfg.GetEffectiveRadarStation(resolvedInput, locInput, loc.DisplayName)
+	}
+	if stationID != "" {
 		sl, ok := prov.(radar.StationLookup)
 		if !ok {
 			return fmt.Errorf("radar provider %q does not support station lookup", prov.Name())
@@ -168,9 +172,23 @@ func radarAction(c *cli.Context) error {
 		loc.DisplayName = fmt.Sprintf("%s — %s", st.ID, st.Name)
 	}
 
+	product := radar.Product(c.String("product"))
+	if !c.IsSet("product") {
+		if p := cfg.GetEffectiveRadarProduct(resolvedInput, locInput, loc.DisplayName); p != "" {
+			product = radar.Product(p)
+		}
+	}
+
+	radius := c.Float64("radius")
+	if !c.IsSet("radius") {
+		if r := cfg.GetEffectiveRadarRadius(resolvedInput, locInput, loc.DisplayName); r > 0 {
+			radius = r
+		}
+	}
+
 	opts := radar.Options{
-		Product:  radar.Product(c.String("product")),
-		RadiusKM: c.Float64("radius"),
+		Product:  product,
+		RadiusKM: radius,
 		Raw:      c.Bool("raw"),
 	}
 

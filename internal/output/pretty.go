@@ -57,8 +57,12 @@ func renderPretty(data RenderData, opts RenderOptions) error {
 
 		// Location + time header (full width, no icon)
 		timeStr := c.ObservedAt.Local().Format("Mon Jan 2, 3:04 PM")
-		if age := time.Since(c.ObservedAt); age >= time.Minute && age < 24*time.Hour {
-			timeStr += fmt.Sprintf(" (%s)", formatAge(age))
+		freshness := data.Freshness
+		if freshness.ObservedAt.IsZero() && !c.ObservedAt.IsZero() {
+			freshness.ObservedAt = c.ObservedAt
+		}
+		if ageStr := freshness.AgeString(); ageStr != "" && ageStr != "just now" {
+			timeStr += fmt.Sprintf(" (%s)", ageStr)
 		}
 		ts := styleTime.Render(timeStr)
 		fmt.Printf("%s  %s\n\n", styleLocation.Render(c.Location), ts)
@@ -79,7 +83,11 @@ func renderPretty(data RenderData, opts RenderOptions) error {
 		}
 
 		// Slot 1: feels like (wind chill or heat index)
-		if fl := FeelsLikeTemp(c.WindChillC, c.HeatIndexC); fl != nil {
+		fl := c.FeelsLikeC
+		if fl == nil {
+			fl = FeelsLikeTemp(c.WindChillC, c.HeatIndexC)
+		}
+		if fl != nil {
 			label := styleLabel.Render("Feels like")
 			val := TempStyle(*fl, imperial).Render(FormatTemp(*fl, imperial))
 			contents[1] = label + " " + val

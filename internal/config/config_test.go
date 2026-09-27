@@ -273,3 +273,57 @@ func TestResolveLocation(t *testing.T) {
 		t.Errorf("ResolveLocation('') = %q, want 'Resolved Default, ST'", got)
 	}
 }
+
+func TestPerLocationSettings(t *testing.T) {
+	cfg := &Config{
+		Units: "imperial",
+	}
+
+	// Unset returns false and defaults
+	if _, ok := cfg.GetLocationSettings("Chicago"); ok {
+		t.Errorf("expected false for unset location")
+	}
+	if u := cfg.GetEffectiveUnits("Chicago"); u != "imperial" {
+		t.Errorf("expected global default imperial, got %q", u)
+	}
+
+	// Set per-location settings
+	cfg.SetLocationSettings("chicago", PerLocationSettings{
+		Units:               "metric",
+		DefaultRadarProduct: "base-reflectivity",
+		DefaultRadarRadius:  150,
+		RadarStation:        "KLOT",
+	})
+
+	// Case-insensitive lookup
+	s, ok := cfg.GetLocationSettings("Chicago")
+	if !ok {
+		t.Fatalf("expected to find Chicago settings")
+	}
+	if s.Units != "metric" || s.RadarStation != "KLOT" || s.DefaultRadarRadius != 150 || s.DefaultRadarProduct != "base-reflectivity" {
+		t.Errorf("unexpected settings: %+v", s)
+	}
+
+	// Effective helpers
+	if u := cfg.GetEffectiveUnits("Denver", "Chicago"); u != "metric" {
+		t.Errorf("expected Denver fallback to Chicago metric, got %q", u)
+	}
+	if prod := cfg.GetEffectiveRadarProduct("Chicago"); prod != "base-reflectivity" {
+		t.Errorf("expected base-reflectivity, got %q", prod)
+	}
+	if rad := cfg.GetEffectiveRadarRadius("Chicago"); rad != 150 {
+		t.Errorf("expected radius 150, got %f", rad)
+	}
+	if stn := cfg.GetEffectiveRadarStation("Chicago"); stn != "KLOT" {
+		t.Errorf("expected station KLOT, got %q", stn)
+	}
+
+	// Update existing
+	cfg.SetLocationSettings("CHICAGO", PerLocationSettings{
+		Units: "imperial",
+	})
+	s, _ = cfg.GetLocationSettings("chicago")
+	if s.Units != "imperial" || s.RadarStation != "" {
+		t.Errorf("expected updated settings, got %+v", s)
+	}
+}

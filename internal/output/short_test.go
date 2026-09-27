@@ -227,3 +227,26 @@ func TestRenderShort_EmptyError(t *testing.T) {
 		t.Errorf("expected error for empty render data, got nil")
 	}
 }
+
+func TestFormatShort_FreshnessAndFeelsLikeC(t *testing.T) {
+	tempC := 0.0 // 32°F
+	flC := -5.0  // 23°F
+	obs := time.Now().Add(-20 * time.Minute)
+
+	data := RenderData{
+		Conditions: &models.CurrentConditions{
+			Location:   "Minneapolis, MN",
+			TempC:      &tempC,
+			FeelsLikeC: &flC,
+			ObservedAt: obs,
+		},
+	}
+
+	got := FormatShort(data, RenderOptions{Units: "imperial"})
+	if !strings.Contains(got, "32°F (feels 23°)") {
+		t.Errorf("got %q, expected feels like from FeelsLikeC", got)
+	}
+	if !strings.Contains(got, "20m ago") {
+		t.Errorf("got %q, expected '20m ago'", got)
+	}
+}

@@ -81,17 +81,43 @@ type jsonAlert struct {
 	Instruction string `json:"instruction,omitempty"`
 }
 
+type jsonFreshness struct {
+	ObservedAt string `json:"observed_at,omitempty"`
+	FetchedAt  string `json:"fetched_at,omitempty"`
+	FromCache  bool   `json:"from_cache,omitempty"`
+	AgeSeconds int64  `json:"age_seconds,omitempty"`
+	Age        string `json:"age,omitempty"`
+}
+
 type jsonOutput struct {
 	Conditions *jsonConditions `json:"conditions,omitempty"`
 	Forecast   *jsonForecast   `json:"forecast,omitempty"`
 	Alerts     []jsonAlert     `json:"alerts,omitempty"`
 	Astronomy  *jsonAstronomy  `json:"astronomy,omitempty"`
+	Freshness  *jsonFreshness  `json:"freshness,omitempty"`
 }
 
 func renderJSON(data RenderData, opts RenderOptions) error {
 	imperial := opts.Units != "metric"
 
 	out := jsonOutput{}
+
+	freshness := data.Freshness
+	if freshness.ObservedAt.IsZero() && data.Conditions != nil {
+		freshness.ObservedAt = data.Conditions.ObservedAt
+	}
+	if !freshness.ObservedAt.IsZero() {
+		jf := &jsonFreshness{
+			ObservedAt: freshness.ObservedAt.Format(time.RFC3339),
+			FromCache:  freshness.FromCache,
+			AgeSeconds: int64(freshness.Age().Seconds()),
+			Age:        freshness.AgeString(),
+		}
+		if !freshness.FetchedAt.IsZero() {
+			jf.FetchedAt = freshness.FetchedAt.Format(time.RFC3339)
+		}
+		out.Freshness = jf
+	}
 
 	if data.Conditions != nil {
 		c := data.Conditions
@@ -115,7 +141,11 @@ func renderJSON(data RenderData, opts RenderOptions) error {
 		}
 
 		// Feels like (wind chill or heat index)
-		if fl := FeelsLikeTemp(c.WindChillC, c.HeatIndexC); fl != nil {
+		fl := c.FeelsLikeC
+		if fl == nil {
+			fl = FeelsLikeTemp(c.WindChillC, c.HeatIndexC)
+		}
+		if fl != nil {
 			flC := *fl
 			jc.FeelsLikeC = &flC
 			if imperial {

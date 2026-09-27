@@ -16,6 +16,8 @@ type TemplateContext struct {
 	Conditions *TemplateConditions
 	Forecast   *TemplateForecast
 	Alerts     []TemplateAlert
+	Freshness  Freshness
+	Astronomy  *TemplateAstronomy
 	Now        time.Time
 	Units      string
 	Imperial   bool
@@ -134,10 +136,16 @@ func BuildTemplateContext(data RenderData, opts RenderOptions) TemplateContext {
 		}
 	}
 
+	freshness := data.Freshness
+	if freshness.ObservedAt.IsZero() && data.Conditions != nil {
+		freshness.ObservedAt = data.Conditions.ObservedAt
+	}
+
 	ctx := TemplateContext{
-		Now:      time.Now(),
-		Units:    units,
-		Imperial: imperial,
+		Freshness: freshness,
+		Now:       time.Now(),
+		Units:     units,
+		Imperial:  imperial,
 	}
 
 	if c := data.Conditions; c != nil {
@@ -161,7 +169,11 @@ func BuildTemplateContext(data RenderData, opts RenderOptions) TemplateContext {
 			tc.TempStr = FormatTemp(*c.TempC, imperial)
 		}
 
-		if fl := FeelsLikeTemp(c.WindChillC, c.HeatIndexC); fl != nil {
+		fl := c.FeelsLikeC
+		if fl == nil {
+			fl = FeelsLikeTemp(c.WindChillC, c.HeatIndexC)
+		}
+		if fl != nil {
 			flC := *fl
 			flF := CelsiusToFahrenheit(flC)
 			tc.FeelsLikeC = &flC
@@ -265,6 +277,7 @@ func BuildTemplateContext(data RenderData, opts RenderOptions) TemplateContext {
 				ta.SolarNoon = a.SolarNoon.Local().Format("3:04 PM")
 			}
 			tc.Astronomy = ta
+			ctx.Astronomy = ta
 		}
 
 		ctx.Conditions = tc

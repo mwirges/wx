@@ -49,12 +49,16 @@ func hourlyCommand() *cli.Command {
 				Value:   24,
 				Usage:   "number of hours to show in hourly forecast",
 			},
+			&cli.BoolFlag{
+				Name:  "exit-code-on-alerts",
+				Usage: "exit with code 2 on active warnings, 1 on active watches/advisories",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			return runWeather(c, weatherOpts{
 				showForecast: true,
 				showHourly:   true,
-				showAlerts:   c.Bool("alerts"),
+				showAlerts:   c.Bool("alerts") || c.Bool("exit-code-on-alerts"),
 			})
 		},
 	}
