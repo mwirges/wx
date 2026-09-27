@@ -18,6 +18,7 @@ type LocationEntry struct {
 // PerLocationSettings defines custom user settings for a specific location.
 type PerLocationSettings struct {
 	Units               string  `json:"units,omitempty"`                 // "imperial" | "metric"
+	Provider            string  `json:"provider,omitempty"`              // e.g. "nws", "openmeteo"
 	DefaultRadarProduct string  `json:"default_radar_product,omitempty"` // e.g. "composite-reflectivity"
 	DefaultRadarRadius  float64 `json:"default_radar_radius,omitempty"`  // e.g. 150
 	RadarStation        string  `json:"radar_station,omitempty"`         // e.g. "KIWX"
@@ -34,6 +35,10 @@ type Config struct {
 	// Units sets the default display units: "imperial" or "metric".
 	// Overridden by --units on the command line.
 	Units string `json:"units,omitempty"`
+
+	// Provider sets the default weather provider: "nws" or "openmeteo".
+	// Overridden by --provider on the command line.
+	Provider string `json:"provider,omitempty"`
 
 	// Notifications enables or disables desktop notifications for active alerts.
 	Notifications *bool `json:"notifications,omitempty"`
@@ -184,6 +189,23 @@ func (c *Config) GetEffectiveUnits(locs ...string) string {
 		return c.Units
 	}
 	return "imperial"
+}
+
+// GetEffectiveProvider returns the weather provider configured for candidate locations,
+// then global config provider, defaulting to empty string (which means auto-selection).
+func (c *Config) GetEffectiveProvider(locs ...string) string {
+	for _, l := range locs {
+		if l == "" {
+			continue
+		}
+		if s, ok := c.GetLocationSettings(l); ok && s.Provider != "" {
+			return s.Provider
+		}
+	}
+	if c.Provider != "" {
+		return c.Provider
+	}
+	return ""
 }
 
 // GetEffectiveRadarProduct returns the default radar product configured for any candidate location.

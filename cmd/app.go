@@ -16,7 +16,8 @@ import (
 	"github.com/mwirges/wx/internal/models"
 	"github.com/mwirges/wx/internal/output"
 	"github.com/mwirges/wx/internal/provider"
-	_ "github.com/mwirges/wx/internal/provider/nws" // register NWS provider
+	_ "github.com/mwirges/wx/internal/provider/nws"       // register NWS provider
+	_ "github.com/mwirges/wx/internal/provider/openmeteo" // register Open-Meteo fallback provider
 )
 
 // NewApp returns the configured urfave/cli application.
@@ -32,6 +33,11 @@ func NewApp() *cli.App {
 				Name:    "location",
 				Aliases: []string{"l"},
 				Usage:   "zip code, 'City, ST', or blank to use config/auto-detect",
+			},
+			&cli.StringFlag{
+				Name:    "provider",
+				Aliases: []string{"p"},
+				Usage:   "weather provider to use: nws or openmeteo (default auto-detected)",
 			},
 			&cli.BoolFlag{
 				Name:    "forecast",
@@ -91,7 +97,7 @@ func NewApp() *cli.App {
 			}
 		},
 		Description: fmt.Sprintf(
-			"Weather data from weather.gov (US). Config file: %s", cfgPath,
+			"Weather data from weather.gov (US) and Open-Meteo (global). Config file: %s", cfgPath,
 		),
 	}
 	return app
@@ -163,7 +169,12 @@ func runWeather(c *cli.Context, opts weatherOpts) error {
 	}
 
 	// Select provider
-	prov, err := provider.ForLocation(loc)
+	preferredProv := c.String("provider")
+	if preferredProv == "" {
+		preferredProv = cfg.GetEffectiveProvider(resolvedInput, locInput, loc.DisplayName)
+	}
+
+	prov, err := provider.ForLocationWithPreference(loc, preferredProv)
 	if err != nil {
 		return err
 	}
@@ -174,43 +185,56 @@ func runWeather(c *cli.Context, opts weatherOpts) error {
 		units = c.String("units")
 	}
 
-	// Fetch concurrently
-	var (
-		cond    *models.CurrentConditions
-		fc      *models.Forecast
-		alerts  []models.Alert
-		condErr error
-		fcErr   error
-		alErr   error
-		wg      sync.WaitGroup
-	)
+	fetchData := func(p provider.WeatherProvider) (*models.CurrentConditions, *models.Forecast, []models.Alert, error, error, error) {
+		var (
+			condRes  *models.CurrentConditions
+			fcRes    *models.Forecast
+			alRes    []models.Alert
+			cErr     error
+			fErr     error
+			aErr     error
+			fetchWg  sync.WaitGroup
+		)
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		cond, condErr = prov.CurrentConditions(ctx, loc, ch)
-	}()
-
-	if opts.showForecast {
-		wg.Add(1)
+		fetchWg.Add(1)
 		go func() {
-			defer wg.Done()
-			fc, fcErr = prov.Forecast(ctx, loc, opts.showHourly, ch)
+			defer fetchWg.Done()
+			condRes, cErr = p.CurrentConditions(ctx, loc, ch)
 		}()
+
+		if opts.showForecast {
+			fetchWg.Add(1)
+			go func() {
+				defer fetchWg.Done()
+				fcRes, fErr = p.Forecast(ctx, loc, opts.showHourly, ch)
+			}()
+		}
+
+		if opts.showAlerts {
+			fetchWg.Add(1)
+			go func() {
+				defer fetchWg.Done()
+				alRes, aErr = p.Alerts(ctx, loc, ch)
+			}()
+		}
+
+		fetchWg.Wait()
+		return condRes, fcRes, alRes, cErr, fErr, aErr
 	}
 
-	if opts.showAlerts {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			alerts, alErr = prov.Alerts(ctx, loc, ch)
-		}()
-	}
+	cond, fc, alerts, condErr, fcErr, alErr := fetchData(prov)
 
-	wg.Wait()
+	// Fallback to alternative provider if primary failed and provider was not explicitly forced by flag
+	if condErr != nil && !c.IsSet("provider") {
+		if fallbackProv, fbErr := provider.FallbackForLocation(loc, prov.Name()); fbErr == nil {
+			fmt.Fprintf(os.Stderr, "warning: provider %s failed (%v); falling back to %s\n", prov.Name(), condErr, fallbackProv.Name())
+			prov = fallbackProv
+			cond, fc, alerts, condErr, fcErr, alErr = fetchData(prov)
+		}
+	}
 
 	if condErr != nil {
-		return fmt.Errorf("weather: %w", condErr)
+		return fmt.Errorf("weather (%s): %w", prov.Name(), condErr)
 	}
 	if fcErr != nil {
 		fmt.Fprintf(os.Stderr, "warning: forecast unavailable: %v\n", fcErr)

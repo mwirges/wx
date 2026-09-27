@@ -49,6 +49,11 @@ func monitorCommand() *cli.Command {
 				Name:    "notify",
 				Usage:   "enable desktop notifications for new alerts",
 			},
+			&cli.StringFlag{
+				Name:    "provider",
+				Aliases: []string{"p"},
+				Usage:   "weather provider to use: nws or openmeteo",
+			},
 			&cli.BoolFlag{
 				Name:    "hourly",
 				Aliases: []string{"H"},
@@ -108,7 +113,12 @@ func monitorAction(c *cli.Context) error {
 		}
 	}
 
-	weatherProv, err := provider.ForLocation(loc)
+	preferredProv := c.String("provider")
+	if preferredProv == "" {
+		preferredProv = cfg.GetEffectiveProvider(resolvedInput, locInput, loc.DisplayName)
+	}
+
+	weatherProv, err := provider.ForLocationWithPreference(loc, preferredProv)
 	if err != nil {
 		return err
 	}

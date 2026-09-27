@@ -30,14 +30,19 @@ internal/
   models/            CurrentConditions (SI), Forecast, Alert
   monitor/           Monitor TUI (bubbletea)
   output/            Render() — TTY→pretty, pipe→JSON; lipgloss icons
-  provider/          WeatherProvider interface + registry
-  provider/nws/      NWS implementation; Register() in init()
+  provider/          WeatherProvider interface + priority registry (docs/provider-design.md)
+  provider/nws/      NWS implementation; RegisterWithPriority(100) in init()
+  provider/openmeteo/ Open-Meteo implementation; RegisterWithPriority(10) in init()
   radar/             RadarProvider, interactive TUI, render (half-block/inline PNG)
 ```
 
 ## Provider architecture
 
-New providers: implement `provider.WeatherProvider`, call `provider.Register()` from `init()`, blank-import in `cmd/app.go`. `Supports()` gates by country code (NWS checks `loc.CountryCode == "US"`).
+`wx` uses a prioritized provider hierarchy:
+- High-priority specialized providers (NWS for US, `PrioritySpecialized: 100`)
+- Global fallback providers (Open-Meteo, `PriorityFallback: 10`)
+Selection is automatic based on location country code, with automatic runtime fallback if the primary provider experiences upstream failures. Users can force providers via `--provider <name>` or config.
+New providers: implement `provider.WeatherProvider`, call `provider.RegisterWithPriority(...)` from `init()`, blank-import in `cmd/app.go`.
 
 ## Model conventions
 
