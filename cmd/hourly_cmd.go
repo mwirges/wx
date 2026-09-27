@@ -44,6 +44,11 @@ func hourlyCommand() *cli.Command {
 				Aliases: []string{"a"},
 				Usage:   "show active weather alerts",
 			},
+			&cli.IntFlag{
+				Name:    "hours",
+				Value:   24,
+				Usage:   "number of hours to show in hourly forecast",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			return runWeather(c, weatherOpts{

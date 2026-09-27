@@ -46,8 +46,13 @@ func monitorCommand() *cli.Command {
 				Usage: "background weather refresh interval (e.g. 5m, 1h)",
 			},
 			&cli.BoolFlag{
-				Name:  "notify",
-				Usage: "enable desktop notifications for new alerts",
+				Name:    "notify",
+				Usage:   "enable desktop notifications for new alerts",
+			},
+			&cli.BoolFlag{
+				Name:    "hourly",
+				Aliases: []string{"H"},
+				Usage:   "start in hourly forecast mode",
 			},
 		},
 		Action: monitorAction,
@@ -132,6 +137,7 @@ func monitorAction(c *cli.Context) error {
 		Imperial:            units != "metric",
 		RefreshInterval:     c.Duration("interval"),
 		EnableNotifications: enableNotifications,
+		Hourly:              c.Bool("hourly"),
 	}
 
 	m := monitor.New(mcfg, loc)

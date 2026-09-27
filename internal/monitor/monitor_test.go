@@ -573,3 +573,40 @@ func TestUpdate_WeatherMsg_Notifications(t *testing.T) {
 		t.Errorf("expected no notification when no new alerts, got %q", notifiedTitle)
 	}
 }
+
+func TestHandleKey_HourlyToggle(t *testing.T) {
+	m := New(testConfig(), testLoc())
+	if m.hourly {
+		t.Error("expected hourly to default to false")
+	}
+
+	// Press H to toggle hourly on
+	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("H")})
+	um := updated.(MonitorModel)
+	if !um.hourly {
+		t.Error("expected hourly to be true after pressing H")
+	}
+	if !um.weatherLoading {
+		t.Error("expected weatherLoading to be true after toggling forecast mode")
+	}
+	if cmd == nil {
+		t.Error("expected non-nil cmd after pressing H")
+	}
+
+	// Press h (lowercase) to toggle hourly off
+	updated2, _ := um.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("h")})
+	um2 := updated2.(MonitorModel)
+	if um2.hourly {
+		t.Error("expected hourly to be false after pressing h")
+	}
+}
+
+func TestNew_HourlyConfig(t *testing.T) {
+	cfg := testConfig()
+	cfg.Hourly = true
+	m := New(cfg, testLoc())
+	if !m.hourly {
+		t.Error("expected hourly to be true when configured in MonitorConfig")
+	}
+}
+

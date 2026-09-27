@@ -43,9 +43,10 @@ wx
 wx --short
 # Output: Fort Wayne, IN: 63°F · N 0 mph · 63% hum · ↑7:32 AM ↓7:32 PM
 
-# Hourly forecast
+# Hourly forecast (table layout with precip % and humidity)
 wx --hourly
 wx hourly
+wx hourly --hours 12
 
 # Custom templating (inline or from file with @)
 wx -T '{{.Conditions.Location}}: {{.Conditions.TempStr}} ({{.Conditions.Description}})'
@@ -124,13 +125,15 @@ wx monitor --location "Chicago, IL"
 wx monitor --units metric
 wx monitor --interval 5m          # refresh interval (default 15m)
 wx monitor --notify               # enable desktop notifications for new weather alerts
+wx monitor --hourly               # start directly in hourly forecast mode
 ```
 
-The monitor shows current conditions, active alerts, and a scrollable 7-day forecast. Press `R` to toggle a live radar panel alongside the weather data.
+The monitor shows current conditions, active alerts, and a scrollable forecast. Press `R` to toggle a live radar panel, and `H` to toggle between 7-day and hourly forecasts.
 
 | Key | Action |
 |-----|--------|
 | `R` | Toggle radar panel (splits screen left/right) |
+| `H` | Toggle between hourly and daily forecast |
 | `r` | Refresh weather now |
 | `l` | Change location |
 | `↑` / `↓` | Scroll forecast |

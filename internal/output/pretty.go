@@ -3,6 +3,7 @@ package output
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/lipgloss"
 )
@@ -19,11 +20,25 @@ var (
 	styleValue    = lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
 	styleDesc     = lipgloss.NewStyle().Foreground(lipgloss.Color("252")).Italic(true)
 
-	styleAlertBanner = lipgloss.NewStyle().
+	styleAlertWarning = lipgloss.NewStyle().
 				Bold(true).
-				Foreground(lipgloss.Color("196")).
+				Foreground(lipgloss.Color("196")). // Red
 				Border(lipgloss.RoundedBorder()).
 				BorderForeground(lipgloss.Color("196")).
+				Padding(0, 1)
+
+	styleAlertWatch = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("214")). // Amber / Orange
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("214")).
+			Padding(0, 1)
+
+	styleAlertAdvisory = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color("39")). // Cyan / Blue
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(lipgloss.Color("39")).
 				Padding(0, 1)
 
 	styleForecastHeader = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("255"))
@@ -41,7 +56,11 @@ func renderPretty(data RenderData, opts RenderOptions) error {
 		c := data.Conditions
 
 		// Location + time header (full width, no icon)
-		ts := styleTime.Render(c.ObservedAt.Local().Format("Mon Jan 2, 3:04 PM"))
+		timeStr := c.ObservedAt.Local().Format("Mon Jan 2, 3:04 PM")
+		if age := time.Since(c.ObservedAt); age >= time.Minute && age < 24*time.Hour {
+			timeStr += fmt.Sprintf(" (%s)", formatAge(age))
+		}
+		ts := styleTime.Render(timeStr)
 		fmt.Printf("%s  %s\n\n", styleLocation.Render(c.Location), ts)
 
 		// Build 5 content slots to sit beside the icon.
@@ -141,7 +160,13 @@ func renderPretty(data RenderData, opts RenderOptions) error {
 			if headline == "" {
 				headline = a.Event
 			}
-			fmt.Println(styleAlertBanner.Render("⚠  " + headline))
+			bannerStyle := styleAlertAdvisory
+			if a.IsWarning() {
+				bannerStyle = styleAlertWarning
+			} else if a.IsWatch() {
+				bannerStyle = styleAlertWatch
+			}
+			fmt.Println(bannerStyle.Render("⚠  " + headline))
 			if a.AreaDesc != "" {
 				fmt.Printf("   %s\n", styleLabel.Render(a.AreaDesc))
 			}
@@ -155,22 +180,43 @@ func renderPretty(data RenderData, opts RenderOptions) error {
 	// ── Forecast ───────────────────────────────────────────────────
 	if data.Forecast != nil && len(data.Forecast.Periods) > 0 {
 		if opts.ShowHourly {
-			fmt.Println(styleForecastHeader.Render("Hourly Forecast (Next 24 Hours)"))
-			fmt.Println(styleLabel.Render(strings.Repeat("─", 65)))
-
-			limit := 24
+			limit := opts.HourlyLimit
+			if limit <= 0 {
+				limit = 24
+			}
+			headerTitle := fmt.Sprintf("Hourly Forecast (Next %d Hours)", limit)
 			if len(data.Forecast.Periods) < limit {
 				limit = len(data.Forecast.Periods)
+				headerTitle = fmt.Sprintf("Hourly Forecast (%d Hours)", limit)
 			}
+			fmt.Println(styleForecastHeader.Render(headerTitle))
+
+			colTime := lipgloss.NewStyle().Width(12).Foreground(lipgloss.Color("244")).Bold(true).Render("TIME")
+			colTemp := lipgloss.NewStyle().Width(7).Foreground(lipgloss.Color("244")).Bold(true).Render("TEMP")
+			colPrecip := lipgloss.NewStyle().Width(7).Foreground(lipgloss.Color("244")).Bold(true).Render("PRECIP")
+			colHum := lipgloss.NewStyle().Width(7).Foreground(lipgloss.Color("244")).Bold(true).Render("HUMID")
+			colWind := lipgloss.NewStyle().Width(14).Foreground(lipgloss.Color("244")).Bold(true).Render("WIND")
+			colDesc := lipgloss.NewStyle().Foreground(lipgloss.Color("244")).Bold(true).Render("FORECAST")
+
+			fmt.Printf("  %s %s  %s  %s  %s  %s\n", colTime, colTemp, colPrecip, colHum, colWind, colDesc)
+			fmt.Println(styleLabel.Render(strings.Repeat("─", 75)))
+
 			for _, p := range data.Forecast.Periods[:limit] {
+				timeStyled := styleForecastName.Width(12).Render(p.Name)
 				tempStr := FormatTemp(p.TempC, imperial)
 				tempStyled := TempStyle(p.TempC, imperial).Width(7).Render(tempStr)
 
 				precipStr := "  — "
 				if p.ProbabilityOfPrecipitation != nil && *p.ProbabilityOfPrecipitation > 0 {
-					precipStr = fmt.Sprintf("%2.0f%%", *p.ProbabilityOfPrecipitation)
+					precipStr = fmt.Sprintf("%3.0f%%", *p.ProbabilityOfPrecipitation)
 				}
-				precipStyled := styleForecastLow.Width(6).Render(precipStr)
+				precipStyled := styleForecastLow.Width(7).Render(precipStr)
+
+				humidStr := "  — "
+				if p.HumidityPct != nil {
+					humidStr = fmt.Sprintf("%3.0f%%", *p.HumidityPct)
+				}
+				humidStyled := styleLabel.Width(7).Render(humidStr)
 
 				windStr := FormatWind(p.WindKPH, nil, imperial)
 				if p.WindDir != "" {
@@ -179,8 +225,7 @@ func renderPretty(data RenderData, opts RenderOptions) error {
 				windStyled := styleLabel.Width(14).Render(windStr)
 
 				desc := styleForecastDesc.Render(p.ShortDesc)
-				timeStyled := styleForecastName.Width(12).Render(p.Name)
-				fmt.Printf("  %s %s  %s  %s  %s\n", timeStyled, tempStyled, precipStyled, windStyled, desc)
+				fmt.Printf("  %s %s  %s  %s  %s  %s\n", timeStyled, tempStyled, precipStyled, humidStyled, windStyled, desc)
 			}
 			fmt.Println()
 		} else {
@@ -203,6 +248,22 @@ func renderPretty(data RenderData, opts RenderOptions) error {
 	}
 
 	return nil
+}
+
+func formatAge(d time.Duration) string {
+	if d < time.Minute {
+		return "just now"
+	}
+	mins := int(d.Minutes())
+	if mins < 60 {
+		return fmt.Sprintf("%dm ago", mins)
+	}
+	hours := mins / 60
+	remMins := mins % 60
+	if remMins == 0 {
+		return fmt.Sprintf("%dh ago", hours)
+	}
+	return fmt.Sprintf("%dh %dm ago", hours, remMins)
 }
 
 // FeelsLikeTemp returns WindChillC if set, HeatIndexC if set, otherwise nil.

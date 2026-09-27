@@ -52,6 +52,7 @@ type MonitorConfig struct {
 	RefreshInterval     time.Duration
 	EnableNotifications bool
 	NotifyFunc          func(title, message string) error
+	Hourly              bool
 }
 
 // ── Model ─────────────────────────────────────────────────────────────────────
@@ -69,6 +70,7 @@ type MonitorModel struct {
 	alerts     []models.Alert
 	lastFetch  time.Time
 	fetchErr   error
+	hourly     bool
 
 	// radar
 	radarVisible bool
@@ -103,6 +105,7 @@ func New(cfg MonitorConfig, loc location.Location) MonitorModel {
 	return MonitorModel{
 		cfg:            cfg,
 		loc:            loc,
+		hourly:         cfg.Hourly,
 		weatherLoading: true,
 		notifiedAlerts: make(map[string]bool),
 	}
@@ -112,7 +115,7 @@ func New(cfg MonitorConfig, loc location.Location) MonitorModel {
 
 func (m MonitorModel) Init() tea.Cmd {
 	return tea.Batch(
-		fetchWeatherCmd(m.cfg, m.loc),
+		fetchWeatherCmd(m.cfg, m.loc, m.hourly),
 		tickCmd(m.cfg.RefreshInterval),
 	)
 }
@@ -132,7 +135,7 @@ func (m MonitorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tickMsg:
 		m.weatherLoading = true
 		cmds := []tea.Cmd{
-			fetchWeatherCmd(m.cfg, m.loc),
+			fetchWeatherCmd(m.cfg, m.loc, m.hourly),
 			tickCmd(m.cfg.RefreshInterval),
 		}
 		if m.radarVisible {
@@ -199,7 +202,7 @@ func (m MonitorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.inputErr = nil
 		m.forecastOffset = 0
 		m.weatherLoading = true
-		cmds := []tea.Cmd{fetchWeatherCmd(m.cfg, m.loc)}
+		cmds := []tea.Cmd{fetchWeatherCmd(m.cfg, m.loc, m.hourly)}
 		if m.radarVisible {
 			m.radarLoading = true
 			cmds = append(cmds, fetchRadarCmd(m.cfg, m.loc, m.width, m.height))
@@ -228,12 +231,18 @@ func (m MonitorModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "r":
 		m.weatherLoading = true
-		cmds := []tea.Cmd{fetchWeatherCmd(m.cfg, m.loc)}
+		cmds := []tea.Cmd{fetchWeatherCmd(m.cfg, m.loc, m.hourly)}
 		if m.radarVisible {
 			m.radarLoading = true
 			cmds = append(cmds, fetchRadarCmd(m.cfg, m.loc, m.width, m.height))
 		}
 		return m, tea.Batch(cmds...)
+
+	case "H", "h":
+		m.hourly = !m.hourly
+		m.forecastOffset = 0
+		m.weatherLoading = true
+		return m, fetchWeatherCmd(m.cfg, m.loc, m.hourly)
 
 	case "R":
 		m.radarVisible = !m.radarVisible
@@ -300,7 +309,7 @@ func (m MonitorModel) handleInputKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // ── Async commands ────────────────────────────────────────────────────────────
 
-func fetchWeatherCmd(cfg MonitorConfig, loc location.Location) tea.Cmd {
+func fetchWeatherCmd(cfg MonitorConfig, loc location.Location, hourly bool) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
@@ -322,7 +331,7 @@ func fetchWeatherCmd(cfg MonitorConfig, loc location.Location) tea.Cmd {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			fc, _ = cfg.WeatherProv.Forecast(ctx, loc, false, cfg.Cache)
+			fc, _ = cfg.WeatherProv.Forecast(ctx, loc, hourly, cfg.Cache)
 		}()
 
 		wg.Add(1)

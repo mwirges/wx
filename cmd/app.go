@@ -43,6 +43,11 @@ func NewApp() *cli.App {
 				Aliases: []string{"H"},
 				Usage:   "show hourly forecast (implies --forecast)",
 			},
+			&cli.IntFlag{
+				Name:    "hours",
+				Value:   24,
+				Usage:   "number of hours to show in hourly forecast",
+			},
 			&cli.BoolFlag{
 				Name:    "alerts",
 				Aliases: []string{"a"},
@@ -233,6 +238,7 @@ func runWeather(c *cli.Context, opts weatherOpts) error {
 		ShowForecast: opts.showForecast,
 		ShowAlerts:   opts.showAlerts,
 		ShowHourly:   opts.showHourly,
+		HourlyLimit:  c.Int("hours"),
 		Short:        c.Bool("short"),
 		Template:     c.String("template"),
 	})
