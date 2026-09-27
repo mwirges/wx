@@ -111,3 +111,13 @@ mac-dmg:
 .PHONY: dmg
 dmg: mac-dmg
 
+## mac-notarize: Notarize and staple build/wx.dmg with Apple Notary Service
+.PHONY: mac-notarize
+mac-notarize:
+	$(MAKE) -C macos notarize
+
+## notarize: Alias for mac-notarize
+.PHONY: notarize
+notarize: mac-notarize
+
+
