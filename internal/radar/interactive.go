@@ -113,6 +113,16 @@ func NewInteractiveModel(cfg InteractiveConfig) InteractiveModel {
 	}
 }
 
+// Product returns the currently selected radar product.
+func (m InteractiveModel) Product() Product {
+	return m.product
+}
+
+// Radius returns the currently selected radar radius in km.
+func (m InteractiveModel) Radius() float64 {
+	return m.radius
+}
+
 func (m InteractiveModel) Init() tea.Cmd {
 	return m.fetchCurrent()
 }

@@ -86,6 +86,24 @@ func (m MonitorModel) renderHeader() string {
 			styleInputVal.Render("█")
 		if m.inputErr != nil {
 			prompt += "  " + styleInputErr.Render(m.inputErr.Error())
+		} else {
+			suggs := m.suggestions()
+			if len(suggs) > 0 {
+				var suggParts []string
+				limit := 4
+				for i, s := range suggs {
+					if i >= limit {
+						suggParts = append(suggParts, styleHelpDim.Render(fmt.Sprintf("+%d more", len(suggs)-limit)))
+						break
+					}
+					if i == m.suggestIdx {
+						suggParts = append(suggParts, styleHelpKey.Render("["+s.label+"]"))
+					} else {
+						suggParts = append(suggParts, styleHelpDim.Render(s.label))
+					}
+				}
+				prompt += "   " + strings.Join(suggParts, "  ")
+			}
 		}
 		line2 = prompt
 	} else {
@@ -376,6 +394,7 @@ func (m MonitorModel) renderHelpBar() string {
 	var parts []string
 	if m.inputMode {
 		parts = []string{
+			key.Render("tab/↑↓") + dim.Render(":cycle"),
 			key.Render("enter") + dim.Render(":confirm"),
 			key.Render("esc") + dim.Render(":cancel"),
 		}

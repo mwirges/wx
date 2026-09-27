@@ -25,7 +25,7 @@ struct PopoverView: View {
                             .fill(WxTheme.snwGreen)
                             .frame(width: 5, height: 5)
                             .shadow(color: WxTheme.snwGreen.opacity(0.9), radius: 3)
-                        Text("WX.PULSE // ACTIVE")
+                        Text("METEOROLOGICAL SENSOR NETWORK // ACTIVE")
                             .font(.system(size: 8, weight: .bold, design: .monospaced))
                             .tracking(0.8)
                             .foregroundStyle(WxTheme.snwSilver.opacity(0.9))
@@ -55,6 +55,13 @@ struct PopoverView: View {
             .padding(.horizontal, 12)
             .padding(.top, 10)
             .padding(.bottom, 6)
+            .background(
+                LinearGradient(
+                    colors: [WxTheme.snwChassis.opacity(0.95), WxTheme.bg.opacity(0.85)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
 
             // Cyan Gradient Hairline
             Rectangle()

@@ -53,6 +53,7 @@ type MonitorConfig struct {
 	EnableNotifications bool
 	NotifyFunc          func(title, message string) error
 	Hourly              bool
+	UserConfig          *config.Config
 }
 
 // ── Model ─────────────────────────────────────────────────────────────────────
@@ -78,10 +79,12 @@ type MonitorModel struct {
 	radarErr     error
 
 	// location
-	loc       location.Location
-	inputMode bool
-	inputText string
-	inputErr  error
+	loc        location.Location
+	inputMode  bool
+	inputText  string
+	inputQuery string
+	inputErr   error
+	suggestIdx int
 
 	// forecast scroll
 	forecastOffset  int
@@ -107,6 +110,7 @@ func New(cfg MonitorConfig, loc location.Location) MonitorModel {
 		loc:            loc,
 		hourly:         cfg.Hourly,
 		weatherLoading: true,
+		suggestIdx:     -1,
 		notifiedAlerts: make(map[string]bool),
 	}
 }
@@ -199,9 +203,14 @@ func (m MonitorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loc = msg.loc
 		m.inputMode = false
 		m.inputText = ""
+		m.inputQuery = ""
 		m.inputErr = nil
+		m.suggestIdx = -1
 		m.forecastOffset = 0
 		m.weatherLoading = true
+		if m.cfg.UserConfig != nil && msg.loc.DisplayName != "" {
+			m.cfg.UserConfig.AddRecent(msg.loc.DisplayName)
+		}
 		cmds := []tea.Cmd{fetchWeatherCmd(m.cfg, m.loc, m.hourly)}
 		if m.radarVisible {
 			m.radarLoading = true
@@ -255,7 +264,9 @@ func (m MonitorModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "l":
 		m.inputMode = true
 		m.inputText = ""
+		m.inputQuery = ""
 		m.inputErr = nil
+		m.suggestIdx = -1
 		return m, nil
 
 	case "up", "k":
@@ -278,12 +289,61 @@ func (m MonitorModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+type locationSuggestion struct {
+	label string
+	value string
+}
+
+func (m MonitorModel) suggestions() []locationSuggestion {
+	if m.cfg.UserConfig == nil {
+		return nil
+	}
+	var results []locationSuggestion
+	seen := make(map[string]bool)
+
+	q := strings.ToLower(strings.TrimSpace(m.inputQuery))
+
+	// Favorites first
+	for _, f := range m.cfg.UserConfig.Favorites {
+		fVal := f.Value
+		if fVal == "" {
+			fVal = f.Name
+		}
+		if q == "" || strings.Contains(strings.ToLower(f.Name), q) || strings.Contains(strings.ToLower(fVal), q) {
+			results = append(results, locationSuggestion{
+				label: "★ " + f.Name,
+				value: f.Name,
+			})
+			seen[strings.ToLower(f.Name)] = true
+			seen[strings.ToLower(fVal)] = true
+		}
+	}
+
+	// Recents next
+	for _, r := range m.cfg.UserConfig.RecentLocations {
+		if seen[strings.ToLower(r)] {
+			continue
+		}
+		if q == "" || strings.Contains(strings.ToLower(r), q) {
+			results = append(results, locationSuggestion{
+				label: "◷ " + r,
+				value: r,
+			})
+			seen[strings.ToLower(r)] = true
+		}
+	}
+
+	return results
+}
+
 func (m MonitorModel) handleInputKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
 		m.inputMode = false
 		m.inputText = ""
+		m.inputQuery = ""
 		m.inputErr = nil
+		m.suggestIdx = -1
 		return m, nil
 
 	case "enter":
@@ -292,16 +352,39 @@ func (m MonitorModel) handleInputKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, resolveLocationCmd(m.cfg.Cache, m.inputText)
 
+	case "tab", "down":
+		suggs := m.suggestions()
+		if len(suggs) > 0 {
+			m.suggestIdx = (m.suggestIdx + 1) % len(suggs)
+			m.inputText = suggs[m.suggestIdx].value
+		}
+		return m, nil
+
+	case "shift+tab", "up":
+		suggs := m.suggestions()
+		if len(suggs) > 0 {
+			m.suggestIdx--
+			if m.suggestIdx < 0 {
+				m.suggestIdx = len(suggs) - 1
+			}
+			m.inputText = suggs[m.suggestIdx].value
+		}
+		return m, nil
+
 	case "backspace":
+		m.suggestIdx = -1
 		if len(m.inputText) > 0 {
 			runes := []rune(m.inputText)
 			m.inputText = string(runes[:len(runes)-1])
 		}
+		m.inputQuery = m.inputText
 		return m, nil
 
 	default:
 		if len(msg.Runes) > 0 {
+			m.suggestIdx = -1
 			m.inputText += string(msg.Runes)
+			m.inputQuery = m.inputText
 		}
 		return m, nil
 	}

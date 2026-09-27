@@ -16,6 +16,13 @@ struct DeskWindowView: View {
                     Color.clear
                         .frame(width: 68, height: 16)
 
+                    if let loc = store.payload?.conditions?.location {
+                        Text(loc.uppercased())
+                            .font(.system(size: 8.5, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(WxTheme.snwCyan.opacity(0.8))
+                            .lineLimit(1)
+                    }
+
                     Spacer()
 
                     HStack(spacing: 5) {
@@ -140,6 +147,31 @@ struct DeskWindowView: View {
                     }
                 }
             }
+
+            // Cyan Gradient Hairline
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [WxTheme.snwCyan.opacity(0.1), WxTheme.snwCyan.opacity(0.45), .clear],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .frame(height: 1)
+
+            // Pinned Technical Console Footer
+            HStack {
+                Text("NOAA.NWS SENSOR ARRAY · GRID 1KM")
+                    .font(.system(size: 8.5, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(WxTheme.snwSilver.opacity(0.7))
+                Spacer()
+                Text("SEC.01 // DESK")
+                    .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                    .foregroundStyle(WxTheme.snwCyan.opacity(0.65))
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 6)
+            .background(WxTheme.snwChassis.opacity(0.5))
         }
         .frame(minWidth: 520, idealWidth: 940, maxWidth: .infinity, minHeight: 600, idealHeight: 760, maxHeight: .infinity)
         .background(WarpGlassBackground())

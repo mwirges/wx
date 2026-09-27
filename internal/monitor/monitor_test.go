@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/mwirges/wx/internal/config"
 	"github.com/mwirges/wx/internal/location"
 	"github.com/mwirges/wx/internal/models"
 )
@@ -400,6 +401,130 @@ func TestUpdate_InputMode_Enter_NonEmpty(t *testing.T) {
 
 	if cmd == nil {
 		t.Error("enter with non-empty text should fire resolveLocationCmd")
+	}
+}
+
+func TestUpdate_InputMode_TabCycling(t *testing.T) {
+	cfg := testConfig()
+	userCfg := &config.Config{
+		Favorites: []config.LocationEntry{
+			{Name: "Home", Value: "Fort Wayne, IN"},
+			{Name: "Work", Value: "Indianapolis, IN"},
+		},
+		RecentLocations: []string{"Chicago, IL", "Denver, CO"},
+	}
+	cfg.UserConfig = userCfg
+
+	m := New(cfg, testLoc())
+	m.inputMode = true
+
+	// Press tab -> first favorite ("Home")
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyTab})
+	um := updated.(MonitorModel)
+	if um.inputText != "Home" {
+		t.Errorf("expected tab to select 'Home', got %q", um.inputText)
+	}
+	if um.suggestIdx != 0 {
+		t.Errorf("suggestIdx = %d, want 0", um.suggestIdx)
+	}
+
+	// Press tab again -> second favorite ("Work")
+	updated, _ = um.Update(tea.KeyMsg{Type: tea.KeyTab})
+	um = updated.(MonitorModel)
+	if um.inputText != "Work" {
+		t.Errorf("expected tab to select 'Work', got %q", um.inputText)
+	}
+
+	// Press tab again -> first recent ("Chicago, IL")
+	updated, _ = um.Update(tea.KeyMsg{Type: tea.KeyTab})
+	um = updated.(MonitorModel)
+	if um.inputText != "Chicago, IL" {
+		t.Errorf("expected tab to select 'Chicago, IL', got %q", um.inputText)
+	}
+
+	// Press up / shift+tab -> goes back to "Work"
+	updated, _ = um.Update(tea.KeyMsg{Type: tea.KeyUp})
+	um = updated.(MonitorModel)
+	if um.inputText != "Work" {
+		t.Errorf("expected up arrow to select 'Work', got %q", um.inputText)
+	}
+}
+
+func TestUpdate_InputMode_TypingFilter(t *testing.T) {
+	cfg := testConfig()
+	userCfg := &config.Config{
+		Favorites: []config.LocationEntry{
+			{Name: "Home", Value: "Fort Wayne, IN"},
+			{Name: "Work", Value: "Indianapolis, IN"},
+		},
+		RecentLocations: []string{"Chicago, IL", "Denver, CO"},
+	}
+	cfg.UserConfig = userCfg
+
+	m := New(cfg, testLoc())
+	m.inputMode = true
+
+	// Type "chi"
+	for _, r := range "chi" {
+		updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		m = updated.(MonitorModel)
+	}
+
+	if m.inputText != "chi" {
+		t.Fatalf("inputText = %q, want 'chi'", m.inputText)
+	}
+	if m.inputQuery != "chi" {
+		t.Fatalf("inputQuery = %q, want 'chi'", m.inputQuery)
+	}
+
+	suggs := m.suggestions()
+	if len(suggs) != 1 {
+		t.Fatalf("expected 1 suggestion matching 'chi', got %d", len(suggs))
+	}
+	if suggs[0].value != "Chicago, IL" {
+		t.Errorf("expected suggestion 'Chicago, IL', got %q", suggs[0].value)
+	}
+
+	// Press tab to select it
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyTab})
+	m = updated.(MonitorModel)
+	if m.inputText != "Chicago, IL" {
+		t.Errorf("expected inputText 'Chicago, IL', got %q", m.inputText)
+	}
+	// Query should still be "chi"
+	if m.inputQuery != "chi" {
+		t.Errorf("expected inputQuery to remain 'chi', got %q", m.inputQuery)
+	}
+
+	// Backspace to reset
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyBackspace})
+	m = updated.(MonitorModel)
+	// Backspace on "Chicago, IL" shrinks it by 1 rune and updates query
+	if m.inputQuery != m.inputText {
+		t.Errorf("inputQuery %q should match inputText %q after backspace", m.inputQuery, m.inputText)
+	}
+}
+
+func TestUpdate_LocationMsg_AddsRecent(t *testing.T) {
+	cfg := testConfig()
+	userCfg := &config.Config{}
+	cfg.UserConfig = userCfg
+
+	m := New(cfg, testLoc())
+	newLoc := location.Location{
+		DisplayName: "Austin, TX",
+		Lat:         30.2672,
+		Lon:         -97.7431,
+		CountryCode: "US",
+	}
+
+	updated, _ := m.Update(locationMsg{loc: newLoc})
+	um := updated.(MonitorModel)
+	if um.loc.DisplayName != "Austin, TX" {
+		t.Errorf("loc.DisplayName = %q, want 'Austin, TX'", um.loc.DisplayName)
+	}
+	if len(userCfg.RecentLocations) != 1 || userCfg.RecentLocations[0] != "Austin, TX" {
+		t.Errorf("expected Austin, TX in RecentLocations, got %v", userCfg.RecentLocations)
 	}
 }
 
