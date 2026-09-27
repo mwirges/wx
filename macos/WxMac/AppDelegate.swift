@@ -173,6 +173,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         viewMenu.addItem(metricItem)
         viewMenu.addItem(.separator())
 
+        let radarProductsMenuItem = NSMenuItem(title: "Radar Product", action: nil, keyEquivalent: "")
+        let radarProductsSubmenu = NSMenu(title: "Radar Product")
+        let products: [(String, String)] = [
+            ("composite-reflectivity", "Composite Reflectivity"),
+            ("base-reflectivity", "Base Reflectivity"),
+            ("storm-relative-velocity", "Storm-Relative Velocity"),
+            ("echo-tops", "Echo Tops"),
+            ("precip-type", "Precipitation Type"),
+            ("one-hour-precip", "1-Hour Precipitation"),
+            ("storm-total-precip", "Storm Total Precipitation")
+        ]
+        for (id, name) in products {
+            let item = NSMenuItem(title: name, action: #selector(selectRadarProductAction(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = id
+            radarProductsSubmenu.addItem(item)
+        }
+        radarProductsMenuItem.submenu = radarProductsSubmenu
+        viewMenu.addItem(radarProductsMenuItem)
+        viewMenu.addItem(.separator())
+
         let recenterItem = NSMenuItem(title: "Recenter Radar Array", action: #selector(recenterRadarAction(_:)), keyEquivalent: "l")
         recenterItem.target = self
         viewMenu.addItem(recenterItem)
@@ -272,6 +293,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.post(name: .wxOpenDeskRadar, object: nil)
     }
 
+    @objc private func selectRadarProductAction(_ sender: NSMenuItem) {
+        if let productId = sender.representedObject as? String {
+            store.selectedRadarProduct = productId
+            Task { await store.refreshRadar() }
+        }
+    }
+
     @objc private func openNWSHelp(_ sender: Any?) {
         if let url = URL(string: "https://www.weather.gov/documentation/services-web-api") {
             NSWorkspace.shared.open(url)
@@ -337,5 +365,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.isReleasedWhenClosed = false
         window.makeKeyAndOrderFront(nil)
         popoverQAWindow = window
+    }
+}
+
+// MARK: - NSMenuItemValidation
+
+extension AppDelegate: NSMenuItemValidation {
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if let productId = menuItem.representedObject as? String {
+            menuItem.state = (store.selectedRadarProduct == productId) ? .on : .off
+            return true
+        }
+        if menuItem.action == #selector(setUnitsImperial(_:)) {
+            menuItem.state = (store.units == "imperial") ? .on : .off
+            return true
+        }
+        if menuItem.action == #selector(setUnitsMetric(_:)) {
+            menuItem.state = (store.units == "metric") ? .on : .off
+            return true
+        }
+        return true
     }
 }

@@ -4,18 +4,61 @@ import AppKit
 struct RadarProductOption: Identifiable {
     let id: String
     let label: String
+    let fullName: String
     let hint: String
 }
 
 private let radarProducts: [RadarProductOption] = [
-    RadarProductOption(id: "composite-reflectivity", label: "Composite", hint: "Max reflectivity across all tilts (MRMS mosaic)"),
-    RadarProductOption(id: "base-reflectivity", label: "Base", hint: "Lowest 0.5° scan tilt (MRMS mosaic)"),
-    RadarProductOption(id: "storm-relative-velocity", label: "Velocity", hint: "Storm-relative velocity & rotation (RIDGE)"),
-    RadarProductOption(id: "echo-tops", label: "Echo Tops", hint: "Storm cloud top heights (MRMS mosaic)"),
-    RadarProductOption(id: "precip-type", label: "Precip Type", hint: "Surface precipitation classification (MRMS)"),
-    RadarProductOption(id: "one-hour-precip", label: "1-Hr Precip", hint: "1-hour precipitation accumulation (QPE)"),
-    RadarProductOption(id: "storm-total-precip", label: "Storm Total", hint: "Storm total precipitation accumulation (RIDGE)")
+    RadarProductOption(id: "composite-reflectivity", label: "Composite", fullName: "Composite Reflectivity", hint: "Max reflectivity across all tilts (MRMS mosaic)"),
+    RadarProductOption(id: "base-reflectivity", label: "Base", fullName: "Base Reflectivity", hint: "Lowest 0.5° scan tilt (MRMS mosaic)"),
+    RadarProductOption(id: "storm-relative-velocity", label: "Velocity", fullName: "Storm-Relative Velocity", hint: "Storm-relative velocity & rotation (RIDGE)"),
+    RadarProductOption(id: "echo-tops", label: "Echo Tops", fullName: "Echo Tops", hint: "Storm cloud top heights (MRMS mosaic)"),
+    RadarProductOption(id: "precip-type", label: "Precip Type", fullName: "Precipitation Type", hint: "Surface precipitation classification (MRMS)"),
+    RadarProductOption(id: "one-hour-precip", label: "1-Hr Precip", fullName: "1-Hour Precipitation", hint: "1-hour precipitation accumulation (QPE)"),
+    RadarProductOption(id: "storm-total-precip", label: "Storm Total", fullName: "Storm Total Precip", hint: "Storm total precipitation accumulation (RIDGE)")
 ]
+
+struct RadarProductMenu: View {
+    @EnvironmentObject var store: WeatherStore
+    var isHUD: Bool = false
+
+    private var selectedOption: RadarProductOption {
+        radarProducts.first(where: { $0.id == store.selectedRadarProduct }) ?? radarProducts[0]
+    }
+
+    var body: some View {
+        Menu {
+            Picker("Radar Product", selection: $store.selectedRadarProduct) {
+                ForEach(radarProducts) { prod in
+                    Text("\(prod.fullName.uppercased())  —  \(prod.hint)").tag(prod.id)
+                }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: "antenna.radiowaves.left.and.right")
+                    .font(.system(size: 9.5, weight: .bold))
+                    .foregroundStyle(WxTheme.snwCyan)
+                Text("PRODUCT // \(selectedOption.label.uppercased())")
+                    .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                    .foregroundStyle(WxTheme.text)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 7.5, weight: .bold))
+                    .foregroundStyle(WxTheme.snwCyan.opacity(0.8))
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(isHUD ? WxTheme.snwChassis.opacity(0.92) : WxTheme.snwPanel, in: RoundedRectangle(cornerRadius: 5))
+            .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(WxTheme.border.opacity(0.45), lineWidth: 0.8))
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .onChange(of: store.selectedRadarProduct) { _, _ in
+            Task { await store.refreshRadar() }
+        }
+    }
+}
 
 struct RadarPanelView: View {
     @EnvironmentObject var store: WeatherStore
@@ -133,20 +176,8 @@ struct RadarPanelView: View {
                     .background(WxTheme.snwChassis.opacity(0.92), in: RoundedRectangle(cornerRadius: 6))
                     .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 0.8))
 
-                    // Product Selector
-                    Picker("Radar Product", selection: $store.selectedRadarProduct) {
-                        ForEach(radarProducts) { prod in
-                            Text(prod.label.uppercased()).tag(prod.id)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .frame(width: 250)
-                    .background(WxTheme.snwChassis.opacity(0.92), in: RoundedRectangle(cornerRadius: 6))
-                    .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 0.8))
-                    .onChange(of: store.selectedRadarProduct) { _, _ in
-                        Task { await store.refreshRadar() }
-                    }
+                    // Product Selector Menu
+                    RadarProductMenu(isHUD: true)
 
                     // Recenter button
                     Button {
@@ -277,48 +308,41 @@ struct RadarPanelView: View {
     @ViewBuilder
     private var compactRadarBody: some View {
         VStack(alignment: .leading, spacing: 10) {
-            // Product selector
-            VStack(alignment: .leading, spacing: 5) {
-                Picker("Radar Product", selection: $store.selectedRadarProduct) {
-                    ForEach(radarProducts) { prod in
-                        Text(prod.label.uppercased()).tag(prod.id)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .onChange(of: store.selectedRadarProduct) { _, _ in
-                    Task { await store.refreshRadar() }
+            // Product selector bar
+            HStack(spacing: 8) {
+                RadarProductMenu(isHUD: false)
+
+                if let sel = radarProducts.first(where: { $0.id == store.selectedRadarProduct }) {
+                    Text("// \(sel.hint.uppercased())")
+                        .font(.system(size: 8.5, weight: .medium, design: .monospaced))
+                        .foregroundStyle(WxTheme.snwSilver.opacity(0.75))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                 }
 
-                HStack {
-                    if let sel = radarProducts.first(where: { $0.id == store.selectedRadarProduct }) {
-                        Text("// \(sel.hint.uppercased())")
-                            .font(.system(size: 8.5, weight: .medium, design: .monospaced))
-                            .foregroundStyle(WxTheme.snwSilver.opacity(0.8))
-                    }
-                    Spacer()
-                    Button {
-                        Task { await store.refreshRadar() }
-                    } label: {
-                        HStack(spacing: 4) {
-                            if store.isRadarLoading {
-                                ProgressView()
-                                    .controlSize(.small)
-                            } else {
-                                Image(systemName: "arrow.triangle.2.circlepath")
-                            }
-                            Text("SCAN ARRAY")
+                Spacer(minLength: 4)
+
+                Button {
+                    Task { await store.refreshRadar() }
+                } label: {
+                    HStack(spacing: 4) {
+                        if store.isRadarLoading {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Image(systemName: "arrow.triangle.2.circlepath")
                         }
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
-                        .foregroundStyle(WxTheme.snwCyan)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
-                        .background(WxTheme.snwCyan.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
-                        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwCyan.opacity(0.35), lineWidth: 0.8))
+                        Text("SCAN ARRAY")
                     }
-                    .buttonStyle(.plain)
-                    .disabled(store.isRadarLoading)
+                    .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                    .foregroundStyle(WxTheme.snwCyan)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4.5)
+                    .background(WxTheme.snwCyan.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
+                    .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwCyan.opacity(0.35), lineWidth: 0.8))
                 }
+                .buttonStyle(.plain)
+                .disabled(store.isRadarLoading)
             }
 
             // Radar Map Display Area
