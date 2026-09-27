@@ -298,3 +298,13 @@ func CelsiusToFahrenheit(c float64) float64 {
 func KphToMPH(kph float64) float64 {
 	return kph / 1.60934
 }
+
+// FahrenheitToCelsius converts Fahrenheit to Celsius.
+func FahrenheitToCelsius(f float64) float64 {
+	return (f - 32) * 5 / 9
+}
+
+// MphToKPH converts miles per hour to km/h.
+func MphToKPH(mph float64) float64 {
+	return mph * 1.60934
+}

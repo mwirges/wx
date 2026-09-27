@@ -15,6 +15,8 @@ type RenderOptions struct {
 	ShowForecast bool
 	ShowAlerts   bool
 	ShowHourly   bool
+	Short        bool   // Single-line compact output
+	Template     string // Go text/template string or @path/to/template
 }
 
 // RenderData holds all data to be rendered.
@@ -30,9 +32,18 @@ func init() {
 	isTTY = term.IsTerminal(int(os.Stdout.Fd()))
 }
 
-// Render dispatches to pretty (TTY) or JSON output.
+// Render dispatches to JSON, template, short, or pretty (TTY) output.
 func Render(data RenderData, opts RenderOptions) error {
-	if opts.ForceJSON || !isTTY {
+	if opts.ForceJSON {
+		return renderJSON(data, opts)
+	}
+	if opts.Template != "" {
+		return renderTemplate(data, opts)
+	}
+	if opts.Short {
+		return renderShort(data, opts)
+	}
+	if !isTTY {
 		return renderJSON(data, opts)
 	}
 	return renderPretty(data, opts)

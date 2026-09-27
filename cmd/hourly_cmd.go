@@ -30,6 +30,16 @@ func hourlyCommand() *cli.Command {
 				Usage:   "force JSON output",
 			},
 			&cli.BoolFlag{
+				Name:    "short",
+				Aliases: []string{"s"},
+				Usage:   "print a single-line summary for statuslines/prompts",
+			},
+			&cli.StringFlag{
+				Name:    "template",
+				Aliases: []string{"T"},
+				Usage:   "format output using a Go template string or @file",
+			},
+			&cli.BoolFlag{
 				Name:    "alerts",
 				Aliases: []string{"a"},
 				Usage:   "show active weather alerts",
