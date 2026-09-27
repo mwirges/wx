@@ -98,7 +98,21 @@ else
   hdiutil create -volname "${VOL_NAME}" -srcfolder "${STAGE_DIR}" -ov -format UDZO "${OUTPUT_DMG}"
 fi
 
-# 4. Sign the DMG itself
+# 4. Set custom wx icon on the DMG file itself
+if [[ -f "$ICON_PATH" ]]; then
+  echo "==> Setting custom icon on ${OUTPUT_DMG}..."
+  swift -e '
+    import AppKit
+    let args = CommandLine.arguments
+    guard args.count >= 3 else { exit(1) }
+    let iconPath = args[1]
+    let targetPath = args[2]
+    guard let img = NSImage(contentsOfFile: iconPath) else { exit(1) }
+    _ = NSWorkspace.shared.setIcon(img, forFile: targetPath, options: [])
+  ' "$ICON_PATH" "$OUTPUT_DMG" 2>/dev/null || true
+fi
+
+# 5. Sign the DMG itself
 echo "==> Signing DMG disk image..."
 if [[ -n "${CODE_SIGN_IDENTITY}" ]]; then
   codesign --force --sign "${CODE_SIGN_IDENTITY}" --timestamp "${OUTPUT_DMG}"
