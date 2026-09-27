@@ -42,29 +42,33 @@ const (
 )
 
 // nwsWMSLayers maps our product codes to NWS MRMS WMS layer names.
-// Echo tops uses the MRMS Enhanced Echo Tops national mosaic, composited
+// Echo tops and precip type use the MRMS national mosaic, composited
 // on top of a radmap overlay base map (two-request approach).
 var nwsWMSLayers = map[radar.Product]string{
 	radar.ProductCompositeReflectivity: "conus_cref_qcd",
 	radar.ProductBaseReflectivity:      "conus_bref_qcd",
 	radar.ProductEchoTops:              "conus_neet_v18",
+	radar.ProductPrecipType:            "conus_pcpn_typ",
 }
 
 // iemProducts maps our product codes to IEM radmap product codes.
 // Composite reflectivity uses the national mosaic layer, not RIDGE.
-// Station products (base refl, SRV) use single-station RIDGE.
-// Echo tops uses NWS WMS (not IEM) — see nwsWMSLayers.
+// Station products (base refl, SRV, 1h precip, storm total) use single-station RIDGE.
+// Echo tops and precip type use NWS WMS — see nwsWMSLayers.
 var iemProducts = map[radar.Product]string{
 	radar.ProductCompositeReflectivity: "N0Q",
 	radar.ProductBaseReflectivity:      "N0B",
 	radar.ProductStormRelativeVelocity: "N0S",
-	radar.ProductEchoTops:              "NET", // used only for product validation
+	radar.ProductEchoTops:              "NET", // used only for product validation / fallback
+	radar.ProductPrecipType:            "NPT", // used only for product validation
+	radar.ProductOneHourPrecip:         "N1P",
+	radar.ProductStormTotalPrecip:      "NTP",
 }
 
 // isWMSCompositeProduct returns true if the product uses NWS WMS for radar
 // data composited on top of an IEM radmap overlay base map.
 func isWMSCompositeProduct(p radar.Product) bool {
-	return p == radar.ProductEchoTops
+	return p == radar.ProductEchoTops || p == radar.ProductPrecipType
 }
 
 // ridgeStationCode converts a 4-letter NEXRAD ID (e.g. "KEAX") to the
@@ -234,7 +238,7 @@ func (p *RadarProvider) CurrentFrame(ctx context.Context, loc location.Location,
 	if opts.Raw {
 		layer, ok := nwsWMSLayers[opts.Product]
 		if !ok {
-			return nil, fmt.Errorf("nws radar: product %q does not support raw mode (use composite-reflectivity, base-reflectivity, or echo-tops)", opts.Product)
+			return nil, fmt.Errorf("nws radar: product %q does not support raw mode (use composite-reflectivity, base-reflectivity, echo-tops, or precip-type)", opts.Product)
 		}
 		rawKey := fmt.Sprintf("nws:radar:raw:v2:%s:%.4f,%.4f:%.0f", opts.Product, loc.Lat, loc.Lon, opts.RadiusKM)
 		if f := p.imgGet(rawKey); f != nil {

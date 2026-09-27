@@ -104,6 +104,9 @@ wx radar --no-inline              # force half-block rendering
 | `base-reflectivity` | Single-station, lower-tilt scan |
 | `storm-relative-velocity` | Velocity adjusted for storm motion |
 | `echo-tops` | MRMS enhanced echo tops (cloud heights, kft) |
+| `precip-type` | MRMS surface precipitation classification (rain, snow, ice) |
+| `one-hour-precip` | 1-hour quantitative precipitation accumulation (QPE) |
+| `storm-total-precip` | Storm total precipitation accumulation |
 
 **Rendering:** wx auto-detects your terminal. In iTerm2, Kitty, Ghostty, and WezTerm it sends a full 1600×1600 PNG via inline image protocol. In all other terminals it uses Unicode half-block characters (`▀`) with ANSI truecolor. Use `--no-inline` to force half-block.
 
@@ -114,11 +117,12 @@ When exiting interactive radar, your selected product and zoom radius are automa
 
 | Key | Action |
 |-----|--------|
-| `p` | Cycle product (composite → base refl → SRV → echo tops) |
+| `p` | Cycle product (composite → base → SRV → echo tops → precip type → 1h → storm total) |
 | `+` / `-` | Zoom in / out |
 | `l` | Toggle loop animation |
 | `space` | Pause / resume loop |
 | `←` / `→` | Step through frames manually |
+| `<` / `>` | Adjust loop speed slower / faster |
 | `r` | Refresh |
 | `q` | Quit |
 

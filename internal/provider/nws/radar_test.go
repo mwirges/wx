@@ -168,6 +168,79 @@ func TestRadarProvider_CurrentFrame_EchoTops(t *testing.T) {
 	}
 }
 
+func TestRadarProvider_CurrentFrame_PrecipType(t *testing.T) {
+	pngData := solidPNG(t, 0, 100, 200)
+
+	callPaths := []string{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callPaths = append(callPaths, r.URL.Path)
+		layers := r.URL.Query()["layers[]"]
+		for _, l := range layers {
+			if l == "nexrad" || l == "ridge" {
+				t.Errorf("precip type radmap call should not have radar layer, got %v", layers)
+			}
+		}
+		if r.URL.Query().Get("LAYERS") == "conus_pcpn_typ" {
+			// NWS WMS call
+		}
+		w.Header().Set("Content-Type", "image/png")
+		w.Write(pngData)
+	}))
+	defer srv.Close()
+
+	p := &RadarProvider{wmsBase: srv.URL, iemBase: srv.URL, nwsAPIBase: srv.URL, imgCache: make(map[string]radarCacheEntry)}
+	loc := location.Location{Lat: 39.1, Lon: -94.6, CountryCode: "US"}
+	opts := radar.Options{Product: radar.ProductPrecipType, RadiusKM: 200}
+
+	frame, err := p.CurrentFrame(context.Background(), loc, opts, cache.NewNoOp())
+	if err != nil {
+		t.Fatalf("CurrentFrame precip-type: %v", err)
+	}
+	if frame.Product != radar.ProductPrecipType {
+		t.Errorf("product = %q, want precip-type", frame.Product)
+	}
+	if len(callPaths) != 2 {
+		t.Errorf("expected 2 HTTP calls (radmap + WMS), got %d", len(callPaths))
+	}
+}
+
+func TestRadarProvider_CurrentFrame_AccumulationProducts(t *testing.T) {
+	pngData := solidPNG(t, 50, 50, 200)
+
+	tests := []struct {
+		prod        radar.Product
+		wantRidgePr string
+	}{
+		{radar.ProductOneHourPrecip, "N1P"},
+		{radar.ProductStormTotalPrecip, "NTP"},
+	}
+
+	for _, tc := range tests {
+		t.Run(string(tc.prod), func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if rp := r.URL.Query().Get("ridge_product"); rp != tc.wantRidgePr {
+					t.Errorf("ridge_product = %q, want %q", rp, tc.wantRidgePr)
+				}
+				w.Header().Set("Content-Type", "image/png")
+				w.Write(pngData)
+			}))
+			defer srv.Close()
+
+			p := &RadarProvider{wmsBase: srv.URL, iemBase: srv.URL, nwsAPIBase: srv.URL, imgCache: make(map[string]radarCacheEntry)}
+			loc := location.Location{Lat: 39.1, Lon: -94.6, CountryCode: "US"}
+			opts := radar.Options{Product: tc.prod, RadiusKM: 200}
+
+			frame, err := p.CurrentFrame(context.Background(), loc, opts, cache.NewNoOp())
+			if err != nil {
+				t.Fatalf("CurrentFrame %s: %v", tc.prod, err)
+			}
+			if frame.Product != tc.prod {
+				t.Errorf("product = %q, want %s", frame.Product, tc.prod)
+			}
+		})
+	}
+}
+
 func TestRidgeStationCode(t *testing.T) {
 	tests := []struct {
 		input, want string

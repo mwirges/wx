@@ -178,9 +178,47 @@ func TestNextProduct(t *testing.T) {
 	if got != ProductEchoTops {
 		t.Errorf("nextProduct(SRV) = %q, want ET", got)
 	}
-	// Echo tops wraps back to composite reflectivity.
 	got = nextProduct(ProductEchoTops)
+	if got != ProductPrecipType {
+		t.Errorf("nextProduct(ET) = %q, want PT", got)
+	}
+	got = nextProduct(ProductPrecipType)
+	if got != ProductOneHourPrecip {
+		t.Errorf("nextProduct(PT) = %q, want 1H", got)
+	}
+	got = nextProduct(ProductOneHourPrecip)
+	if got != ProductStormTotalPrecip {
+		t.Errorf("nextProduct(1H) = %q, want STP", got)
+	}
+	// Storm total wraps back to composite reflectivity.
+	got = nextProduct(ProductStormTotalPrecip)
 	if got != ProductCompositeReflectivity {
-		t.Errorf("nextProduct(ET) = %q, want CR", got)
+		t.Errorf("nextProduct(STP) = %q, want CR", got)
+	}
+}
+
+func TestLoopSpeedAdjustment(t *testing.T) {
+	m := NewInteractiveModel(InteractiveConfig{
+		Product:  ProductCompositeReflectivity,
+		RadiusKM: 200,
+	})
+	m.width, m.height = 80, 24
+	m.loopMode = true
+	if m.speedIdx != 2 {
+		t.Errorf("initial speedIdx = %d, want 2", m.speedIdx)
+	}
+
+	// Faster ('f' or '>')
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'f'}})
+	m2 := updated.(InteractiveModel)
+	if m2.speedIdx != 1 {
+		t.Errorf("after 'f': speedIdx = %d, want 1", m2.speedIdx)
+	}
+
+	// Slower ('s' or '<')
+	updated, _ = m2.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	m3 := updated.(InteractiveModel)
+	if m3.speedIdx != 2 {
+		t.Errorf("after 's': speedIdx = %d, want 2", m3.speedIdx)
 	}
 }

@@ -77,11 +77,48 @@ func TestProductLabel(t *testing.T) {
 	}{
 		{ProductCompositeReflectivity, "Composite Reflectivity"},
 		{ProductBaseReflectivity, "Base Reflectivity"},
+		{ProductStormRelativeVelocity, "Storm Rel. Velocity"},
+		{ProductEchoTops, "Echo Tops"},
+		{ProductPrecipType, "Precipitation Type"},
+		{ProductOneHourPrecip, "1-Hour Precip"},
+		{ProductStormTotalPrecip, "Storm Total Precip"},
 		{"custom-product", "custom-product"},
 	}
 	for _, tc := range cases {
 		if got := ProductLabel(tc.p); got != tc.want {
 			t.Errorf("ProductLabel(%q) = %q, want %q", tc.p, got, tc.want)
+		}
+	}
+}
+
+func TestNormalizeProduct(t *testing.T) {
+	cases := []struct {
+		input string
+		want  Product
+	}{
+		{"composite", ProductCompositeReflectivity},
+		{"cref", ProductCompositeReflectivity},
+		{"base", ProductBaseReflectivity},
+		{"bref", ProductBaseReflectivity},
+		{"srv", ProductStormRelativeVelocity},
+		{"velocity", ProductStormRelativeVelocity},
+		{"echo-tops", ProductEchoTops},
+		{"neet", ProductEchoTops},
+		{"precip-type", ProductPrecipType},
+		{"ptype", ProductPrecipType},
+		{"1h", ProductOneHourPrecip},
+		{"1h-precip", ProductOneHourPrecip},
+		{"one-hour-precip", ProductOneHourPrecip},
+		{"n1p", ProductOneHourPrecip},
+		{"storm-total", ProductStormTotalPrecip},
+		{"storm-total-precip", ProductStormTotalPrecip},
+		{"stp", ProductStormTotalPrecip},
+		{"ntp", ProductStormTotalPrecip},
+		{"unknown", Product("unknown")},
+	}
+	for _, tc := range cases {
+		if got := NormalizeProduct(tc.input); got != tc.want {
+			t.Errorf("NormalizeProduct(%q) = %q, want %q", tc.input, got, tc.want)
 		}
 	}
 }

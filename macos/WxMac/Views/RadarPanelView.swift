@@ -10,7 +10,11 @@ struct RadarProductOption: Identifiable {
 private let radarProducts: [RadarProductOption] = [
     RadarProductOption(id: "composite-reflectivity", label: "Composite", hint: "Max reflectivity across all tilts (MRMS mosaic)"),
     RadarProductOption(id: "base-reflectivity", label: "Base", hint: "Lowest 0.5° scan tilt (MRMS mosaic)"),
-    RadarProductOption(id: "echo-tops", label: "Echo Tops", hint: "Storm cloud top heights (MRMS mosaic)")
+    RadarProductOption(id: "storm-relative-velocity", label: "Velocity", hint: "Storm-relative velocity & rotation (RIDGE)"),
+    RadarProductOption(id: "echo-tops", label: "Echo Tops", hint: "Storm cloud top heights (MRMS mosaic)"),
+    RadarProductOption(id: "precip-type", label: "Precip Type", hint: "Surface precipitation classification (MRMS)"),
+    RadarProductOption(id: "one-hour-precip", label: "1-Hr Precip", hint: "1-hour precipitation accumulation (QPE)"),
+    RadarProductOption(id: "storm-total-precip", label: "Storm Total", hint: "Storm total precipitation accumulation (RIDGE)")
 ]
 
 struct RadarPanelView: View {
