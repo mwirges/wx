@@ -1,14 +1,44 @@
 import Foundation
 
+struct WxLocationEntry: Codable, Identifiable, Hashable, Sendable {
+    var id: String { name }
+    var name: String
+    var value: String
+}
+
+struct WxPerLocationSettings: Codable, Sendable {
+    var units: String?
+    var provider: String?
+    var defaultRadarProduct: String?
+    var defaultRadarRadius: Double?
+    var radarStation: String?
+
+    enum CodingKeys: String, CodingKey {
+        case units
+        case provider
+        case defaultRadarProduct = "default_radar_product"
+        case defaultRadarRadius = "default_radar_radius"
+        case radarStation = "radar_station"
+    }
+}
+
 struct WxConfigFile: Codable, Sendable {
     var defaultLocation: String?
     var units: String?
+    var provider: String?
     var notifications: Bool?
+    var favorites: [WxLocationEntry]?
+    var recentLocations: [String]?
+    var perLocation: [String: WxPerLocationSettings]?
 
     enum CodingKeys: String, CodingKey {
         case defaultLocation = "default_location"
         case units
+        case provider
         case notifications
+        case favorites
+        case recentLocations = "recent_locations"
+        case perLocation = "per_location"
     }
 }
 
@@ -21,35 +51,79 @@ enum WxConfig {
     static func load() -> WxConfigFile {
         guard let data = try? Data(contentsOf: configURL),
               let decoded = try? JSONDecoder().decode(WxConfigFile.self, from: data) else {
-            return WxConfigFile(defaultLocation: nil, units: "imperial", notifications: nil)
+            return WxConfigFile(defaultLocation: nil, units: "imperial", provider: nil, notifications: nil, favorites: [], recentLocations: [])
         }
         return decoded
     }
 
-    /// Persist via `wx config set` so atomic save stays one implementation.
+    static func save(_ config: WxConfigFile) {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        guard let data = try? encoder.encode(config) else { return }
+        let dir = configURL.deletingLastPathComponent()
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try? data.write(to: configURL, options: .atomic)
+    }
+
+    static func addFavorite(name: String, value: String) {
+        var cfg = load()
+        var favs = cfg.favorites ?? []
+        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanVal = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanName.isEmpty && !cleanVal.isEmpty else { return }
+
+        if let idx = favs.firstIndex(where: { $0.name.caseInsensitiveCompare(cleanName) == .orderedSame }) {
+            favs[idx] = WxLocationEntry(name: cleanName, value: cleanVal)
+        } else {
+            favs.append(WxLocationEntry(name: cleanName, value: cleanVal))
+        }
+        cfg.favorites = favs
+        save(cfg)
+    }
+
+    static func removeFavorite(nameOrValue: String) {
+        var cfg = load()
+        var favs = cfg.favorites ?? []
+        favs.removeAll(where: {
+            $0.name.caseInsensitiveCompare(nameOrValue) == .orderedSame ||
+            $0.value.caseInsensitiveCompare(nameOrValue) == .orderedSame
+        })
+        cfg.favorites = favs
+        save(cfg)
+    }
+
+    static func addRecent(location: String) {
+        let clean = location.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { return }
+        var cfg = load()
+        var recents = cfg.recentLocations ?? []
+        recents.removeAll(where: { $0.caseInsensitiveCompare(clean) == .orderedSame })
+        recents.insert(clean, at: 0)
+        if recents.count > 10 {
+            recents = Array(recents.prefix(10))
+        }
+        cfg.recentLocations = recents
+        save(cfg)
+    }
+
+    static func clearRecents() {
+        var cfg = load()
+        cfg.recentLocations = []
+        save(cfg)
+    }
+
+    /// Persist default location and units via atomic save
     @discardableResult
     static func persist(location: String?, units: String?, wxBinary: String) throws -> String {
-        var args = ["config", "set"]
-        if let location {
-            args += ["--location", location]
+        var cfg = load()
+        if let location, !location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            cfg.defaultLocation = location.trimmingCharacters(in: .whitespacesAndNewlines)
+            addRecent(location: cfg.defaultLocation!)
         }
         if let units, !units.isEmpty {
-            args += ["--units", units]
+            cfg.units = units
         }
-        guard args.count > 2 else { return "" }
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: wxBinary)
-        proc.arguments = args
-        let out = Pipe()
-        let err = Pipe()
-        proc.standardOutput = out
-        proc.standardError = err
-        try proc.run()
-        proc.waitUntilExit()
-        if proc.terminationStatus != 0 {
-            let msg = String(data: err.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? "config set failed"
-            throw WxCLIError.configFailed(msg.trimmingCharacters(in: .whitespacesAndNewlines))
-        }
-        return String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        save(cfg)
+        return "saved"
     }
 }

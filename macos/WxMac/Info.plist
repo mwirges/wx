@@ -24,8 +24,10 @@
 	<string>AppIcon</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
-	<key>NSHighResolutionCapable</key>
-	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>wx uses your location to provide accurate local weather observations, alerts, and Doppler radar telemetry.</string>
+	<key>NSLocationUsageDescription</key>
+	<string>wx uses your location to provide accurate local weather observations, alerts, and Doppler radar telemetry.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 </dict>

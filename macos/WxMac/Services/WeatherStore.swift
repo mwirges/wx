@@ -30,6 +30,12 @@ final class WeatherStore: ObservableObject {
     @Published var selectedRadarProduct: String = "composite-reflectivity"
     @Published var selectedRadarRadius: Double = 200
 
+    @Published var favorites: [WxLocationEntry] = []
+    @Published var recentLocations: [String] = []
+    @Published var isLocating = false
+
+    let locationManager = LocationManager()
+
     private let backend: WeatherBackend
     private var refreshTask: Task<Void, Never>?
     private let refreshInterval: TimeInterval = 5 * 60
@@ -40,6 +46,76 @@ final class WeatherStore: ObservableObject {
         locationInput = cfg.defaultLocation ?? ""
         let u = (cfg.units ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         units = (u == "metric") ? "metric" : "imperial"
+        favorites = cfg.favorites ?? []
+        recentLocations = cfg.recentLocations ?? []
+    }
+
+    func reloadConfig() {
+        let cfg = WxConfig.load()
+        favorites = cfg.favorites ?? []
+        recentLocations = cfg.recentLocations ?? []
+    }
+
+    func isFavorite(_ loc: String) -> Bool {
+        let clean = loc.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { return false }
+        return favorites.contains {
+            $0.name.caseInsensitiveCompare(clean) == .orderedSame ||
+            $0.value.caseInsensitiveCompare(clean) == .orderedSame
+        }
+    }
+
+    func toggleFavorite(_ loc: String) {
+        let clean = loc.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { return }
+        if isFavorite(clean) {
+            WxConfig.removeFavorite(nameOrValue: clean)
+        } else {
+            let displayName = payload?.conditions?.location ?? clean
+            WxConfig.addFavorite(name: displayName, value: clean)
+        }
+        reloadConfig()
+    }
+
+    func addFavorite(name: String, value: String) {
+        WxConfig.addFavorite(name: name, value: value)
+        reloadConfig()
+    }
+
+    func removeFavorite(_ nameOrValue: String) {
+        WxConfig.removeFavorite(nameOrValue: nameOrValue)
+        reloadConfig()
+    }
+
+    func clearRecents() {
+        WxConfig.clearRecents()
+        reloadConfig()
+    }
+
+    func selectLocation(_ loc: String) {
+        let clean = loc.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { return }
+        locationInput = clean
+        WxConfig.addRecent(location: clean)
+        reloadConfig()
+        Task {
+            await applyLocationAndUnits()
+        }
+    }
+
+    func useCurrentLocation() {
+        isLocating = true
+        errorMessage = nil
+        locationManager.requestLocation { [weak self] result in
+            guard let self else { return }
+            self.isLocating = false
+            switch result {
+            case .success(let loc):
+                self.selectLocation(loc)
+            case .failure(let err):
+                self.errorMessage = err.localizedDescription
+            }
+        }
     }
 
     func start() {
@@ -75,15 +151,20 @@ final class WeatherStore: ObservableObject {
                 errorMessage = WxCLIError.binaryMissing.errorDescription
                 return
             }
+            let clean = locationInput.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !clean.isEmpty {
+                WxConfig.addRecent(location: clean)
+                reloadConfig()
+            }
             try await backend.persistConfig(
-                location: locationInput.trimmingCharacters(in: .whitespacesAndNewlines),
+                location: clean,
                 units: units
             )
         } catch {
             errorMessage = error.localizedDescription
         }
         await refresh()
-        if radarPayload != nil || selectedDeskTab == .radar {
+        if radarPayload != nil || selectedDeskTab == .radar || selectedDeskTab == .dual {
             await refreshRadar()
         }
     }
