@@ -37,4 +37,13 @@ func TestIsStationProduct(t *testing.T) {
 	if IsStationProduct(ProductEchoTops) {
 		t.Error("echo tops should NOT be a station product (uses WMS mosaic)")
 	}
+	if IsStationProduct(ProductPrecipType) {
+		t.Error("precip type should NOT be a station product (uses WMS mosaic)")
+	}
+	if !IsStationProduct(ProductOneHourPrecip) {
+		t.Error("one hour precip should be a station product (uses RIDGE N1P)")
+	}
+	if !IsStationProduct(ProductStormTotalPrecip) {
+		t.Error("storm total precip should be a station product (uses RIDGE NTP)")
+	}
 }

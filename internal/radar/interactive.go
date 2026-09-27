@@ -56,6 +56,17 @@ var products = []Product{
 	ProductBaseReflectivity,
 	ProductStormRelativeVelocity,
 	ProductEchoTops,
+	ProductPrecipType,
+	ProductOneHourPrecip,
+	ProductStormTotalPrecip,
+}
+
+var loopSpeeds = []time.Duration{
+	150 * time.Millisecond,
+	300 * time.Millisecond,
+	600 * time.Millisecond,
+	1000 * time.Millisecond,
+	1800 * time.Millisecond,
 }
 
 func nextProduct(cur Product) Product {
@@ -89,6 +100,7 @@ type InteractiveModel struct {
 	radius   float64
 	loopMode bool
 	paused   bool
+	speedIdx int // index into loopSpeeds; default 2 (600ms)
 
 	// Data
 	frame    *Frame   // current single frame
@@ -107,9 +119,10 @@ type InteractiveModel struct {
 // NewInteractiveModel creates the initial model.
 func NewInteractiveModel(cfg InteractiveConfig) InteractiveModel {
 	return InteractiveModel{
-		cfg:     cfg,
-		product: cfg.Product,
-		radius:  cfg.RadiusKM,
+		cfg:      cfg,
+		product:  cfg.Product,
+		radius:   cfg.RadiusKM,
+		speedIdx: 2, // 600ms
 	}
 }
 
@@ -216,6 +229,18 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "right", "]":
 			if m.loopMode && len(m.frames) > 0 {
 				m.frameIdx = (m.frameIdx + 1) % len(m.frames)
+			}
+			return m, nil
+
+		case "f", ">", ".":
+			if m.loopMode && m.speedIdx > 0 {
+				m.speedIdx--
+			}
+			return m, nil
+
+		case "s", "<", ",":
+			if m.loopMode && m.speedIdx < len(loopSpeeds)-1 {
+				m.speedIdx++
 			}
 			return m, nil
 		}
@@ -350,6 +375,8 @@ func (m InteractiveModel) helpBar() string {
 		} else {
 			parts = append(parts, key.Render("space")+dim.Render(":pause"))
 		}
+		speedMs := loopSpeeds[m.speedIdx] / time.Millisecond
+		parts = append(parts, key.Render("<>")+dim.Render(fmt.Sprintf(":speed %dms", speedMs)))
 	}
 
 	parts = append(parts, key.Render("r")+dim.Render(":refresh"))
@@ -394,7 +421,11 @@ func (m InteractiveModel) fetchLoop() tea.Cmd {
 }
 
 func (m InteractiveModel) tickCmd() tea.Cmd {
-	return tea.Tick(600*time.Millisecond, func(time.Time) tea.Msg {
+	speed := 600 * time.Millisecond
+	if m.speedIdx >= 0 && m.speedIdx < len(loopSpeeds) {
+		speed = loopSpeeds[m.speedIdx]
+	}
+	return tea.Tick(speed, func(time.Time) tea.Msg {
 		return tickMsg{}
 	})
 }

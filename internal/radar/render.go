@@ -149,6 +149,12 @@ func ProductLabel(p Product) string {
 		return "Storm Rel. Velocity"
 	case ProductEchoTops:
 		return "Echo Tops"
+	case ProductPrecipType:
+		return "Precipitation Type"
+	case ProductOneHourPrecip:
+		return "1-Hour Precip"
+	case ProductStormTotalPrecip:
+		return "Storm Total Precip"
 	default:
 		return string(p)
 	}
@@ -267,6 +273,12 @@ func productColor(p Product) lipgloss.Color {
 		return lipgloss.Color("201") // magenta — storm-relative motion
 	case ProductEchoTops:
 		return lipgloss.Color("208") // orange — cloud top heights
+	case ProductPrecipType:
+		return lipgloss.Color("141") // lavender — surface precip type
+	case ProductOneHourPrecip:
+		return lipgloss.Color("45") // sky blue — 1-hour QPE
+	case ProductStormTotalPrecip:
+		return lipgloss.Color("39") // deep ocean blue — storm total accumulation
 	default:
 		return lipgloss.Color("226") // yellow — composite / full-column view
 	}

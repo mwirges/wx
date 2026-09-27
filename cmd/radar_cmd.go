@@ -58,7 +58,7 @@ func radarCommand() *cli.Command {
 			&cli.StringFlag{
 				Name:  "product",
 				Value: string(radar.ProductCompositeReflectivity),
-				Usage: "radar product: composite-reflectivity, base-reflectivity, storm-relative-velocity, echo-tops",
+				Usage: "radar product: composite-reflectivity, base-reflectivity, storm-relative-velocity, echo-tops, precip-type, one-hour-precip, storm-total-precip",
 			},
 			&cli.Float64Flag{
 				Name:  "radius",
@@ -172,10 +172,10 @@ func radarAction(c *cli.Context) error {
 		loc.DisplayName = fmt.Sprintf("%s — %s", st.ID, st.Name)
 	}
 
-	product := radar.Product(c.String("product"))
+	product := radar.NormalizeProduct(c.String("product"))
 	if !c.IsSet("product") {
 		if p := cfg.GetEffectiveRadarProduct(resolvedInput, locInput, loc.DisplayName); p != "" {
-			product = radar.Product(p)
+			product = radar.NormalizeProduct(p)
 		}
 	}
 

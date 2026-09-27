@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"image"
+	"strings"
 	"time"
 
 	"github.com/mwirges/wx/internal/cache"
@@ -35,18 +36,50 @@ const (
 	// (in thousands of feet). Indicates storm intensity and vertical extent.
 	// Uses NWS MRMS Enhanced Echo Tops national mosaic via WMS.
 	ProductEchoTops Product = "echo-tops"
+
+	// ProductPrecipType shows surface precipitation classification
+	// (rain, snow, ice pellets, freezing rain) via NWS MRMS national WMS.
+	ProductPrecipType Product = "precip-type"
+
+	// ProductOneHourPrecip shows 1-hour precipitation accumulation (QPE).
+	// Single-station RIDGE product (N1P).
+	ProductOneHourPrecip Product = "one-hour-precip"
+
+	// ProductStormTotalPrecip shows storm total precipitation accumulation.
+	// Single-station RIDGE product (NTP).
+	ProductStormTotalPrecip Product = "storm-total-precip"
 )
 
 // IsStationProduct returns true if the product requires single-station RIDGE
 // data rather than the national composite mosaic.
-// IsStationProduct returns true if the product requires single-station RIDGE
-// data rather than the national composite mosaic.
 func IsStationProduct(p Product) bool {
 	switch p {
-	case ProductBaseReflectivity, ProductStormRelativeVelocity:
+	case ProductBaseReflectivity, ProductStormRelativeVelocity, ProductOneHourPrecip, ProductStormTotalPrecip:
 		return true
 	default:
 		return false
+	}
+}
+
+// NormalizeProduct canonicalizes product strings and common aliases.
+func NormalizeProduct(p string) Product {
+	switch strings.ToLower(strings.TrimSpace(p)) {
+	case "composite", "composite-reflectivity", "cref":
+		return ProductCompositeReflectivity
+	case "base", "base-reflectivity", "bref":
+		return ProductBaseReflectivity
+	case "srv", "storm-relative-velocity", "velocity":
+		return ProductStormRelativeVelocity
+	case "echo-tops", "echotops", "neet":
+		return ProductEchoTops
+	case "precip-type", "precipitation-type", "ptype":
+		return ProductPrecipType
+	case "1h-precip", "one-hour-precip", "1h", "n1p":
+		return ProductOneHourPrecip
+	case "storm-total", "storm-total-precip", "total-precip", "stp", "ntp":
+		return ProductStormTotalPrecip
+	default:
+		return Product(p)
 	}
 }
 
