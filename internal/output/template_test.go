@@ -183,6 +183,8 @@ func TestExecuteTemplate_FreshnessAndAstronomy(t *testing.T) {
 	sr := time.Date(2026, 9, 26, 7, 0, 0, 0, time.Local)
 	ss := time.Date(2026, 9, 26, 19, 0, 0, 0, time.Local)
 	obs := time.Now().Add(-10 * time.Minute)
+	illum := 88.4
+	age := 11.2
 
 	data := RenderData{
 		Conditions: &models.CurrentConditions{
@@ -190,14 +192,18 @@ func TestExecuteTemplate_FreshnessAndAstronomy(t *testing.T) {
 			TempC:      &tempC,
 			ObservedAt: obs,
 			Astronomy: &models.Astronomy{
-				Sunrise:   &sr,
-				Sunset:    &ss,
-				DayLength: 12 * time.Hour,
+				Sunrise:             &sr,
+				Sunset:              &ss,
+				DayLength:           12 * time.Hour,
+				MoonPhase:           "Waxing Gibbous",
+				MoonPhaseIcon:       "🌔",
+				MoonIlluminationPct: &illum,
+				MoonAgeDays:         &age,
 			},
 		},
 	}
 
-	tmpl := `{{.Conditions.Location}}: {{.Conditions.TempStr}} | {{.Astronomy.Sunrise}} | {{.Freshness.AgeString}}`
+	tmpl := `{{.Conditions.Location}}: {{.Conditions.TempStr}} | {{.Astronomy.Sunrise}} | {{.Astronomy.MoonPhaseIcon}} {{.Astronomy.MoonPhase}} ({{.Astronomy.MoonIlluminationStr}}) | {{.Freshness.AgeString}}`
 	var buf bytes.Buffer
 	err := ExecuteTemplate(tmpl, data, RenderOptions{Units: "imperial"}, &buf)
 	if err != nil {
@@ -210,6 +216,9 @@ func TestExecuteTemplate_FreshnessAndAstronomy(t *testing.T) {
 	}
 	if !strings.Contains(got, "7:00 AM") {
 		t.Errorf("expected '7:00 AM', got %q", got)
+	}
+	if !strings.Contains(got, "🌔 Waxing Gibbous (88%)") {
+		t.Errorf("expected '🌔 Waxing Gibbous (88%%)', got %q", got)
 	}
 	if !strings.Contains(got, "10m ago") {
 		t.Errorf("expected '10m ago', got %q", got)

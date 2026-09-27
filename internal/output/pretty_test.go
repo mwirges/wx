@@ -358,6 +358,44 @@ func TestRenderPretty_Astronomy(t *testing.T) {
 			t.Errorf("expected 'Polar Night', got %q", outStr)
 		}
 	})
+
+	t.Run("Moon Phase", func(t *testing.T) {
+		illum := 85.0
+		age := 12.4
+		data := RenderData{
+			Conditions: &models.CurrentConditions{
+				Location:      "Fort Wayne, IN",
+				ObservedAt:    time.Date(2026, 9, 26, 12, 0, 0, 0, time.Local),
+				TempC:         &temp,
+				ConditionCode: "clear-day",
+				Astronomy: &models.Astronomy{
+					Sunrise:             &sr,
+					Sunset:              &ss,
+					DayLength:           12*time.Hour + 1*time.Minute,
+					MoonPhase:           "Waxing Gibbous",
+					MoonPhaseIcon:       "🌔",
+					MoonIlluminationPct: &illum,
+					MoonAgeDays:         &age,
+				},
+			},
+		}
+		out := captureStdout(t, func() {
+			renderPretty(data, RenderOptions{Units: "imperial"})
+		})
+		outStr := string(out)
+		if !strings.Contains(outStr, "Moon:") {
+			t.Errorf("expected 'Moon:', got %q", outStr)
+		}
+		if !strings.Contains(outStr, "🌔 Waxing Gibbous") {
+			t.Errorf("expected '🌔 Waxing Gibbous', got %q", outStr)
+		}
+		if !strings.Contains(outStr, "85% illuminated") {
+			t.Errorf("expected '85%% illuminated', got %q", outStr)
+		}
+		if !strings.Contains(outStr, "12.4d age") {
+			t.Errorf("expected '12.4d age', got %q", outStr)
+		}
+	})
 }
 
 func TestRenderPretty_HourlyForecastTable(t *testing.T) {

@@ -85,18 +85,30 @@ func Calculate(lat, lon float64, t time.Time) (*models.Astronomy, error) {
 	cosHA := (math.Cos(degToRad(90.83333333333333)) - math.Sin(degToRad(lat))*math.Sin(degToRad(sunDeclin))) /
 		(math.Cos(degToRad(lat)) * math.Cos(degToRad(sunDeclin)))
 
+	moon := CalculateMoon(t)
+	illum := moon.IlluminationPct
+	age := moon.AgeDays
+
 	if cosHA > 1.0 {
 		return &models.Astronomy{
-			SolarNoon:    snTime.Round(time.Minute),
-			DayLength:    0,
-			IsPolarNight: true,
+			SolarNoon:           snTime.Round(time.Minute),
+			DayLength:           0,
+			IsPolarNight:        true,
+			MoonPhase:           moon.PhaseName,
+			MoonPhaseIcon:       moon.PhaseIcon,
+			MoonIlluminationPct: &illum,
+			MoonAgeDays:         &age,
 		}, nil
 	}
 	if cosHA < -1.0 {
 		return &models.Astronomy{
-			SolarNoon:  snTime.Round(time.Minute),
-			DayLength:  24 * time.Hour,
-			IsPolarDay: true,
+			SolarNoon:           snTime.Round(time.Minute),
+			DayLength:           24 * time.Hour,
+			IsPolarDay:          true,
+			MoonPhase:           moon.PhaseName,
+			MoonPhaseIcon:       moon.PhaseIcon,
+			MoonIlluminationPct: &illum,
+			MoonAgeDays:         &age,
 		}, nil
 	}
 
@@ -109,10 +121,14 @@ func Calculate(lat, lon float64, t time.Time) (*models.Astronomy, error) {
 	ssTime := baseMidnight.Add(time.Duration(sunsetUTC * 60 * float64(time.Second))).In(t.Location()).Round(time.Minute)
 
 	return &models.Astronomy{
-		Sunrise:   &srTime,
-		Sunset:    &ssTime,
-		SolarNoon: snTime.Round(time.Minute),
-		DayLength: ssTime.Sub(srTime),
+		Sunrise:             &srTime,
+		Sunset:              &ssTime,
+		SolarNoon:           snTime.Round(time.Minute),
+		DayLength:           ssTime.Sub(srTime),
+		MoonPhase:           moon.PhaseName,
+		MoonPhaseIcon:       moon.PhaseIcon,
+		MoonIlluminationPct: &illum,
+		MoonAgeDays:         &age,
 	}, nil
 }
 

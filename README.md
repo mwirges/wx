@@ -42,7 +42,7 @@ wx
 
 # Single-line compact summary with feels-like & observation age (great for tmux / shell prompts / waybar)
 wx --short
-# Output: Fort Wayne, IN: 63°F (feels 60°F) · N 0 mph · 63% hum · ↑7:32 AM ↓7:32 PM · 4m ago
+# Output: Fort Wayne, IN: 63°F (feels 60°F) · N 0 mph · 63% hum · ↑7:32 AM ↓7:32 PM 🌔 · 4m ago
 
 # Hourly forecast (table layout with precip % and humidity)
 wx --hourly
@@ -51,7 +51,7 @@ wx hourly --hours 12
 
 # Custom templating (inline or from file with @)
 wx -T '{{.Conditions.Location}}: {{.Conditions.TempStr}} ({{.Conditions.Description}})'
-wx -T '{{.Conditions.TempF | printf "%.0f"}}°F | {{.Conditions.Astronomy.Sunrise}} - {{.Conditions.Astronomy.Sunset}} [{{.Freshness.AgeString}}]'
+wx -T '{{.Conditions.TempF | printf "%.0f"}}°F | {{.Astronomy.MoonPhaseIcon}} {{.Astronomy.MoonPhase}} | {{.Conditions.Astronomy.Sunrise}} - {{.Conditions.Astronomy.Sunset}} [{{.Freshness.AgeString}}]'
 wx -T @~/.config/wx/tmux.tmpl
 
 # Automation / scripting with alert exit codes

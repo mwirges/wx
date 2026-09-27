@@ -8,13 +8,17 @@ import (
 )
 
 type jsonAstronomy struct {
-	Sunrise      *string `json:"sunrise,omitempty"`
-	Sunset       *string `json:"sunset,omitempty"`
-	SolarNoon    string  `json:"solar_noon,omitempty"`
-	DayLengthSec int64   `json:"day_length_seconds"`
-	DayLength    string  `json:"day_length"`
-	IsPolarDay   bool    `json:"is_polar_day,omitempty"`
-	IsPolarNight bool    `json:"is_polar_night,omitempty"`
+	Sunrise             *string  `json:"sunrise,omitempty"`
+	Sunset              *string  `json:"sunset,omitempty"`
+	SolarNoon           string   `json:"solar_noon,omitempty"`
+	DayLengthSec        int64    `json:"day_length_seconds"`
+	DayLength           string   `json:"day_length"`
+	IsPolarDay          bool     `json:"is_polar_day,omitempty"`
+	IsPolarNight        bool     `json:"is_polar_night,omitempty"`
+	MoonPhase           string   `json:"moon_phase,omitempty"`
+	MoonPhaseIcon       string   `json:"moon_phase_icon,omitempty"`
+	MoonIlluminationPct *float64 `json:"moon_illumination_pct,omitempty"`
+	MoonAgeDays         *float64 `json:"moon_age_days,omitempty"`
 }
 
 type jsonConditions struct {
@@ -207,11 +211,15 @@ func renderJSON(data RenderData, opts RenderOptions) error {
 
 		if c.Astronomy != nil {
 			ja := &jsonAstronomy{
-				SolarNoon:    c.Astronomy.SolarNoon.Format(time.RFC3339),
-				DayLengthSec: int64(c.Astronomy.DayLength.Seconds()),
-				DayLength:    fmt.Sprintf("%dh %dm", int(c.Astronomy.DayLength.Hours()), int(c.Astronomy.DayLength.Minutes())%60),
-				IsPolarDay:   c.Astronomy.IsPolarDay,
-				IsPolarNight: c.Astronomy.IsPolarNight,
+				SolarNoon:           c.Astronomy.SolarNoon.Format(time.RFC3339),
+				DayLengthSec:        int64(c.Astronomy.DayLength.Seconds()),
+				DayLength:           fmt.Sprintf("%dh %dm", int(c.Astronomy.DayLength.Hours()), int(c.Astronomy.DayLength.Minutes())%60),
+				IsPolarDay:          c.Astronomy.IsPolarDay,
+				IsPolarNight:        c.Astronomy.IsPolarNight,
+				MoonPhase:           c.Astronomy.MoonPhase,
+				MoonPhaseIcon:       c.Astronomy.MoonPhaseIcon,
+				MoonIlluminationPct: c.Astronomy.MoonIlluminationPct,
+				MoonAgeDays:         c.Astronomy.MoonAgeDays,
 			}
 			if c.Astronomy.Sunrise != nil {
 				sr := c.Astronomy.Sunrise.Format(time.RFC3339)

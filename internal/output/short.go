@@ -92,14 +92,21 @@ func FormatShort(data RenderData, opts RenderOptions) string {
 		// 4. Astronomy
 		if c.Astronomy != nil {
 			astro := c.Astronomy
+			var astroParts []string
 			if astro.IsPolarDay {
-				parts = append(parts, "24h sun")
+				astroParts = append(astroParts, "24h sun")
 			} else if astro.IsPolarNight {
-				parts = append(parts, "polar night")
+				astroParts = append(astroParts, "polar night")
 			} else if astro.Sunrise != nil && astro.Sunset != nil {
 				sr := astro.Sunrise.Local().Format("3:04 PM")
 				ss := astro.Sunset.Local().Format("3:04 PM")
-				parts = append(parts, fmt.Sprintf("↑%s ↓%s", sr, ss))
+				astroParts = append(astroParts, fmt.Sprintf("↑%s ↓%s", sr, ss))
+			}
+			if astro.MoonPhaseIcon != "" {
+				astroParts = append(astroParts, astro.MoonPhaseIcon)
+			}
+			if len(astroParts) > 0 {
+				parts = append(parts, strings.Join(astroParts, " "))
 			}
 		}
 		// 5. Freshness / Age

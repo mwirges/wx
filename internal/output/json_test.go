@@ -278,6 +278,8 @@ func TestRenderJSON_Astronomy(t *testing.T) {
 	ss := time.Date(2026, 9, 26, 23, 32, 0, 0, time.UTC)
 	sn := time.Date(2026, 9, 26, 17, 32, 0, 0, time.UTC)
 	dl := 12*time.Hour + 1*time.Minute
+	illum := 99.2
+	age := 14.8
 
 	data := RenderData{
 		Conditions: &models.CurrentConditions{
@@ -285,10 +287,14 @@ func TestRenderJSON_Astronomy(t *testing.T) {
 			ObservedAt: time.Date(2026, 9, 26, 20, 0, 0, 0, time.UTC),
 			Location:   "Fort Wayne, IN",
 			Astronomy: &models.Astronomy{
-				Sunrise:   &sr,
-				Sunset:    &ss,
-				SolarNoon: sn,
-				DayLength: dl,
+				Sunrise:             &sr,
+				Sunset:              &ss,
+				SolarNoon:           sn,
+				DayLength:           dl,
+				MoonPhase:           "Full Moon",
+				MoonPhaseIcon:       "🌕",
+				MoonIlluminationPct: &illum,
+				MoonAgeDays:         &age,
 			},
 		},
 	}
@@ -303,15 +309,21 @@ func TestRenderJSON_Astronomy(t *testing.T) {
 	var result struct {
 		Conditions struct {
 			Astronomy *struct {
-				Sunrise      *string `json:"sunrise"`
-				Sunset       *string `json:"sunset"`
-				SolarNoon    string  `json:"solar_noon"`
-				DayLengthSec int64   `json:"day_length_seconds"`
-				DayLength    string  `json:"day_length"`
+				Sunrise             *string  `json:"sunrise"`
+				Sunset              *string  `json:"sunset"`
+				SolarNoon           string   `json:"solar_noon"`
+				DayLengthSec        int64    `json:"day_length_seconds"`
+				DayLength           string   `json:"day_length"`
+				MoonPhase           string   `json:"moon_phase"`
+				MoonPhaseIcon       string   `json:"moon_phase_icon"`
+				MoonIlluminationPct *float64 `json:"moon_illumination_pct"`
+				MoonAgeDays         *float64 `json:"moon_age_days"`
 			} `json:"astronomy"`
 		} `json:"conditions"`
 		Astronomy *struct {
-			Sunrise *string `json:"sunrise"`
+			Sunrise       *string `json:"sunrise"`
+			MoonPhase     string  `json:"moon_phase"`
+			MoonPhaseIcon string  `json:"moon_phase_icon"`
 		} `json:"astronomy"`
 	}
 
@@ -327,6 +339,18 @@ func TestRenderJSON_Astronomy(t *testing.T) {
 	}
 	if result.Conditions.Astronomy.DayLength != "12h 1m" {
 		t.Errorf("day_length = %q, want %q", result.Conditions.Astronomy.DayLength, "12h 1m")
+	}
+	if result.Conditions.Astronomy.MoonPhase != "Full Moon" {
+		t.Errorf("moon_phase = %q, want 'Full Moon'", result.Conditions.Astronomy.MoonPhase)
+	}
+	if result.Conditions.Astronomy.MoonPhaseIcon != "🌕" {
+		t.Errorf("moon_phase_icon = %q, want '🌕'", result.Conditions.Astronomy.MoonPhaseIcon)
+	}
+	if result.Conditions.Astronomy.MoonIlluminationPct == nil || *result.Conditions.Astronomy.MoonIlluminationPct != 99.2 {
+		t.Errorf("moon_illumination_pct = %v, want 99.2", result.Conditions.Astronomy.MoonIlluminationPct)
+	}
+	if result.Conditions.Astronomy.MoonAgeDays == nil || *result.Conditions.Astronomy.MoonAgeDays != 14.8 {
+		t.Errorf("moon_age_days = %v, want 14.8", result.Conditions.Astronomy.MoonAgeDays)
 	}
 }
 

@@ -30,6 +30,10 @@ struct AstronomyDTO: Decodable, Sendable {
     var dayLength: String?
     var isPolarDay: Bool?
     var isPolarNight: Bool?
+    var moonPhase: String?
+    var moonPhaseIcon: String?
+    var moonIlluminationPct: Double?
+    var moonAgeDays: Double?
 
     enum CodingKeys: String, CodingKey {
         case sunrise, sunset
@@ -38,6 +42,10 @@ struct AstronomyDTO: Decodable, Sendable {
         case dayLength = "day_length"
         case isPolarDay = "is_polar_day"
         case isPolarNight = "is_polar_night"
+        case moonPhase = "moon_phase"
+        case moonPhaseIcon = "moon_phase_icon"
+        case moonIlluminationPct = "moon_illumination_pct"
+        case moonAgeDays = "moon_age_days"
     }
 
     var sunriseFormatted: String? {
