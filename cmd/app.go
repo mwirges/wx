@@ -59,6 +59,16 @@ func NewApp() *cli.App {
 				Usage: "bypass the local cache",
 			},
 			&cli.BoolFlag{
+				Name:    "short",
+				Aliases: []string{"s"},
+				Usage:   "print a single-line summary for statuslines/prompts",
+			},
+			&cli.StringFlag{
+				Name:    "template",
+				Aliases: []string{"T"},
+				Usage:   "format output using a Go template string or @file",
+			},
+			&cli.BoolFlag{
 				Name:    "json",
 				Aliases: []string{"j"},
 				Usage:   "force JSON output",
@@ -210,5 +220,7 @@ func runWeather(c *cli.Context, opts weatherOpts) error {
 		ShowForecast: opts.showForecast,
 		ShowAlerts:   opts.showAlerts,
 		ShowHourly:   opts.showHourly,
+		Short:        c.Bool("short"),
+		Template:     c.String("template"),
 	})
 }

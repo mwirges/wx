@@ -22,6 +22,9 @@ wx [options]
 Options:
   -l, --location <value>   Zip code, "City, ST", or omit to use config/auto-detect
   -f, --forecast           Show 7-day forecast
+  -H, --hourly             Show hourly forecast
+  -s, --short              Single-line summary for statuslines/prompts
+  -T, --template <string>  Format output with a Go template or @file
   -a, --alerts             Show active weather alerts
   -u, --units <value>      imperial (default) or metric
       --no-cache           Bypass the local cache
@@ -35,6 +38,19 @@ Options:
 ```bash
 # Current conditions, auto-detected location
 wx
+
+# Single-line compact summary (great for tmux / shell prompts / waybar)
+wx --short
+# Output: Fort Wayne, IN: 63°F · N 0 mph · 63% hum · ↑7:32 AM ↓7:32 PM
+
+# Hourly forecast
+wx --hourly
+wx hourly
+
+# Custom templating (inline or from file with @)
+wx -T '{{.Conditions.Location}}: {{.Conditions.TempStr}} ({{.Conditions.Description}})'
+wx -T '{{.Conditions.TempF | printf "%.0f"}}°F | {{.Conditions.Astronomy.Sunrise}} - {{.Conditions.Astronomy.Sunset}}'
+wx -T @~/.config/wx/tmux.tmpl
 
 # Specific city or zip
 wx -l "Kansas City, MO"
