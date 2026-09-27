@@ -373,10 +373,15 @@ struct AlertsListView: View {
         } else {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 6) {
-                    Circle()
-                        .fill(WxTheme.snwRed)
-                        .frame(width: 6, height: 6)
-                        .shadow(color: WxTheme.snwRed.opacity(0.8), radius: 3)
+                    PhaseAnimator([false, true]) { lit in
+                        Circle()
+                            .fill(WxTheme.snwRed)
+                            .frame(width: 6, height: 6)
+                            .opacity(lit ? 1.0 : 0.35)
+                            .shadow(color: WxTheme.snwRed.opacity(lit ? 0.9 : 0.1), radius: lit ? 4 : 1)
+                    } animation: { _ in
+                        .easeInOut(duration: 0.6)
+                    }
                     Text("TACTICAL ALERTS // NWS WATCHES & WARNINGS")
                         .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                         .foregroundStyle(WxTheme.snwRed)

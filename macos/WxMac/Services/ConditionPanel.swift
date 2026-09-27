@@ -48,62 +48,65 @@ enum ConditionBand {
 }
 
 /// Original tactical ConditionPanel — brackets + end frames + bar modules + ALERT stack.
-/// Compact badge style for Option A. Whole-panel brightness pulse; Reduce Motion → static.
+/// Compact badge style for Option A. Red/Yellow warning lights and border pulse with solid black background;
+/// Reduce Motion → static.
 struct ConditionPanel: View {
     let band: ConditionBand
     var size: CGFloat = 88
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var lit = false
 
     var body: some View {
         let fill = band.fill
-        ZStack {
-            Color.black
-            VStack(spacing: size * 0.04) {
-                ConditionEndFrame(fill: fill, barCount: 4)
-                    .frame(height: size * 0.18)
-                HStack(spacing: size * 0.06) {
-                    ConditionSideBracket(fill: fill, facing: .leading)
-                        .frame(width: size * 0.12)
-                    VStack(spacing: size * 0.015) {
-                        Text("ALERT")
-                            .font(.system(size: size * 0.20, weight: .heavy, design: .rounded))
-                            .tracking(-1)
-                            .foregroundStyle(fill)
-                            .minimumScaleFactor(0.8)
-                            .lineLimit(1)
-                        Text(band.conditionLabel)
-                            .font(.system(size: size * 0.078, weight: .bold, design: .rounded))
-                            .tracking(-0.2)
-                            .foregroundStyle(fill)
-                            .minimumScaleFactor(0.55)
-                            .lineLimit(1)
-                            .fixedSize(horizontal: false, vertical: true)
+        PhaseAnimator([false, true]) { lit in
+            ZStack {
+                Color.black
+
+                VStack(spacing: size * 0.04) {
+                    ConditionEndFrame(fill: fill, barCount: 4)
+                        .frame(height: size * 0.18)
+                    HStack(spacing: size * 0.06) {
+                        ConditionSideBracket(fill: fill, facing: .leading)
+                            .frame(width: size * 0.12)
+                        VStack(spacing: size * 0.015) {
+                            Text("ALERT")
+                                .font(.system(size: size * 0.20, weight: .heavy, design: .rounded))
+                                .tracking(-1)
+                                .foregroundStyle(fill)
+                                .minimumScaleFactor(0.8)
+                                .lineLimit(1)
+                            Text(band.conditionLabel)
+                                .font(.system(size: size * 0.078, weight: .bold, design: .rounded))
+                                .tracking(-0.2)
+                                .foregroundStyle(fill)
+                                .minimumScaleFactor(0.55)
+                                .lineLimit(1)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 1)
+                        ConditionSideBracket(fill: fill, facing: .trailing)
+                            .frame(width: size * 0.12)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.horizontal, 1)
-                    ConditionSideBracket(fill: fill, facing: .trailing)
-                        .frame(width: size * 0.12)
+                    .frame(maxHeight: .infinity)
+                    ConditionEndFrame(fill: fill, barCount: 4)
+                        .frame(height: size * 0.18)
                 }
-                .frame(maxHeight: .infinity)
-                ConditionEndFrame(fill: fill, barCount: 4)
-                    .frame(height: size * 0.18)
+                .padding(size * 0.04)
+                .opacity(reduceMotion ? 1.0 : (lit ? 1.0 : 0.35))
+                .shadow(color: fill.opacity(reduceMotion ? 0.2 : (lit ? 0.9 : 0.0)), radius: lit ? 6 : 0)
             }
-            .padding(size * 0.04)
+            .frame(width: size, height: size)
+            .clipShape(RoundedRectangle(cornerRadius: size * 0.06, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: size * 0.06, style: .continuous)
+                    .strokeBorder(fill.opacity(reduceMotion ? 0.4 : (lit ? 0.85 : 0.25)), lineWidth: 1.0)
+            )
+        } animation: { _ in
+            reduceMotion ? nil : .easeInOut(duration: band.pulseDuration)
         }
-        .frame(width: size, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: size * 0.06, style: .continuous))
-        .opacity(reduceMotion ? 1.0 : (lit ? 1.0 : 0.55))
-        .brightness(reduceMotion ? 0 : (lit ? 0.08 : -0.12))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Alert, \(band.conditionLabel)")
-        .onAppear {
-            guard !reduceMotion else { return }
-            withAnimation(.easeInOut(duration: band.pulseDuration).repeatForever(autoreverses: true)) {
-                lit = true
-            }
-        }
     }
 }
 
