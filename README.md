@@ -293,21 +293,27 @@ wx -l 64101 --forecast --alerts --json | jq .
 
 | Purpose | Service |
 |---------|---------|
-| Weather data | [api.weather.gov](https://api.weather.gov) (NWS) — US only, no key required |
+| US Weather | [api.weather.gov](https://api.weather.gov) (NWS) — Primary US data source, no key required |
+| Global Weather | [api.open-meteo.com](https://open-meteo.com) — Global fallback & international coverage, no key required |
 | Zip / city geocoding | [Nominatim](https://nominatim.openstreetmap.org) (OpenStreetMap) |
 | IP geolocation | [ipinfo.io](https://ipinfo.io) (free tier) |
 
-## Adding a weather provider
+## Weather Providers & Architecture
 
-The provider interface supports adding non-US data sources. Create a package under `internal/provider/` that implements `provider.WeatherProvider`, set `Supports()` to return `true` for the target country codes, and register it from `init()`:
+`wx` uses a tiered, prioritized provider registry (`docs/provider-design.md`):
 
-```go
-func init() {
-    provider.Register(New())
-}
+1. **National Weather Service (`nws`)**: High-fidelity data for US coordinates (`PrioritySpecialized: 100`).
+2. **Open-Meteo (`openmeteo`)**: Keyless, universal fallback for international coordinates (`PriorityFallback: 10`).
+
+Selection is automatic: US locations query NWS by default; international locations (e.g. Toronto, London, Tokyo, Paris) automatically query Open-Meteo. If NWS encounters an upstream service failure, `wx` transparently falls back to Open-Meteo.
+
+You can explicitly force a provider via CLI or config:
+```bash
+wx --provider openmeteo "Fort Wayne, IN"
+wx config set --provider openmeteo
 ```
 
-Import the package with a blank import in `cmd/app.go` and it will be selected automatically for non-US locations.
+To add another provider (e.g. Environment Canada, DWD, ECMWF), implement `provider.WeatherProvider`, register with `provider.RegisterWithPriority(...)` in `init()`, and blank-import in `cmd/app.go`. See `docs/provider-design.md` for full design documentation.
 
 ## Development
 

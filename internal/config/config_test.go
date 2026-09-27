@@ -327,3 +327,29 @@ func TestPerLocationSettings(t *testing.T) {
 		t.Errorf("expected updated settings, got %+v", s)
 	}
 }
+
+func TestConfig_Provider(t *testing.T) {
+	cfg := &Config{
+		Provider: "nws",
+	}
+
+	// Default provider
+	if p := cfg.GetEffectiveProvider(); p != "nws" {
+		t.Errorf("GetEffectiveProvider() = %q, want %q", p, "nws")
+	}
+
+	// Per-location provider override
+	cfg.SetLocationSettings("Toronto", PerLocationSettings{
+		Provider: "openmeteo",
+	})
+
+	if p := cfg.GetEffectiveProvider("Toronto"); p != "openmeteo" {
+		t.Errorf("GetEffectiveProvider(Toronto) = %q, want %q", p, "openmeteo")
+	}
+
+	// Unset location falls back to global
+	if p := cfg.GetEffectiveProvider("Chicago"); p != "nws" {
+		t.Errorf("GetEffectiveProvider(Chicago) = %q, want %q", p, "nws")
+	}
+}
+

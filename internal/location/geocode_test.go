@@ -73,3 +73,24 @@ func TestNominatimSearch(t *testing.T) {
 	// Here we just confirm the HTTP + JSON decode path works.
 	_ = srv // used above
 }
+
+func TestResultToLocation_International(t *testing.T) {
+	r := nominatimResult{
+		Lat:         "48.8534",
+		Lon:         "2.3483",
+		DisplayName: "Paris, France",
+	}
+	r.Address.City = "Paris"
+	r.Address.Country = "France"
+	r.Address.CountryCode = "fr"
+
+	loc := resultToLocation(r)
+
+	if loc.CountryCode != "FR" {
+		t.Errorf("CountryCode = %q, want %q", loc.CountryCode, "FR")
+	}
+	if loc.DisplayName != "Paris, France" {
+		t.Errorf("DisplayName = %q, want %q", loc.DisplayName, "Paris, France")
+	}
+}
+

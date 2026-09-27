@@ -17,7 +17,7 @@ func New() *Provider {
 
 // init registers the NWS provider automatically when this package is imported.
 func init() {
-	provider.Register(New())
+	provider.RegisterWithPriority(New(), provider.PrioritySpecialized)
 }
 
 func (p *Provider) Name() string { return "nws" }

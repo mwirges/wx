@@ -23,6 +23,7 @@ type nominatimResult struct {
 		Village     string `json:"village"`
 		State       string `json:"state"`
 		PostCode    string `json:"postcode"`
+		Country     string `json:"country"`
 		CountryCode string `json:"country_code"` // lowercase "us"
 	} `json:"address"`
 }
@@ -36,11 +37,11 @@ func resolveByZip(ctx context.Context, zip string, c Cacher) (Location, error) {
 	}
 
 	params := url.Values{
-		"format":       {"json"},
-		"postalcode":   {zip},
-		"countrycodes": {"us"},
+		"format":         {"json"},
+		"postalcode":     {zip},
+		"countrycodes":   {"us"},
 		"addressdetails": {"1"},
-		"limit":        {"1"},
+		"limit":          {"1"},
 	}
 
 	results, err := nominatimSearch(ctx, params)
@@ -72,7 +73,6 @@ func resolveByCityState(ctx context.Context, query string, c Cacher) (Location, 
 	params := url.Values{
 		"format":         {"json"},
 		"q":              {query},
-		"countrycodes":   {"us"},
 		"addressdetails": {"1"},
 		"limit":          {"1"},
 	}
@@ -138,6 +138,12 @@ func resultToLocation(r nominatimResult) Location {
 			display += ", " + r.Address.State
 		} else {
 			display = r.Address.State
+		}
+	} else if r.Address.Country != "" {
+		if display != "" {
+			display += ", " + r.Address.Country
+		} else {
+			display = r.Address.Country
 		}
 	}
 

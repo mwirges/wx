@@ -49,6 +49,11 @@ func configCommand() *cli.Command {
 						Usage:   "default units: imperial or metric (empty to clear)",
 					},
 					&cli.StringFlag{
+						Name:    "provider",
+						Aliases: []string{"p"},
+						Usage:   "default weather provider: nws or openmeteo (empty to clear)",
+					},
+					&cli.StringFlag{
 						Name:    "notifications",
 						Aliases: []string{"n"},
 						Usage:   "default desktop notifications: true or false (empty to clear)",
@@ -75,6 +80,7 @@ func configShow(c *cli.Context) error {
 
 	printConfigField("default_location", cfg.DefaultLocation)
 	printConfigField("units", cfg.Units)
+	printConfigField("provider", cfg.Provider)
 
 	notifVal := ""
 	if cfg.Notifications != nil {
@@ -105,6 +111,9 @@ func configShow(c *cli.Context) error {
 			var details []string
 			if s.Units != "" {
 				details = append(details, fmt.Sprintf("units: %s", s.Units))
+			}
+			if s.Provider != "" {
+				details = append(details, fmt.Sprintf("provider: %s", s.Provider))
 			}
 			if s.DefaultRadarProduct != "" {
 				details = append(details, fmt.Sprintf("radar: %s", s.DefaultRadarProduct))
@@ -157,6 +166,13 @@ func configSet(c *cli.Context) error {
 		}
 		cfg.Units = v
 	}
+	if c.IsSet("provider") {
+		v := strings.ToLower(c.String("provider"))
+		if v != "" && v != "nws" && v != "openmeteo" {
+			return fmt.Errorf("invalid provider %q: must be nws, openmeteo, or empty", v)
+		}
+		cfg.Provider = v
+	}
 	if c.IsSet("notifications") {
 		v := c.String("notifications")
 		if v == "" {
@@ -179,6 +195,7 @@ func configSet(c *cli.Context) error {
 	fmt.Printf("%s %s\n\n", styleConfigSaved.Render("Saved:"), styleConfigPath.Render(path))
 	printConfigField("default_location", cfg.DefaultLocation)
 	printConfigField("units", cfg.Units)
+	printConfigField("provider", cfg.Provider)
 
 	notifVal := ""
 	if cfg.Notifications != nil {

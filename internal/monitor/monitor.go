@@ -397,6 +397,13 @@ func fetchWeatherCmd(cfg MonitorConfig, loc location.Location, hourly bool) tea.
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
+		prov := cfg.WeatherProv
+		if prov == nil || !prov.Supports(loc) {
+			if p, err := provider.ForLocation(loc); err == nil {
+				prov = p
+			}
+		}
+
 		var (
 			cond     *models.CurrentConditions
 			fc       *models.Forecast
@@ -405,25 +412,29 @@ func fetchWeatherCmd(cfg MonitorConfig, loc location.Location, hourly bool) tea.
 			wg       sync.WaitGroup
 		)
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			cond, condErr = cfg.WeatherProv.CurrentConditions(ctx, loc, cfg.Cache)
-		}()
+		if prov != nil {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				cond, condErr = prov.CurrentConditions(ctx, loc, cfg.Cache)
+			}()
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			fc, _ = cfg.WeatherProv.Forecast(ctx, loc, hourly, cfg.Cache)
-		}()
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				fc, _ = prov.Forecast(ctx, loc, hourly, cfg.Cache)
+			}()
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			alerts, _ = cfg.WeatherProv.Alerts(ctx, loc, cfg.Cache)
-		}()
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				alerts, _ = prov.Alerts(ctx, loc, cfg.Cache)
+			}()
 
-		wg.Wait()
+			wg.Wait()
+		} else {
+			condErr = fmt.Errorf("no weather provider available for location")
+		}
 
 		if condErr != nil {
 			return weatherErrMsg{condErr}
@@ -439,8 +450,13 @@ func fetchWeatherCmd(cfg MonitorConfig, loc location.Location, hourly bool) tea.
 
 func fetchRadarCmd(cfg MonitorConfig, loc location.Location, termW, termH int) tea.Cmd {
 	return func() tea.Msg {
-		if cfg.RadarProv == nil {
-			return radarMsg{err: nil, lines: nil}
+		rp := cfg.RadarProv
+		if rp == nil || !rp.Supports(loc) {
+			if p, err := radar.ForLocation(loc); err == nil {
+				rp = p
+			} else {
+				return radarMsg{err: nil, lines: nil}
+			}
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
@@ -452,7 +468,7 @@ func fetchRadarCmd(cfg MonitorConfig, loc location.Location, termW, termH int) t
 		}
 
 		opts := radar.DefaultOptions()
-		frame, err := cfg.RadarProv.CurrentFrame(ctx, loc, opts, cfg.Cache)
+		frame, err := rp.CurrentFrame(ctx, loc, opts, cfg.Cache)
 		if err != nil {
 			return radarMsg{err: err}
 		}
