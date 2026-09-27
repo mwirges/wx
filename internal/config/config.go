@@ -153,6 +153,22 @@ func (c *Config) SetLocationSettings(loc string, settings PerLocationSettings) {
 	c.PerLocation[loc] = settings
 }
 
+// DeleteLocationSettings removes PerLocationSettings for a location (case-insensitive).
+// Returns true if a setting was deleted.
+func (c *Config) DeleteLocationSettings(loc string) bool {
+	if c.PerLocation == nil || loc == "" {
+		return false
+	}
+	deleted := false
+	for k := range c.PerLocation {
+		if strings.EqualFold(k, loc) {
+			delete(c.PerLocation, k)
+			deleted = true
+		}
+	}
+	return deleted
+}
+
 // GetEffectiveUnits returns the units to use for a given location, checking candidate keys
 // in priority order, then global config units, defaulting to "imperial".
 func (c *Config) GetEffectiveUnits(locs ...string) string {
