@@ -59,6 +59,10 @@ wx -l 64101
 # Forecast + alerts together
 wx -l "Chicago, IL" --forecast --alerts
 
+# Positional location argument or favorite alias
+wx "Chicago, IL"
+wx Home
+
 # Metric units
 wx -l "Denver, CO" --forecast --units metric
 
@@ -170,9 +174,52 @@ wx config show
 
 `default_location` accepts any value that `--location` accepts: a zip code, a `"City, ST"` string, or leave it unset to fall back to IP-based auto-detection.
 
-**Precedence:** `--location` flag → `default_location` in config → IP auto-detect.
+**Precedence:** `--location` flag → positional arg → `default_location` in config → IP auto-detect.
 **Units precedence:** `--units` flag → `units` in config → `imperial`.
 **Notifications precedence:** `--notify` flag → `notifications` in config → `false` (disabled by default).
+
+## Favorite Locations & Recents
+
+Manage named favorite location aliases and view recent searches:
+
+```bash
+# Add or update favorites
+wx locations add Home "Fort Wayne, IN"
+wx locations add Work 46802
+wx locations add "Chicago, IL"
+
+# Use your favorite alias anywhere
+wx Home
+wx Home --forecast
+wx radar Home
+wx monitor Home
+
+# List favorites and recent searches
+wx locations
+
+# View recent searches or clear history
+wx locations recents
+wx locations clear-recents
+
+# Remove a favorite
+wx locations rm Home
+```
+
+Favorite aliases and recent searches are persisted in `~/.config/wx/config.json`:
+```json
+{
+  "default_location": "Fort Wayne, IN",
+  "units": "imperial",
+  "favorites": [
+    {"name": "Home", "value": "Fort Wayne, IN"},
+    {"name": "Work", "value": "46802"}
+  ],
+  "recent_locations": [
+    "Fort Wayne, Indiana",
+    "Chicago, Illinois"
+  ]
+}
+```
 
 ## Cache
 

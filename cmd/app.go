@@ -75,7 +75,7 @@ func NewApp() *cli.App {
 			},
 		},
 		Action:   action,
-		Commands: []*cli.Command{configCommand(), radarCommand(), monitorCommand(), hourlyCommand()},
+		Commands: []*cli.Command{configCommand(), locationsCommand(), radarCommand(), monitorCommand(), hourlyCommand()},
 		ExitErrHandler: func(c *cli.Context, err error) {
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -128,16 +128,29 @@ func runWeather(c *cli.Context, opts weatherOpts) error {
 		}
 	}
 
-	// Location precedence: --location flag > config default_location > IP auto-detect
+	// Location precedence: --location flag > positional arg (e.g. `wx home`) > config default_location > IP auto-detect
 	locInput := c.String("location")
+	if locInput == "" && c.Args().Present() {
+		locInput = c.Args().First()
+	}
 	if locInput == "" {
 		locInput = cfg.DefaultLocation
 	}
+	resolvedInput := cfg.ResolveLocation(locInput)
 
 	// Resolve location
-	loc, err := location.Resolve(ctx, locInput, ch)
+	loc, err := location.Resolve(ctx, resolvedInput, ch)
 	if err != nil {
 		return err
+	}
+
+	// Track in recents if resolution gave a display name
+	if loc.DisplayName != "" {
+		if cfg.AddRecent(loc.DisplayName) {
+			if cfgPath, pathErr := config.Path(); pathErr == nil {
+				_ = config.Save(cfgPath, cfg)
+			}
+		}
 	}
 
 	// Select provider

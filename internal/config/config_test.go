@@ -152,3 +152,124 @@ func TestSaveClearsField(t *testing.T) {
 		t.Errorf("DefaultLocation = %q, want empty", got.DefaultLocation)
 	}
 }
+
+func TestFavorites(t *testing.T) {
+	cfg := &Config{}
+
+	// Add new
+	cfg.SetFavorite("Home", "Fort Wayne, IN")
+	cfg.SetFavorite("Work", "46802")
+	if len(cfg.Favorites) != 2 {
+		t.Fatalf("expected 2 favorites, got %d", len(cfg.Favorites))
+	}
+
+	// Lookup case-insensitive
+	val, ok := cfg.GetFavorite("home")
+	if !ok || val != "Fort Wayne, IN" {
+		t.Errorf("GetFavorite('home') = %q, %v; want 'Fort Wayne, IN', true", val, ok)
+	}
+	val, ok = cfg.GetFavorite("WORK")
+	if !ok || val != "46802" {
+		t.Errorf("GetFavorite('WORK') = %q, %v; want '46802', true", val, ok)
+	}
+	_, ok = cfg.GetFavorite("Nonexistent")
+	if ok {
+		t.Errorf("expected false for nonexistent favorite")
+	}
+
+	// Overwrite existing
+	cfg.SetFavorite("home", "Indianapolis, IN")
+	if len(cfg.Favorites) != 2 {
+		t.Fatalf("expected 2 favorites after update, got %d", len(cfg.Favorites))
+	}
+	val, _ = cfg.GetFavorite("Home")
+	if val != "Indianapolis, IN" {
+		t.Errorf("expected updated value 'Indianapolis, IN', got %q", val)
+	}
+
+	// Remove
+	removed := cfg.RemoveFavorite("work")
+	if !removed {
+		t.Errorf("expected true for removed favorite")
+	}
+	if len(cfg.Favorites) != 1 {
+		t.Errorf("expected 1 favorite left, got %d", len(cfg.Favorites))
+	}
+	_, ok = cfg.GetFavorite("Work")
+	if ok {
+		t.Errorf("expected Work to be gone")
+	}
+}
+
+func TestRecentLocations(t *testing.T) {
+	cfg := &Config{}
+
+	// Add recents
+	if !cfg.AddRecent("Chicago, IL") {
+		t.Errorf("expected AddRecent('Chicago, IL') to return true")
+	}
+	cfg.AddRecent("Denver, CO")
+	cfg.AddRecent("Austin, TX")
+
+	if cfg.AddRecent("Austin, TX") {
+		t.Errorf("expected AddRecent('Austin, TX') to return false when already top recent")
+	}
+	if cfg.AddRecent("") {
+		t.Errorf("expected AddRecent('') to return false")
+	}
+
+	if len(cfg.RecentLocations) != 3 {
+		t.Fatalf("expected 3 recents, got %d", len(cfg.RecentLocations))
+	}
+	if cfg.RecentLocations[0] != "Austin, TX" {
+		t.Errorf("expected most recent to be Austin, TX, got %q", cfg.RecentLocations[0])
+	}
+
+	// Deduplication moves to front
+	if !cfg.AddRecent("Chicago, IL") {
+		t.Errorf("expected AddRecent('Chicago, IL') to return true when moving to front")
+	}
+	if len(cfg.RecentLocations) != 3 {
+		t.Fatalf("expected 3 recents after deduplication, got %d", len(cfg.RecentLocations))
+	}
+	if cfg.RecentLocations[0] != "Chicago, IL" {
+		t.Errorf("expected Chicago, IL to move to front, got %q", cfg.RecentLocations[0])
+	}
+
+	// Cap at 10
+	for i := 1; i <= 15; i++ {
+		cfg.AddRecent(filepath.Join("City", string(rune('A'+i))))
+	}
+	if len(cfg.RecentLocations) != 10 {
+		t.Errorf("expected capped at 10, got %d", len(cfg.RecentLocations))
+	}
+
+	// Clear
+	cfg.ClearRecents()
+	if len(cfg.RecentLocations) != 0 {
+		t.Errorf("expected empty recents after clear, got %v", cfg.RecentLocations)
+	}
+}
+
+func TestResolveLocation(t *testing.T) {
+	cfg := &Config{
+		DefaultLocation: "Default City, ST",
+	}
+	cfg.SetFavorite("Home", "Fort Wayne, IN")
+	cfg.SetFavorite("Default City, ST", "Resolved Default, ST")
+
+	// Match favorite alias
+	if got := cfg.ResolveLocation("home"); got != "Fort Wayne, IN" {
+		t.Errorf("ResolveLocation('home') = %q, want 'Fort Wayne, IN'", got)
+	}
+
+	// Literal input when not in favorites
+	if got := cfg.ResolveLocation("64101"); got != "64101" {
+		t.Errorf("ResolveLocation('64101') = %q, want '64101'", got)
+	}
+
+	// Fallback to default location (which itself resolves alias)
+	if got := cfg.ResolveLocation(""); got != "Resolved Default, ST" {
+		t.Errorf("ResolveLocation('') = %q, want 'Resolved Default, ST'", got)
+	}
+}

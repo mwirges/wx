@@ -126,12 +126,24 @@ func radarAction(c *cli.Context) error {
 	}
 
 	locInput := c.String("location")
+	if locInput == "" && c.Args().Present() {
+		locInput = c.Args().First()
+	}
 	if locInput == "" {
 		locInput = cfg.DefaultLocation
 	}
-	loc, err := location.Resolve(ctx, locInput, ch)
+	resolvedInput := cfg.ResolveLocation(locInput)
+	loc, err := location.Resolve(ctx, resolvedInput, ch)
 	if err != nil {
 		return err
+	}
+
+	if loc.DisplayName != "" {
+		if cfg.AddRecent(loc.DisplayName) {
+			if cfgPath, pathErr := config.Path(); pathErr == nil {
+				_ = config.Save(cfgPath, cfg)
+			}
+		}
 	}
 
 	prov, err := radar.ForLocation(loc)

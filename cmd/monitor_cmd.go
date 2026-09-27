@@ -75,9 +75,13 @@ func monitorAction(c *cli.Context) error {
 	}
 
 	locInput := c.String("location")
+	if locInput == "" && c.Args().Present() {
+		locInput = c.Args().First()
+	}
 	if locInput == "" {
 		locInput = cfg.DefaultLocation
 	}
+	resolvedInput := cfg.ResolveLocation(locInput)
 
 	units := "imperial"
 	if cfg.Units != "" {
@@ -88,9 +92,17 @@ func monitorAction(c *cli.Context) error {
 	}
 
 	ctx := c.Context
-	loc, err := location.Resolve(ctx, locInput, ch)
+	loc, err := location.Resolve(ctx, resolvedInput, ch)
 	if err != nil {
 		return err
+	}
+
+	if loc.DisplayName != "" {
+		if cfg.AddRecent(loc.DisplayName) {
+			if cfgPath, pathErr := config.Path(); pathErr == nil {
+				_ = config.Save(cfgPath, cfg)
+			}
+		}
 	}
 
 	weatherProv, err := provider.ForLocation(loc)

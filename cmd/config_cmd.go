@@ -82,6 +82,22 @@ func configShow(c *cli.Context) error {
 	printConfigField("notifications", notifVal)
 	fmt.Println()
 
+	if len(cfg.Favorites) > 0 {
+		fmt.Println(styleConfigKey.Render("Favorites:"))
+		for _, f := range cfg.Favorites {
+			fmt.Printf("  %-16s %s\n", styleConfigValue.Render(f.Name), styleConfigPath.Render(f.Value))
+		}
+		fmt.Println()
+	}
+
+	if len(cfg.RecentLocations) > 0 {
+		fmt.Println(styleConfigKey.Render("Recent Locations:"))
+		for i, r := range cfg.RecentLocations {
+			fmt.Printf("  %2d. %s\n", i+1, styleConfigValue.Render(r))
+		}
+		fmt.Println()
+	}
+
 	return nil
 }
 
