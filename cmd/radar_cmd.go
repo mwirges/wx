@@ -234,7 +234,24 @@ func radarAction(c *cli.Context) error {
 		}
 		m := radar.NewInteractiveModel(icfg)
 		p := tea.NewProgram(m, tea.WithAltScreen())
-		_, err := p.Run()
+		finalModel, err := p.Run()
+		if err == nil {
+			if im, ok := finalModel.(radar.InteractiveModel); ok {
+				locKey := loc.DisplayName
+				if locKey == "" {
+					locKey = resolvedInput
+				}
+				if locKey != "" {
+					settings, _ := cfg.GetLocationSettings(locKey)
+					settings.DefaultRadarProduct = string(im.Product())
+					settings.DefaultRadarRadius = im.Radius()
+					cfg.SetLocationSettings(locKey, settings)
+					if cfgPath, pathErr := config.Path(); pathErr == nil {
+						_ = config.Save(cfgPath, cfg)
+					}
+				}
+			}
+		}
 		return err
 	}
 

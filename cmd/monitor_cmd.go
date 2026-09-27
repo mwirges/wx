@@ -88,18 +88,16 @@ func monitorAction(c *cli.Context) error {
 	}
 	resolvedInput := cfg.ResolveLocation(locInput)
 
-	units := "imperial"
-	if cfg.Units != "" {
-		units = cfg.Units
-	}
-	if c.IsSet("units") {
-		units = c.String("units")
-	}
-
 	ctx := c.Context
 	loc, err := location.Resolve(ctx, resolvedInput, ch)
 	if err != nil {
 		return err
+	}
+
+	// Units precedence: CLI flag > per-location config > global config > imperial
+	units := cfg.GetEffectiveUnits(resolvedInput, locInput, loc.DisplayName)
+	if c.IsSet("units") {
+		units = c.String("units")
 	}
 
 	if loc.DisplayName != "" {
@@ -138,6 +136,7 @@ func monitorAction(c *cli.Context) error {
 		RefreshInterval:     c.Duration("interval"),
 		EnableNotifications: enableNotifications,
 		Hourly:              c.Bool("hourly"),
+		UserConfig:          cfg,
 	}
 
 	m := monitor.New(mcfg, loc)
