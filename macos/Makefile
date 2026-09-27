@@ -7,7 +7,7 @@ DEST     := platform=macOS,arch=arm64
 
 .DEFAULT_GOAL := build
 
-.PHONY: project build run clean test-go build-cli embed-cli
+.PHONY: project build run clean test-go build-cli embed-cli dmg
 
 ## build-cli: Ensure the Go CLI is built in repo root
 build-cli:
@@ -43,3 +43,9 @@ clean:
 ## test-go: run Go suite from repo root (sanity)
 test-go:
 	$(MAKE) -C .. test
+
+## dmg: Build release app and create distributable DMG installer (build/wx.dmg)
+dmg:
+	@$(MAKE) build CONFIG=Release
+	@./scripts/create-dmg.sh "$(DERIVED)/Build/Products/Release/wx.app" "../build/wx.dmg"
+

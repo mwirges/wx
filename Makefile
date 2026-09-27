@@ -101,3 +101,13 @@ mac-build:
 .PHONY: mac-run
 mac-run:
 	$(MAKE) -C macos run
+
+## mac-dmg: Create a distributable macOS DMG installer (build/wx.dmg)
+.PHONY: mac-dmg
+mac-dmg:
+	$(MAKE) -C macos dmg
+
+## dmg: Alias for mac-dmg
+.PHONY: dmg
+dmg: mac-dmg
+
