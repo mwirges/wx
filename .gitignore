@@ -1,6 +1,7 @@
 # Build artifacts
 /build/
 /wx
+*.dmg
 
 # Claude Code local settings (machine-specific)
 .claude/settings.local.json

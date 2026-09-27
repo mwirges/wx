@@ -1,10 +1,47 @@
 # wx
 
-A terminal weather tool for the US. Fetches current conditions, forecasts, and active alerts from the [National Weather Service](https://www.weather.gov) API — no API key required.
+A terminal weather suite and native macOS app. Fetches current conditions, forecasts, astronomical ephemerides, and active alerts from the [National Weather Service](https://www.weather.gov) (US) and [Open-Meteo](https://open-meteo.com) (Global) APIs — no API key required.
 
-Colorized output when run in a terminal; JSON when piped.
+Features colorized truecolor output in the terminal, interactive Doppler radar, piped JSON for shell scripting, and a native SwiftUI macOS app with live radar maps.
+
+---
+
+## Screenshots
+
+### macOS App (`wx.app`)
+
+Full-featured dual-pane Command Console (`WX.DESK`) featuring live atmospheric telemetry, synoptic forecasts, tactical sensor controls, and interactive vector Apple Maps Doppler radar overlay.
+
+<p align="center">
+  <img src="docs/screenshots/wx-mac-desk.png" alt="wx macOS App - Atmospheric Telemetry Console" width="850">
+</p>
+
+### CLI App
+
+Colorized terminal weather output with ASCII weather art, sun/moon astronomical ephemerides, 7-day forecast, and Unicode half-block Doppler radar.
+
+| Forecast & Conditions (`wx --forecast`) | Doppler Radar (`wx radar --no-inline`) |
+|:---:|:---:|
+| <img src="docs/screenshots/wx-cli-forecast.png" alt="wx CLI Forecast & Current Conditions" width="420"> | <img src="docs/screenshots/wx-cli-radar.png" alt="wx CLI Doppler Radar" width="420"> |
+
+---
 
 ## Installation
+
+### macOS App (DMG Installer)
+
+Install the native macOS SwiftUI app via disk image:
+
+1. Download `wx.dmg` or build it locally with:
+   ```bash
+   make dmg
+   # (or: make mac-dmg)
+   ```
+2. Open `build/wx.dmg` and drag **`wx.app`** into **`/Applications`**.
+
+> **Note:** The `wx.app` bundle includes both the native macOS menu bar HUD / Telemetry Console and the embedded `wx-cli` binary inside `wx.app/Contents/MacOS/wx-cli`.
+
+### CLI App
 
 ```bash
 # Build locally
@@ -315,13 +352,29 @@ wx config set --provider openmeteo
 
 To add another provider (e.g. Environment Canada, DWD, ECMWF), implement `provider.WeatherProvider`, register with `provider.RegisterWithPriority(...)` in `init()`, and blank-import in `cmd/app.go`. See `docs/provider-design.md` for full design documentation.
 
+## macOS App
+
+The repository includes a native SwiftUI application for macOS 14+ (`macos/`):
+
+- **Menu Bar HUD (`WX.HUD`)**: Sits unobtrusively in the macOS menu bar showing live temperatures and status glyphs; clicks toggle an atmospheric telemetry popover.
+- **Telemetry Console (`WX.DESK`)**: A tactical command console featuring:
+  - Surface sensor telemetry (temperature, wind, humidity, dew point, pressure, visibility).
+  - Astronomical ephemeris logging (sunrise/sunset, daylight duration, moon phase, age, and illumination).
+  - Synoptic forecast logs.
+  - Interactive Apple Maps Doppler radar array with MRMS composite and NEXRAD product selection.
+- **Embedded Engine**: The app bundle automatically embeds and invokes the Go CLI binary (`wx.app/Contents/MacOS/wx-cli`).
+- **DMG Distribution**: Built into a standalone, compressed disk image installer via `make dmg` or `make mac-dmg`.
+
 ## Development
 
 ```bash
-make build        # build for current platform
-make test         # run tests
+make build        # build CLI for current platform (build/wx)
+make test         # run Go test suite
 make test-verbose # verbose test output
 make vet          # go vet
-make build-all    # cross-compile for darwin/linux/windows
+make build-all    # cross-compile CLI for darwin/linux/windows
+make mac-build    # build macOS SwiftUI app (macos/build/Build/Products/Debug/wx.app)
+make mac-run      # build and launch macOS app
+make mac-dmg      # package release macOS app into build/wx.dmg (alias: make dmg)
 make clean        # remove build/
 ```
