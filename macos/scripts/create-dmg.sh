@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# create-dmg.sh — Build a clean macOS DMG installer for wx.app
+# create-dmg.sh — Build, sign, and package a macOS DMG installer for wx.app
 set -euo pipefail
 
 APP_PATH="${1:-build/Build/Products/Release/wx.app}"
@@ -9,6 +9,7 @@ VOL_NAME="${3:-wx}"
 # Resolve paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MACOS_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+ENTITLEMENTS="${MACOS_DIR}/WxMac/WxMac.entitlements"
 
 # If relative path, check current dir first, then macos dir
 if [[ "$APP_PATH" != /* ]]; then
@@ -32,6 +33,21 @@ if [[ ! -d "$APP_PATH" ]]; then
   exit 1
 fi
 
+# 1. Determine code signing identity
+if [[ -z "${CODE_SIGN_IDENTITY:-}" ]]; then
+  # Auto-detect Developer ID Application certificate from Keychain
+  CODE_SIGN_IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null | grep "Developer ID Application:" | head -n 1 | sed -E 's/.*"([^"]+)".*/\1/' || true)"
+fi
+
+if [[ -n "${CODE_SIGN_IDENTITY}" ]]; then
+  echo "==> Using Developer ID signing identity: ${CODE_SIGN_IDENTITY}"
+  SIGN_FLAGS=(--force --options runtime --timestamp --sign "${CODE_SIGN_IDENTITY}")
+else
+  echo "==> Note: No Developer ID Application certificate found; signing ad-hoc (-)."
+  echo "    For Gatekeeper distribution, a Developer ID certificate is required."
+  SIGN_FLAGS=(--force --sign -)
+fi
+
 mkdir -p "$(dirname "$OUTPUT_DMG")"
 rm -f "$OUTPUT_DMG"
 
@@ -52,6 +68,29 @@ if [[ -f "$ICON_PATH" ]]; then
   fi
 fi
 
+# 2. Sign embedded binaries, dylibs, and the app bundle
+echo "==> Signing app binaries and payload..."
+if [[ -f "${STAGE_DIR}/wx.app/Contents/MacOS/wx-cli" ]]; then
+  codesign "${SIGN_FLAGS[@]}" "${STAGE_DIR}/wx.app/Contents/MacOS/wx-cli"
+fi
+
+# Sign any frameworks or dylibs if present
+find "${STAGE_DIR}/wx.app/Contents" \( -name "*.framework" -o -name "*.dylib" \) 2>/dev/null | while read -r item; do
+  codesign "${SIGN_FLAGS[@]}" "$item"
+done
+
+# Sign the main executable with entitlements
+if [[ -f "$ENTITLEMENTS" ]]; then
+  codesign "${SIGN_FLAGS[@]}" --entitlements "$ENTITLEMENTS" "${STAGE_DIR}/wx.app/Contents/MacOS/wx"
+  codesign "${SIGN_FLAGS[@]}" --deep --entitlements "$ENTITLEMENTS" "${STAGE_DIR}/wx.app"
+else
+  codesign "${SIGN_FLAGS[@]}" "${STAGE_DIR}/wx.app"
+fi
+
+echo "==> Verifying wx.app code signature..."
+codesign --verify --deep --strict --verbose=2 "${STAGE_DIR}/wx.app"
+
+# 3. Create compressed disk image
 echo "==> Creating compressed disk image: ${OUTPUT_DMG}..."
 if diskutil image create --help >/dev/null 2>&1; then
   diskutil image create from "${STAGE_DIR}" "${OUTPUT_DMG}" --format UDZO --volumeName "${VOL_NAME}"
@@ -59,5 +98,20 @@ else
   hdiutil create -volname "${VOL_NAME}" -srcfolder "${STAGE_DIR}" -ov -format UDZO "${OUTPUT_DMG}"
 fi
 
-echo "==> Successfully created DMG installer at: ${OUTPUT_DMG}"
+# 4. Sign the DMG itself
+echo "==> Signing DMG disk image..."
+if [[ -n "${CODE_SIGN_IDENTITY}" ]]; then
+  codesign --force --sign "${CODE_SIGN_IDENTITY}" --timestamp "${OUTPUT_DMG}"
+  echo "==> Verifying DMG code signature..."
+  codesign --verify --verbose=2 "${OUTPUT_DMG}"
+else
+  codesign --force --sign - "${OUTPUT_DMG}" 2>/dev/null || true
+fi
+
+echo "==> Successfully created signed DMG installer at: ${OUTPUT_DMG}"
 ls -lh "${OUTPUT_DMG}"
+
+# 5. Optional Notarization
+if [[ "${NOTARIZE:-0}" == "1" || "${NOTARIZE:-false}" == "true" ]]; then
+  "${SCRIPT_DIR}/notarize-dmg.sh" "${OUTPUT_DMG}"
+fi

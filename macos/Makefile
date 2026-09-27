@@ -49,3 +49,8 @@ dmg:
 	@$(MAKE) build CONFIG=Release
 	@./scripts/create-dmg.sh "$(DERIVED)/Build/Products/Release/wx.app" "../build/wx.dmg"
 
+## notarize: Notarize and staple build/wx.dmg with Apple Notary Service
+notarize:
+	@./scripts/notarize-dmg.sh "../build/wx.dmg"
+
+
