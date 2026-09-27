@@ -288,7 +288,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         let hosting = NSHostingController(rootView: DeskWindowView().environmentObject(store))
-        hosting.preferredContentSize = NSSize(width: 940, height: 760)
+        hosting.sizingOptions = []
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 940, height: 760),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -303,6 +303,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.backgroundColor = .clear
         window.contentViewController = hosting
         window.setContentSize(NSSize(width: 940, height: 760))
+        window.setFrameAutosaveName("wxDeskWindow")
         window.center()
         window.isReleasedWhenClosed = false
         window.makeKeyAndOrderFront(nil)
