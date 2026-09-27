@@ -29,6 +29,7 @@ Options:
   -u, --units <value>      imperial (default) or metric
       --no-cache           Bypass the local cache
   -j, --json               Force JSON output even in a terminal
+      --exit-code-on-alerts Exit 2 on warnings, 1 on watches/advisories, 0 on normal
       --help               Show help
       --version            Print version
 ```
@@ -39,9 +40,9 @@ Options:
 # Current conditions, auto-detected location
 wx
 
-# Single-line compact summary (great for tmux / shell prompts / waybar)
+# Single-line compact summary with feels-like & observation age (great for tmux / shell prompts / waybar)
 wx --short
-# Output: Fort Wayne, IN: 63°F · N 0 mph · 63% hum · ↑7:32 AM ↓7:32 PM
+# Output: Fort Wayne, IN: 63°F (feels 60°F) · N 0 mph · 63% hum · ↑7:32 AM ↓7:32 PM · 4m ago
 
 # Hourly forecast (table layout with precip % and humidity)
 wx --hourly
@@ -50,8 +51,12 @@ wx hourly --hours 12
 
 # Custom templating (inline or from file with @)
 wx -T '{{.Conditions.Location}}: {{.Conditions.TempStr}} ({{.Conditions.Description}})'
-wx -T '{{.Conditions.TempF | printf "%.0f"}}°F | {{.Conditions.Astronomy.Sunrise}} - {{.Conditions.Astronomy.Sunset}}'
+wx -T '{{.Conditions.TempF | printf "%.0f"}}°F | {{.Conditions.Astronomy.Sunrise}} - {{.Conditions.Astronomy.Sunset}} [{{.Freshness.AgeString}}]'
 wx -T @~/.config/wx/tmux.tmpl
+
+# Automation / scripting with alert exit codes
+wx --exit-code-on-alerts
+# Exit status: 2 = Severe Warning, 1 = Watch/Advisory, 0 = Normal
 
 # Specific city or zip
 wx -l "Kansas City, MO"
@@ -79,7 +84,8 @@ wx --no-cache
 
 ```bash
 wx radar                          # composite reflectivity, auto-detected location
-wx radar --interactive            # full-screen interactive TUI
+wx radar --interactive            # full-screen interactive TUI (remembers product/zoom per location)
+wx radar --save /tmp/radar.png    # save high-resolution radar image directly to PNG
 wx radar --loop                   # 6-frame animated loop (Ctrl+C to exit)
 wx radar --loop --frames 12 --interval 400
 wx radar --product base-reflectivity
@@ -104,6 +110,7 @@ wx radar --no-inline              # force half-block rendering
 ### Interactive mode (`--interactive`)
 
 Full-screen TUI with live radar. Press `R` in `wx monitor` to open the radar panel there instead.
+When exiting interactive radar, your selected product and zoom radius are automatically saved to your per-location preferences.
 
 | Key | Action |
 |-----|--------|
@@ -135,7 +142,7 @@ The monitor shows current conditions, active alerts, and a scrollable forecast. 
 | `R` | Toggle radar panel (splits screen left/right) |
 | `H` | Toggle between hourly and daily forecast |
 | `r` | Refresh weather now |
-| `l` | Change location |
+| `l` | Change location (type to filter; `tab`/`↑`/`↓` to cycle favorites & recents) |
 | `↑` / `↓` | Scroll forecast |
 | `q` | Quit |
 
@@ -160,7 +167,7 @@ wx config set --location "Denver, CO" --units imperial --notifications true
 # Clear a value (pass empty string)
 wx config set --location ""
 
-# Show current config
+# Show current config (includes favorites, recents, and per-location settings)
 wx config
 wx config show
 ```
@@ -177,19 +184,24 @@ wx config show
 
 `default_location` accepts any value that `--location` accepts: a zip code, a `"City, ST"` string, or leave it unset to fall back to IP-based auto-detection.
 
-**Precedence:** `--location` flag → positional arg → `default_location` in config → IP auto-detect.
-**Units precedence:** `--units` flag → `units` in config → `imperial`.
+**Precedence:** `--location` flag → positional arg → per-location config → `default_location` in config → IP auto-detect.
+**Units precedence:** `--units` flag → per-location config → `units` in config → `imperial`.
 **Notifications precedence:** `--notify` flag → `notifications` in config → `false` (disabled by default).
 
 ## Favorite Locations & Recents
 
-Manage named favorite location aliases and view recent searches:
+Manage named favorite location aliases, customize per-location defaults, and view recent searches:
 
 ```bash
-# Add or update favorites
-wx locations add Home "Fort Wayne, IN"
-wx locations add Work 46802
+# Add favorites with optional per-location preferences
+wx locations add Home "Fort Wayne, IN" --station KIWX --radar-radius 120
+wx locations add Work 46802 --units metric
 wx locations add "Chicago, IL"
+
+# Configure per-location settings for an existing location or favorite
+wx locations config Home --radar-product base-reflectivity --radar-radius 150
+wx locations config Home              # show custom settings
+wx locations config Home --clear      # reset to defaults
 
 # Use your favorite alias anywhere
 wx Home
@@ -197,7 +209,7 @@ wx Home --forecast
 wx radar Home
 wx monitor Home
 
-# List favorites and recent searches
+# List favorites and recent searches (shows custom overrides)
 wx locations
 
 # View recent searches or clear history
@@ -208,7 +220,7 @@ wx locations clear-recents
 wx locations rm Home
 ```
 
-Favorite aliases and recent searches are persisted in `~/.config/wx/config.json`:
+Favorite aliases, per-location settings, and recent searches are persisted in `~/.config/wx/config.json`:
 ```json
 {
   "default_location": "Fort Wayne, IN",
@@ -220,7 +232,17 @@ Favorite aliases and recent searches are persisted in `~/.config/wx/config.json`
   "recent_locations": [
     "Fort Wayne, Indiana",
     "Chicago, Illinois"
-  ]
+  ],
+  "per_location": {
+    "Home": {
+      "radar_station": "KIWX",
+      "default_radar_radius": 120,
+      "default_radar_product": "base-reflectivity"
+    },
+    "Work": {
+      "units": "metric"
+    }
+  }
 }
 ```
 

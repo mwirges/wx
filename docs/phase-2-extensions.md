@@ -194,13 +194,13 @@ No full rewrite — incremental enhancements to `internal/monitor/`.
 
 ## 9. Exit Criteria
 
-- [ ] Per-location settings are read and honored for units and radar.
-- [ ] `wx --short` shows attractive freshness and feels-like data.
-- [ ] Monitor has a pleasant location switcher using favorites/recents.
-- [ ] `wx radar --save` works and respects per-location defaults.
-- [ ] Exit codes behave as documented.
-- [ ] `make test && make vet` clean.
-- [ ] README has power-user examples (prompt integration, exit codes, per-city radar).
+- [x] Per-location settings are read and honored for units and radar.
+- [x] `wx --short` shows attractive freshness and feels-like data.
+- [x] Monitor has a pleasant location switcher using favorites/recents.
+- [x] `wx radar --save` works and respects per-location defaults.
+- [x] Exit codes behave as documented.
+- [x] `make test && make vet` clean.
+- [x] README has power-user examples (prompt integration, exit codes, per-city radar).
 
 ---
 
