@@ -16,6 +16,7 @@ type CurrentConditions struct {
 	TempC       *float64 // Celsius
 	WindChillC  *float64 // Celsius; set by NWS when temp ≤ 50°F and wind > 3 mph
 	HeatIndexC  *float64 // Celsius; set by NWS when temp ≥ 80°F and humidity ≥ 40%
+	FeelsLikeC  *float64 // Celsius; effective apparent temperature (WindChillC if set, else HeatIndexC, else nil)
 
 	DewPointC   *float64 // Celsius
 	HumidityPct *float64 // 0–100
@@ -34,4 +35,12 @@ type CurrentConditions struct {
 	// Astronomy contains calculated sunrise, sunset, and daylight duration.
 	// Nil if unavailable or calculation failed.
 	Astronomy *Astronomy
+}
+
+// ComputeFeelsLike returns WindChillC if set, else HeatIndexC if set, otherwise nil.
+func ComputeFeelsLike(windChill, heatIndex *float64) *float64 {
+	if windChill != nil {
+		return windChill
+	}
+	return heatIndex
 }

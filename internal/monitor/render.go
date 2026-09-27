@@ -96,7 +96,11 @@ func (m MonitorModel) renderHeader() string {
 		} else if m.fetchErr != nil {
 			statusPart = styleErr.Render(" · error: " + m.fetchErr.Error())
 		} else if !m.lastFetch.IsZero() {
-			statusPart = styleUpdated.Render(" · updated " + m.lastFetch.Local().Format("3:04 PM"))
+			agePart := ""
+			if m.conditions != nil && !m.conditions.ObservedAt.IsZero() {
+				agePart = " (" + output.Freshness{ObservedAt: m.conditions.ObservedAt}.AgeString() + ")"
+			}
+			statusPart = styleUpdated.Render(" · updated " + m.lastFetch.Local().Format("3:04 PM") + agePart)
 		}
 		line2 = locPart + statusPart
 	}
@@ -207,7 +211,11 @@ func (m MonitorModel) renderConditions(w int) []string {
 	}
 
 	// Slot 1: feels like
-	if fl := output.FeelsLikeTemp(c.WindChillC, c.HeatIndexC); fl != nil {
+	fl := c.FeelsLikeC
+	if fl == nil {
+		fl = output.FeelsLikeTemp(c.WindChillC, c.HeatIndexC)
+	}
+	if fl != nil {
 		slots[1] = styleLabel.Render("Feels like ") +
 			output.TempStyle(*fl, imperial).Render(output.FormatTemp(*fl, imperial))
 	}

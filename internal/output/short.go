@@ -27,7 +27,11 @@ func FormatShort(data RenderData, opts RenderOptions) string {
 			tempDesc = FormatTemp(*c.TempC, imperial)
 
 			// Feels like
-			if fl := FeelsLikeTemp(c.WindChillC, c.HeatIndexC); fl != nil {
+			fl := c.FeelsLikeC
+			if fl == nil {
+				fl = FeelsLikeTemp(c.WindChillC, c.HeatIndexC)
+			}
+			if fl != nil {
 				actual := *c.TempC
 				if imperial {
 					actual = CelsiusToFahrenheit(actual)
@@ -97,6 +101,14 @@ func FormatShort(data RenderData, opts RenderOptions) string {
 				ss := astro.Sunset.Local().Format("3:04 PM")
 				parts = append(parts, fmt.Sprintf("↑%s ↓%s", sr, ss))
 			}
+		}
+		// 5. Freshness / Age
+		ageStr := data.Freshness.AgeString()
+		if ageStr == "" && !c.ObservedAt.IsZero() {
+			ageStr = Freshness{ObservedAt: c.ObservedAt}.AgeString()
+		}
+		if ageStr != "" {
+			parts = append(parts, ageStr)
 		}
 	} else if data.Forecast != nil && len(data.Forecast.Periods) > 0 {
 		p := data.Forecast.Periods[0]

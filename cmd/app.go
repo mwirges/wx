@@ -78,11 +78,15 @@ func NewApp() *cli.App {
 				Aliases: []string{"j"},
 				Usage:   "force JSON output",
 			},
+			&cli.BoolFlag{
+				Name:  "exit-code-on-alerts",
+				Usage: "exit with code 2 on active warnings, 1 on active watches/advisories",
+			},
 		},
 		Action:   action,
 		Commands: []*cli.Command{configCommand(), locationsCommand(), radarCommand(), monitorCommand(), hourlyCommand()},
 		ExitErrHandler: func(c *cli.Context, err error) {
-			if err != nil {
+			if err != nil && err.Error() != "" {
 				fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			}
 		},
@@ -102,7 +106,7 @@ type weatherOpts struct {
 func action(c *cli.Context) error {
 	showHourly := c.Bool("hourly")
 	showForecast := c.Bool("forecast") || showHourly
-	showAlerts := c.Bool("alerts")
+	showAlerts := c.Bool("alerts") || c.Bool("exit-code-on-alerts")
 
 	return runWeather(c, weatherOpts{
 		showForecast: showForecast,
@@ -164,11 +168,8 @@ func runWeather(c *cli.Context, opts weatherOpts) error {
 		return err
 	}
 
-	// Units precedence: --units flag > config units > "imperial"
-	units := "imperial"
-	if cfg.Units != "" {
-		units = cfg.Units
-	}
+	// Units precedence: --units flag > per-location setting > config units > "imperial"
+	units := cfg.GetEffectiveUnits(resolvedInput, locInput, loc.DisplayName)
 	if c.IsSet("units") {
 		units = c.String("units")
 	}
@@ -228,7 +229,7 @@ func runWeather(c *cli.Context, opts weatherOpts) error {
 		}
 	}
 
-	return output.Render(output.RenderData{
+	renderErr := output.Render(output.RenderData{
 		Conditions: cond,
 		Forecast:   fc,
 		Alerts:     alerts,
@@ -236,10 +237,24 @@ func runWeather(c *cli.Context, opts weatherOpts) error {
 		ForceJSON:    c.Bool("json"),
 		Units:        units,
 		ShowForecast: opts.showForecast,
-		ShowAlerts:   opts.showAlerts,
+		ShowAlerts:   c.Bool("alerts"),
 		ShowHourly:   opts.showHourly,
 		HourlyLimit:  c.Int("hours"),
 		Short:        c.Bool("short"),
 		Template:     c.String("template"),
 	})
+	if renderErr != nil {
+		return renderErr
+	}
+
+	if c.Bool("exit-code-on-alerts") && len(alerts) > 0 {
+		for _, a := range alerts {
+			if a.IsWarning() {
+				return cli.Exit("", 2)
+			}
+		}
+		return cli.Exit("", 1)
+	}
+
+	return nil
 }

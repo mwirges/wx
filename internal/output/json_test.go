@@ -330,3 +330,50 @@ func TestRenderJSON_Astronomy(t *testing.T) {
 	}
 }
 
+func TestRenderJSON_Freshness(t *testing.T) {
+	tempC := 20.0
+	obs := time.Now().Add(-15 * time.Minute)
+
+	data := RenderData{
+		Conditions: &models.CurrentConditions{
+			StationID:  "KMKC",
+			Location:   "Kansas City, MO",
+			TempC:      &tempC,
+			ObservedAt: obs,
+		},
+		Freshness: Freshness{
+			ObservedAt: obs,
+			FromCache:  true,
+		},
+	}
+
+	out := captureStdout(t, func() {
+		if err := renderJSON(data, RenderOptions{Units: "imperial"}); err != nil {
+			t.Errorf("renderJSON: %v", err)
+		}
+	})
+
+	var result struct {
+		Freshness *struct {
+			ObservedAt string `json:"observed_at"`
+			FromCache  bool   `json:"from_cache"`
+			AgeSeconds int64  `json:"age_seconds"`
+			Age        string `json:"age"`
+		} `json:"freshness"`
+	}
+
+	if err := json.Unmarshal(out, &result); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	if result.Freshness == nil {
+		t.Fatalf("expected freshness in json output")
+	}
+	if !result.Freshness.FromCache {
+		t.Errorf("expected from_cache to be true")
+	}
+	if result.Freshness.Age != "15m ago" {
+		t.Errorf("expected age '15m ago', got %q", result.Freshness.Age)
+	}
+}
+

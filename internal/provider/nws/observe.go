@@ -85,6 +85,7 @@ func (p *Provider) CurrentConditions(ctx context.Context, loc location.Location,
 		TempC:       obs.Properties.Temperature.Value,
 		WindChillC:  obs.Properties.WindChill.Value,
 		HeatIndexC:  obs.Properties.HeatIndex.Value,
+		FeelsLikeC:  models.ComputeFeelsLike(obs.Properties.WindChill.Value, obs.Properties.HeatIndex.Value),
 
 		DewPointC:   obs.Properties.Dewpoint.Value,
 		HumidityPct: obs.Properties.RelativeHumidity.Value,

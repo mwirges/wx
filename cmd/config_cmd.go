@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/urfave/cli/v2"
@@ -94,6 +95,27 @@ func configShow(c *cli.Context) error {
 		fmt.Println(styleConfigKey.Render("Recent Locations:"))
 		for i, r := range cfg.RecentLocations {
 			fmt.Printf("  %2d. %s\n", i+1, styleConfigValue.Render(r))
+		}
+		fmt.Println()
+	}
+
+	if len(cfg.PerLocation) > 0 {
+		fmt.Println(styleConfigKey.Render("Per-Location Settings:"))
+		for loc, s := range cfg.PerLocation {
+			var details []string
+			if s.Units != "" {
+				details = append(details, fmt.Sprintf("units: %s", s.Units))
+			}
+			if s.DefaultRadarProduct != "" {
+				details = append(details, fmt.Sprintf("radar: %s", s.DefaultRadarProduct))
+			}
+			if s.DefaultRadarRadius > 0 {
+				details = append(details, fmt.Sprintf("radius: %.0fkm", s.DefaultRadarRadius))
+			}
+			if s.RadarStation != "" {
+				details = append(details, fmt.Sprintf("station: %s", s.RadarStation))
+			}
+			fmt.Printf("  %-16s %s\n", styleConfigValue.Render(loc), styleConfigPath.Render(strings.Join(details, ", ")))
 		}
 		fmt.Println()
 	}
