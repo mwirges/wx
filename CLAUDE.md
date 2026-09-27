@@ -32,6 +32,11 @@ wx --no-cache                  # bypass cache
 wx config                      # show current config + file path
 wx config set --location "Chicago, IL"
 wx config set --units metric
+
+wx locations                   # list favorite and recent locations
+wx locations add Home "Fort Wayne, IN"
+wx locations rm Home
+wx Home                        # run weather for favorite alias
 ```
 
 ## Package layout
@@ -41,6 +46,7 @@ main.go                        entry point → cmd.NewApp().Run()
 cmd/
   app.go                       CLI wiring (urfave/cli v2), main action
   config_cmd.go                `wx config` subcommand
+  locations_cmd.go             `wx locations` subcommand (favorites/recents)
 
 internal/
   cache/       cache.go        In-memory TTL cache; NewNoOp() for tests

@@ -11,6 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/mwirges/wx/internal/cache"
+	"github.com/mwirges/wx/internal/config"
 	"github.com/mwirges/wx/internal/location"
 	"github.com/mwirges/wx/internal/models"
 	"github.com/mwirges/wx/internal/provider"
@@ -383,9 +384,22 @@ func resolveLocationCmd(ch *cache.Cache, input string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
-		loc, err := location.Resolve(ctx, input, ch)
+		resolved := input
+		if cfg, err := config.Load(); err == nil {
+			resolved = cfg.ResolveLocation(input)
+		}
+		loc, err := location.Resolve(ctx, resolved, ch)
 		if err != nil {
 			return locationErrMsg{err}
+		}
+		if loc.DisplayName != "" {
+			if cfg, err := config.Load(); err == nil {
+				if cfg.AddRecent(loc.DisplayName) {
+					if path, err := config.Path(); err == nil {
+						_ = config.Save(path, cfg)
+					}
+				}
+			}
 		}
 		return locationMsg{loc}
 	}
