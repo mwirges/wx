@@ -450,26 +450,7 @@ struct ControlsBar: View {
     var body: some View {
         VStack(spacing: compact ? 6 : 8) {
             HStack(spacing: 8) {
-                HStack(spacing: 6) {
-                    Image(systemName: "scope")
-                        .font(.system(size: 11))
-                        .foregroundStyle(WxTheme.snwCyan.opacity(0.8))
-                    TextField("Zip or City, ST", text: $store.locationInput)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 12, weight: .medium, design: .monospaced))
-                        .foregroundStyle(WxTheme.text)
-                        .onSubmit { Task { await store.applyLocationAndUnits() } }
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(WxTheme.snwChassis.opacity(0.85))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                .strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 0.8)
-                        )
-                )
+                LocationBarView()
 
                 Picker("Units", selection: $store.units) {
                     Text("°F").tag("imperial")
@@ -482,6 +463,8 @@ struct ControlsBar: View {
                     Task { await store.applyLocationAndUnits() }
                 }
             }
+
+            FavoritesQuickBarView()
 
             HStack(spacing: 6) {
                 Button {

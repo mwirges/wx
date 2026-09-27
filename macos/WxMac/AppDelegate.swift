@@ -197,6 +197,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let recenterItem = NSMenuItem(title: "Recenter Radar Array", action: #selector(recenterRadarAction(_:)), keyEquivalent: "l")
         recenterItem.target = self
         viewMenu.addItem(recenterItem)
+        viewMenu.addItem(.separator())
+
+        let locationItem = NSMenuItem(title: "Use Current Location", action: #selector(useCurrentLocationAction(_:)), keyEquivalent: "L")
+        locationItem.keyEquivalentModifierMask = [.command, .shift]
+        locationItem.target = self
+        viewMenu.addItem(locationItem)
+
+        let favsMenuItem = NSMenuItem(title: "Favorite & Recent Locations", action: nil, keyEquivalent: "")
+        let favsSubmenu = NSMenu(title: "Favorite Locations")
+        favsSubmenu.delegate = self
+        favsMenuItem.submenu = favsSubmenu
+        viewMenu.addItem(favsMenuItem)
+
         viewMenuItem.submenu = viewMenu
         mainMenu.addItem(viewMenuItem)
 
@@ -306,6 +319,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    @objc private func useCurrentLocationAction(_ sender: Any?) {
+        store.useCurrentLocation()
+    }
+
+    @objc private func selectFavoriteAction(_ sender: NSMenuItem) {
+        if let loc = sender.representedObject as? String {
+            store.selectLocation(loc)
+        }
+    }
+
+    @objc private func clearRecentsAction(_ sender: Any?) {
+        store.clearRecents()
+    }
+
     // ── Window Management ─────────────────────────────────────────────────────────
 
     func showDeskWindow() {
@@ -384,6 +411,69 @@ extension AppDelegate: NSMenuItemValidation {
             menuItem.state = (store.units == "metric") ? .on : .off
             return true
         }
+        if menuItem.action == #selector(useCurrentLocationAction(_:)) {
+            menuItem.isEnabled = !store.isLocating
+            return true
+        }
         return true
     }
 }
+
+// MARK: - NSMenuDelegate
+
+extension AppDelegate: NSMenuDelegate {
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        if menu.title == "Favorite Locations" {
+            menu.removeAllItems()
+            store.reloadConfig()
+
+            if store.favorites.isEmpty {
+                let empty = NSMenuItem(title: "No Favorites Configured", action: nil, keyEquivalent: "")
+                empty.isEnabled = false
+                menu.addItem(empty)
+            } else {
+                for fav in store.favorites {
+                    let item = NSMenuItem(
+                        title: "★ \(fav.name) (\(fav.value))",
+                        action: #selector(selectFavoriteAction(_:)),
+                        keyEquivalent: ""
+                    )
+                    item.target = self
+                    item.representedObject = fav.value
+                    if store.locationInput.caseInsensitiveCompare(fav.value) == .orderedSame ||
+                       store.locationInput.caseInsensitiveCompare(fav.name) == .orderedSame {
+                        item.state = .on
+                    }
+                    menu.addItem(item)
+                }
+            }
+
+            if !store.recentLocations.isEmpty {
+                menu.addItem(.separator())
+                let recentHeader = NSMenuItem(title: "Recent Locations", action: nil, keyEquivalent: "")
+                recentHeader.isEnabled = false
+                menu.addItem(recentHeader)
+
+                for recent in store.recentLocations {
+                    let item = NSMenuItem(
+                        title: recent,
+                        action: #selector(selectFavoriteAction(_:)),
+                        keyEquivalent: ""
+                    )
+                    item.target = self
+                    item.representedObject = recent
+                    if store.locationInput.caseInsensitiveCompare(recent) == .orderedSame {
+                        item.state = .on
+                    }
+                    menu.addItem(item)
+                }
+
+                menu.addItem(.separator())
+                let clearItem = NSMenuItem(title: "Clear Recent History", action: #selector(clearRecentsAction(_:)), keyEquivalent: "")
+                clearItem.target = self
+                menu.addItem(clearItem)
+            }
+        }
+    }
+}
+

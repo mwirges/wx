@@ -154,27 +154,14 @@ struct RadarPanelView: View {
             // 2. Floating Top Tactical HUD Bar
             VStack(spacing: 0) {
                 HStack(spacing: 8) {
-                    // Location Input
-                    HStack(spacing: 6) {
-                        Image(systemName: "scope")
-                            .font(.system(size: 11))
-                            .foregroundStyle(WxTheme.snwCyan.opacity(0.8))
-                        TextField("Zip or City, ST", text: $store.locationInput)
-                            .textFieldStyle(.plain)
-                            .font(.system(size: 11.5, weight: .medium, design: .monospaced))
-                            .foregroundStyle(WxTheme.text)
-                            .onSubmit {
-                                Task {
-                                    await store.applyLocationAndUnits()
-                                    await store.refreshRadar()
-                                }
-                            }
+                    // Location Input with GPS and Favorites
+                    LocationBarView(isHUD: true) {
+                        Task {
+                            await store.applyLocationAndUnits()
+                            await store.refreshRadar()
+                        }
                     }
-                    .frame(width: 175)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 5)
-                    .background(WxTheme.snwChassis.opacity(0.92), in: RoundedRectangle(cornerRadius: 6))
-                    .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 0.8))
+                    .frame(width: 210)
 
                     // Product Selector Menu
                     RadarProductMenu(isHUD: true)
