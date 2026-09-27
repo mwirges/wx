@@ -31,12 +31,17 @@ fi
 NOTARY_ARGS=()
 PROFILE="${NOTARY_PROFILE:-wx-notary}"
 
+# Auto-detect Team ID from signing certificate if not explicitly set
+if [[ -z "${NOTARY_TEAM_ID:-}" ]]; then
+  NOTARY_TEAM_ID="$(security find-identity -v -p codesigning 2>/dev/null | grep "Developer ID Application:" | head -n 1 | sed -E 's/.*\(([A-Z0-9]+)\).*/\1/' || true)"
+fi
+TEAM_ID="${NOTARY_TEAM_ID:-<YOUR_TEAM_ID>}"
+
 # 1. Check if explicit Keychain profile or default wx-notary profile exists
 if xcrun notarytool history --keychain-profile "$PROFILE" >/dev/null 2>&1; then
   NOTARY_ARGS=(--keychain-profile "$PROFILE")
   echo "==> Using notarytool keychain profile: ${PROFILE}"
 elif [[ -n "${NOTARY_APPLE_ID:-}" && -n "${NOTARY_PASSWORD:-}" ]]; then
-  TEAM_ID="${NOTARY_TEAM_ID:-RB77BW6U32}"
   NOTARY_ARGS=(--apple-id "$NOTARY_APPLE_ID" --password "$NOTARY_PASSWORD" --team-id "$TEAM_ID")
   echo "==> Using Apple ID credentials for team ${TEAM_ID}..."
 elif [[ -n "${NOTARY_KEY:-}" && -n "${NOTARY_KEY_ID:-}" && -n "${NOTARY_ISSUER:-}" ]]; then
@@ -51,14 +56,14 @@ else
   echo ""
   echo "  xcrun notarytool store-credentials \"${PROFILE}\" \\"
   echo "    --apple-id <your-apple-id@email.com> \\"
-  echo "    --team-id RB77BW6U32"
+  echo "    --team-id ${TEAM_ID}"
   echo ""
   echo "  (Generate an App-Specific Password at https://appleid.apple.com)"
   echo ""
   echo "Alternatively, you can provide environment variables:"
   echo "  export NOTARY_APPLE_ID=\"you@example.com\""
   echo "  export NOTARY_PASSWORD=\"xxxx-xxxx-xxxx-xxxx\""
-  echo "  export NOTARY_TEAM_ID=\"RB77BW6U32\""
+  echo "  export NOTARY_TEAM_ID=\"${TEAM_ID}\""
   echo ""
   echo "Once configured, re-run:"
   echo "  make mac-notarize"
