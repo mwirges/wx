@@ -360,3 +360,115 @@ func TestRenderPretty_Astronomy(t *testing.T) {
 	})
 }
 
+func TestRenderPretty_HourlyForecastTable(t *testing.T) {
+	pop := 40.0
+	humid := 65.0
+	periods := []models.Period{
+		{
+			Name:                       "10 PM",
+			TempC:                      15.0,
+			ProbabilityOfPrecipitation: &pop,
+			HumidityPct:                &humid,
+			WindKPH:                    16.0,
+			WindDir:                    "NW",
+			ShortDesc:                  "Scattered Showers",
+		},
+		{
+			Name:      "11 PM",
+			TempC:     14.0,
+			WindKPH:   8.0,
+			ShortDesc: "Mostly Clear",
+		},
+		{
+			Name:      "12 AM",
+			TempC:     13.0,
+			WindKPH:   5.0,
+			ShortDesc: "Clear",
+		},
+	}
+
+	data := RenderData{
+		Forecast: &models.Forecast{
+			Periods: periods,
+		},
+	}
+
+	// 1. With ShowHourly
+	out := captureStdout(t, func() {
+		renderPretty(data, RenderOptions{
+			Units:       "imperial",
+			ShowHourly:  true,
+			HourlyLimit: 2,
+		})
+	})
+	outStr := string(out)
+
+	// Check table headers
+	if !strings.Contains(outStr, "TIME") || !strings.Contains(outStr, "TEMP") ||
+		!strings.Contains(outStr, "PRECIP") || !strings.Contains(outStr, "HUMID") ||
+		!strings.Contains(outStr, "WIND") || !strings.Contains(outStr, "FORECAST") {
+		t.Errorf("expected hourly table column headers, got:\n%s", outStr)
+	}
+
+	// Check data
+	if !strings.Contains(outStr, "10 PM") || !strings.Contains(outStr, "40%") || !strings.Contains(outStr, "65%") {
+		t.Errorf("expected 10 PM row with pop and humidity, got:\n%s", outStr)
+	}
+	if !strings.Contains(outStr, "11 PM") {
+		t.Errorf("expected 11 PM row, got:\n%s", outStr)
+	}
+	// Limit was 2, so 12 AM should NOT be rendered
+	if strings.Contains(outStr, "12 AM") {
+		t.Errorf("expected 12 AM to be excluded by HourlyLimit=2, got:\n%s", outStr)
+	}
+}
+
+func TestRenderPretty_AlertSeverity(t *testing.T) {
+	data := RenderData{
+		Alerts: []models.Alert{
+			{Event: "Tornado Warning", Severity: "Extreme", Headline: "Tornado warning in effect"},
+			{Event: "Flood Watch", Severity: "Moderate", Headline: "Flood watch in effect"},
+			{Event: "Wind Advisory", Severity: "Minor", Headline: "Wind advisory in effect"},
+		},
+	}
+
+	out := captureStdout(t, func() {
+		renderPretty(data, RenderOptions{Units: "imperial", ShowAlerts: true})
+	})
+	outStr := string(out)
+
+	if !strings.Contains(outStr, "Tornado warning in effect") {
+		t.Errorf("expected Tornado Warning headline, got:\n%s", outStr)
+	}
+	if !strings.Contains(outStr, "Flood watch in effect") {
+		t.Errorf("expected Flood Watch headline, got:\n%s", outStr)
+	}
+	if !strings.Contains(outStr, "Wind advisory in effect") {
+		t.Errorf("expected Wind Advisory headline, got:\n%s", outStr)
+	}
+}
+
+func TestRenderPretty_ObservedAtAge(t *testing.T) {
+	temp := 20.0
+	// 15 minutes ago
+	observed := time.Now().Add(-15 * time.Minute)
+	data := RenderData{
+		Conditions: &models.CurrentConditions{
+			Location:      "Fort Wayne, IN",
+			ObservedAt:    observed,
+			TempC:         &temp,
+			ConditionCode: "clear-day",
+		},
+	}
+
+	out := captureStdout(t, func() {
+		renderPretty(data, RenderOptions{Units: "imperial"})
+	})
+	outStr := string(out)
+
+	if !strings.Contains(outStr, "15m ago") {
+		t.Errorf("expected '15m ago' in observed header, got:\n%s", outStr)
+	}
+}
+
+

@@ -22,6 +22,8 @@ make clean        # remove build/
 ```bash
 wx                             # current conditions, auto-detect location
 wx --forecast                  # include 7-day forecast
+wx --hourly                    # include hourly forecast (table format)
+wx hourly --hours 12           # show next 12 hours
 wx --alerts                    # include active alerts
 wx --location "Kansas City, MO"
 wx --location 64101

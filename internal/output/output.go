@@ -15,6 +15,7 @@ type RenderOptions struct {
 	ShowForecast bool
 	ShowAlerts   bool
 	ShowHourly   bool
+	HourlyLimit  int    // Number of hours to display in hourly forecast (default: 24)
 	Short        bool   // Single-line compact output
 	Template     string // Go text/template string or @path/to/template
 }

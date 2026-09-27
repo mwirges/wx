@@ -264,7 +264,7 @@ func (m MonitorModel) renderForecast(w, maxLines int) []string {
 
 	// Scroll indicator header
 	total := forecastLen(m.forecast)
-	lines = append(lines, renderScrollHeader(m.forecastOffset, total, m.forecastVisible, w))
+	lines = append(lines, renderScrollHeader(m.forecastOffset, total, m.forecastVisible, w, m.hourly))
 
 	if m.forecast == nil || total == 0 {
 		lines = append(lines, styleUpdated.Render("  No forecast data"))
@@ -278,25 +278,52 @@ func (m MonitorModel) renderForecast(w, maxLines int) []string {
 	periods := m.forecast.Periods[m.forecastOffset:end]
 
 	for _, p := range periods {
-		name := styleForecastName.Width(16).Render(p.Name)
-		tempStr := output.FormatTemp(p.TempC, m.cfg.Imperial)
-		var tempStyled string
-		if p.IsDaytime {
-			tempStyled = styleForecastHigh.Width(9).Render("↑ " + tempStr)
+		if m.hourly {
+			name := styleForecastName.Width(11).Render(p.Name)
+			tempStr := output.FormatTemp(p.TempC, m.cfg.Imperial)
+			tempStyled := output.TempStyle(p.TempC, m.cfg.Imperial).Width(7).Render(tempStr)
+
+			popStr := " —"
+			if p.ProbabilityOfPrecipitation != nil && *p.ProbabilityOfPrecipitation > 0 {
+				popStr = fmt.Sprintf("%2.0f%%", *p.ProbabilityOfPrecipitation)
+			}
+			popStyled := styleForecastLow.Width(5).Render(popStr)
+
+			windStr := output.FormatWind(p.WindKPH, nil, m.cfg.Imperial)
+			if p.WindDir != "" {
+				windStr = p.WindDir + " " + windStr
+			}
+			windStyled := styleLabel.Width(12).Render(windStr)
+
+			desc := styleForecastDesc.Render(p.ShortDesc)
+			line := fmt.Sprintf("  %s %s %s  %s  %s", name, tempStyled, popStyled, windStyled, desc)
+			lines = append(lines, truncateStr(line, w))
 		} else {
-			tempStyled = styleForecastLow.Width(9).Render("↓ " + tempStr)
+			name := styleForecastName.Width(16).Render(p.Name)
+			tempStr := output.FormatTemp(p.TempC, m.cfg.Imperial)
+			var tempStyled string
+			if p.IsDaytime {
+				tempStyled = styleForecastHigh.Width(9).Render("↑ " + tempStr)
+			} else {
+				tempStyled = styleForecastLow.Width(9).Render("↓ " + tempStr)
+			}
+			desc := styleForecastDesc.Render(p.ShortDesc)
+			line := "  " + name + " " + tempStyled + "  " + desc
+			lines = append(lines, truncateStr(line, w))
 		}
-		desc := styleForecastDesc.Render(p.ShortDesc)
-		line := "  " + name + " " + tempStyled + "  " + desc
-		lines = append(lines, truncateStr(line, w))
 	}
 
 	return lines
 }
 
-func renderScrollHeader(offset, total, visible, w int) string {
+func renderScrollHeader(offset, total, visible, w int, hourly ...bool) string {
+	forecastType := "Daily Forecast"
+	if len(hourly) > 0 && hourly[0] {
+		forecastType = "Hourly Forecast"
+	}
 	if total == 0 {
-		return styleForecastHeader.Render("── Forecast" + strings.Repeat("─", max(0, w-11)))
+		prefix := "── " + forecastType + " "
+		return styleForecastHeader.Render(prefix + strings.Repeat("─", max(0, w-lipgloss.Width(prefix))))
 	}
 
 	upArrow := " "
@@ -308,7 +335,7 @@ func renderScrollHeader(offset, total, visible, w int) string {
 		downArrow = "▼"
 	}
 
-	label := fmt.Sprintf("── Forecast %s %d–%d/%d %s ", upArrow, offset+1, min(offset+visible, total), total, downArrow)
+	label := fmt.Sprintf("── %s %s %d–%d/%d %s ", forecastType, upArrow, offset+1, min(offset+visible, total), total, downArrow)
 	rest := w - lipgloss.Width(label)
 	if rest > 0 {
 		label += strings.Repeat("─", rest)
@@ -349,9 +376,14 @@ func (m MonitorModel) renderHelpBar() string {
 		if m.radarVisible {
 			radarLabel = "radar off"
 		}
+		hourlyLabel := "hourly"
+		if m.hourly {
+			hourlyLabel = "daily"
+		}
 		parts = []string{
 			key.Render("r") + dim.Render(":refresh"),
 			key.Render("R") + dim.Render(":" + radarLabel),
+			key.Render("H") + dim.Render(":" + hourlyLabel),
 			key.Render("l") + dim.Render(":location"),
 			key.Render("↑↓") + dim.Render(":scroll"),
 			key.Render("q") + dim.Render(":quit"),
