@@ -71,6 +71,29 @@ func isWMSCompositeProduct(p radar.Product) bool {
 	return p == radar.ProductEchoTops || p == radar.ProductPrecipType
 }
 
+// SingleStationMaxRadiusKM is the maximum effective coverage radius for a single
+// NEXRAD station (≈200-230 km). Beyond this distance, beam height overshoots precipitation
+// and single-station RIDGE products drop off.
+const SingleStationMaxRadiusKM = 200.0
+
+// isWideRadius returns true if radiusKM exceeds the single-station radar coverage limit.
+func isWideRadius(radiusKM float64) bool {
+	return radiusKM > SingleStationMaxRadiusKM
+}
+
+// isMultiRadarComposite returns true if the frame composites data from multiple radars
+// (either because it is a national mosaic product, or because the view is zoomed out
+// wide enough to require compositing multiple stations).
+func isMultiRadarComposite(p radar.Product, radiusKM float64) bool {
+	if p == radar.ProductCompositeReflectivity || isWMSCompositeProduct(p) {
+		return true
+	}
+	if p == radar.ProductBaseReflectivity && isWideRadius(radiusKM) {
+		return true
+	}
+	return false
+}
+
 // ridgeStationCode converts a 4-letter NEXRAD ID (e.g. "KEAX") to the
 // 3-letter code used in IEM's RIDGE archive (e.g. "EAX").
 // Non-CONUS prefixes (P, T) are also stripped.
@@ -115,13 +138,14 @@ func boundingBox(lat, lon, radiusKM float64) radarBBox {
 // cachedRadarPNG is the on-disk representation of a radar frame.
 // PNG bytes serialise as base64 in JSON, which cache.Cache handles natively.
 type cachedRadarPNG struct {
-	PNG       []byte        `json:"png"`
-	ValidTime time.Time     `json:"valid_time"`
-	Product   radar.Product `json:"product"`
-	MinLat    float64       `json:"min_lat,omitempty"`
-	MinLon    float64       `json:"min_lon,omitempty"`
-	MaxLat    float64       `json:"max_lat,omitempty"`
-	MaxLon    float64       `json:"max_lon,omitempty"`
+	PNG         []byte        `json:"png"`
+	ValidTime   time.Time     `json:"valid_time"`
+	Product     radar.Product `json:"product"`
+	MinLat      float64       `json:"min_lat,omitempty"`
+	MinLon      float64       `json:"min_lon,omitempty"`
+	MaxLat      float64       `json:"max_lat,omitempty"`
+	MaxLon      float64       `json:"max_lon,omitempty"`
+	IsComposite bool          `json:"is_composite,omitempty"`
 }
 
 func (p *RadarProvider) diskGet(c *cache.Cache, key string) (*radar.Frame, bool) {
@@ -133,7 +157,12 @@ func (p *RadarProvider) diskGet(c *cache.Cache, key string) (*radar.Frame, bool)
 	if err != nil {
 		return nil, false
 	}
-	f := &radar.Frame{Img: img, ValidTime: cd.ValidTime, Product: cd.Product}
+	f := &radar.Frame{
+		Img:         img,
+		ValidTime:   cd.ValidTime,
+		Product:     cd.Product,
+		IsComposite: cd.IsComposite,
+	}
 	if cd.MinLat != 0 || cd.MinLon != 0 || cd.MaxLat != 0 || cd.MaxLon != 0 {
 		f.BBox = &radar.BBox{MinLat: cd.MinLat, MinLon: cd.MinLon, MaxLat: cd.MaxLat, MaxLon: cd.MaxLon}
 	}
@@ -146,9 +175,10 @@ func (p *RadarProvider) diskSet(c *cache.Cache, key string, f *radar.Frame, ttl 
 		return // best-effort; a cache miss on the next run is harmless
 	}
 	cd := cachedRadarPNG{
-		PNG:       buf.Bytes(),
-		ValidTime: f.ValidTime,
-		Product:   f.Product,
+		PNG:         buf.Bytes(),
+		ValidTime:   f.ValidTime,
+		Product:     f.Product,
+		IsComposite: f.IsComposite,
 	}
 	if f.BBox != nil {
 		cd.MinLat = f.BBox.MinLat
@@ -240,7 +270,7 @@ func (p *RadarProvider) CurrentFrame(ctx context.Context, loc location.Location,
 		if !ok {
 			return nil, fmt.Errorf("nws radar: product %q does not support raw mode (use composite-reflectivity, base-reflectivity, echo-tops, or precip-type)", opts.Product)
 		}
-		rawKey := fmt.Sprintf("nws:radar:raw:v2:%s:%.4f,%.4f:%.0f", opts.Product, loc.Lat, loc.Lon, opts.RadiusKM)
+		rawKey := fmt.Sprintf("nws:radar:raw:v3:%s:%.4f,%.4f:%.0f", opts.Product, loc.Lat, loc.Lon, opts.RadiusKM)
 		if f := p.imgGet(rawKey); f != nil {
 			return f, nil
 		}
@@ -253,17 +283,18 @@ func (p *RadarProvider) CurrentFrame(ctx context.Context, loc location.Location,
 			return nil, fmt.Errorf("nws radar raw WMS: %w", err)
 		}
 		f := &radar.Frame{
-			Img:       img,
-			ValidTime: validTime,
-			Product:   opts.Product,
-			BBox:      &radar.BBox{MinLat: bb.MinLat, MinLon: bb.MinLon, MaxLat: bb.MaxLat, MaxLon: bb.MaxLon},
+			Img:         img,
+			ValidTime:   validTime,
+			Product:     opts.Product,
+			BBox:        &radar.BBox{MinLat: bb.MinLat, MinLon: bb.MinLon, MaxLat: bb.MaxLat, MaxLon: bb.MaxLon},
+			IsComposite: true, // all raw WMS layers are MRMS multi-radar mosaics
 		}
 		p.diskSet(c, rawKey, f, currentFrameTTL)
 		p.imgSet(rawKey, f, currentFrameTTL)
 		return f, nil
 	}
 
-	key := fmt.Sprintf("nws:radar:cur:v3:%s:%.4f,%.4f:%.0f", opts.Product, loc.Lat, loc.Lon, opts.RadiusKM)
+	key := fmt.Sprintf("nws:radar:cur:v4:%s:%.4f,%.4f:%.0f", opts.Product, loc.Lat, loc.Lon, opts.RadiusKM)
 
 	// L1: in-process (avoids re-decoding PNG within the same invocation)
 	if f := p.imgGet(key); f != nil {
@@ -302,8 +333,11 @@ func (p *RadarProvider) CurrentFrame(ctx context.Context, loc location.Location,
 	}
 
 	f := &radar.Frame{
-		Img: img, ValidTime: now, Product: opts.Product,
-		BBox: &radar.BBox{MinLat: bb.MinLat, MinLon: bb.MinLon, MaxLat: bb.MaxLat, MaxLon: bb.MaxLon},
+		Img:         img,
+		ValidTime:   now,
+		Product:     opts.Product,
+		BBox:        &radar.BBox{MinLat: bb.MinLat, MinLon: bb.MinLon, MaxLat: bb.MaxLat, MaxLon: bb.MaxLon},
+		IsComposite: isMultiRadarComposite(opts.Product, opts.RadiusKM),
 	}
 	p.diskSet(c, key, f, currentFrameTTL)
 	p.imgSet(key, f, currentFrameTTL)
@@ -311,13 +345,18 @@ func (p *RadarProvider) CurrentFrame(ctx context.Context, loc location.Location,
 }
 
 // addRadarLayers configures the IEM radmap layers[] and product params.
-// Composite reflectivity uses the national mosaic. Station products (base
-// reflectivity, SRV) use single-station RIDGE. Echo tops uses only
-// overlays here — the radar data is fetched separately via NWS WMS.
+// When zoomed in (<=200 km), station products use single-station RIDGE.
+// When zoomed out (>200 km) or when viewing composite reflectivity, data
+// from multiple radars is composited using the high-resolution national mosaic.
+// Echo tops and precip type use overlays here — radar data comes from NWS WMS.
 func (p *RadarProvider) addRadarLayers(params url.Values, loc location.Location, opts radar.Options) {
 	if isWMSCompositeProduct(opts.Product) {
 		// Radar data comes from NWS WMS; radmap provides only the base map
 		// and geographic overlays. No radar layer added here.
+	} else if isWideRadius(opts.RadiusKM) && (opts.Product == radar.ProductBaseReflectivity || opts.Product == radar.ProductCompositeReflectivity) {
+		// Beyond 200 km, single-station coverage drops off. Composite multiple radars
+		// using the national mosaic layer.
+		params.Add("layers[]", "n0q")
 	} else if radar.IsStationProduct(opts.Product) {
 		// Single-station RIDGE mode — IEM uses 3-letter station codes.
 		station := radar.NearestStation(loc.Lat, loc.Lon)
@@ -326,7 +365,7 @@ func (p *RadarProvider) addRadarLayers(params url.Values, loc location.Location,
 		params.Set("ridge_product", iemProducts[opts.Product])
 	} else {
 		// National composite mosaic.
-		params.Add("layers[]", "nexrad")
+		params.Add("layers[]", "n0q")
 	}
 
 	// Geographic overlay layers (always included).
@@ -386,10 +425,11 @@ func (p *RadarProvider) RecentFrames(ctx context.Context, loc location.Location,
 					return
 				}
 				f := &radar.Frame{
-					Img:       img,
-					ValidTime: validTime,
-					Product:   opts.Product,
-					BBox:      &radar.BBox{MinLat: bb.MinLat, MinLon: bb.MinLon, MaxLat: bb.MaxLat, MaxLon: bb.MaxLon},
+					Img:         img,
+					ValidTime:   validTime,
+					Product:     opts.Product,
+					BBox:        &radar.BBox{MinLat: bb.MinLat, MinLon: bb.MinLon, MaxLat: bb.MaxLat, MaxLon: bb.MaxLon},
+					IsComposite: true,
 				}
 				p.diskSet(c, key, f, historicalFrameTTL)
 				p.imgSet(key, f, historicalFrameTTL)
@@ -486,7 +526,7 @@ func (p *RadarProvider) fetchWMSFrame(ctx context.Context, layer string, bb rada
 // ── IEM fetch (historical loop frames) ───────────────────────────────────────
 
 func (p *RadarProvider) fetchIEMFrame(ctx context.Context, loc location.Location, bb radarBBox, opts radar.Options, ts time.Time, c *cache.Cache) (*radar.Frame, error) {
-	key := fmt.Sprintf("nws:radar:iem:v3:%s:%.4f,%.4f:%.0f:%s",
+	key := fmt.Sprintf("nws:radar:iem:v4:%s:%.4f,%.4f:%.0f:%s",
 		opts.Product, (bb.MinLat+bb.MaxLat)/2, (bb.MinLon+bb.MaxLon)/2,
 		opts.RadiusKM, ts.Format(time.RFC3339))
 
@@ -524,8 +564,11 @@ func (p *RadarProvider) fetchIEMFrame(ctx context.Context, loc location.Location
 	}
 
 	f := &radar.Frame{
-		Img: img, ValidTime: ts, Product: opts.Product,
-		BBox: &radar.BBox{MinLat: bb.MinLat, MinLon: bb.MinLon, MaxLat: bb.MaxLat, MaxLon: bb.MaxLon},
+		Img:         img,
+		ValidTime:   ts,
+		Product:     opts.Product,
+		BBox:        &radar.BBox{MinLat: bb.MinLat, MinLon: bb.MinLon, MaxLat: bb.MaxLat, MaxLon: bb.MaxLon},
+		IsComposite: isMultiRadarComposite(opts.Product, opts.RadiusKM),
 	}
 	p.diskSet(c, key, f, historicalFrameTTL)
 	p.imgSet(key, f, 0) // no L1 expiry for historical frames

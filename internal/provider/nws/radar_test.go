@@ -60,12 +60,12 @@ func TestRadarProvider_CurrentFrame(t *testing.T) {
 		}
 		foundRadar := false
 		for _, l := range layers {
-			if l == "nexrad" || l == "ridge" {
+			if l == "nexrad" || l == "n0q" || l == "ridge" {
 				foundRadar = true
 			}
 		}
 		if !foundRadar {
-			t.Errorf("expected nexrad or ridge in layers[], got %v", layers)
+			t.Errorf("expected n0q, nexrad or ridge in layers[], got %v", layers)
 		}
 		w.Header().Set("Content-Type", "image/png")
 		w.Write(pngData)
@@ -85,6 +85,56 @@ func TestRadarProvider_CurrentFrame(t *testing.T) {
 	}
 	if frame.Product != opts.Product {
 		t.Errorf("product = %q, want %q", frame.Product, opts.Product)
+	}
+	if !frame.IsComposite {
+		t.Error("composite reflectivity frame should have IsComposite = true")
+	}
+}
+
+func TestRadarProvider_CurrentFrame_WideZoomComposite(t *testing.T) {
+	pngData := solidPNG(t, 0, 200, 0)
+
+	var receivedLayers []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedLayers = r.URL.Query()["layers[]"]
+		w.Header().Set("Content-Type", "image/png")
+		w.Write(pngData)
+	}))
+	defer srv.Close()
+
+	p := &RadarProvider{wmsBase: srv.URL, iemBase: srv.URL, nwsAPIBase: srv.URL, imgCache: make(map[string]radarCacheEntry)}
+	loc := location.Location{Lat: 39.1, Lon: -94.6, CountryCode: "US"}
+
+	// When zoomed out to 300km with base reflectivity, it must composite multiple radars using n0q mosaic.
+	optsWide := radar.Options{Product: radar.ProductBaseReflectivity, RadiusKM: 300}
+	frameWide, err := p.CurrentFrame(context.Background(), loc, optsWide, cache.NewNoOp())
+	if err != nil {
+		t.Fatalf("CurrentFrame wide: %v", err)
+	}
+	if !frameWide.IsComposite {
+		t.Error("wide zoom frame (>200km) should have IsComposite = true")
+	}
+	hasN0Q := false
+	for _, l := range receivedLayers {
+		if l == "n0q" {
+			hasN0Q = true
+		}
+		if l == "ridge" {
+			t.Error("wide zoom frame should NOT use single-station ridge layer")
+		}
+	}
+	if !hasN0Q {
+		t.Errorf("wide zoom frame expected n0q mosaic layer, got %v", receivedLayers)
+	}
+
+	// When within single-station range (<=200km) with base reflectivity, it uses single-station ridge.
+	optsClose := radar.Options{Product: radar.ProductBaseReflectivity, RadiusKM: 150}
+	frameClose, err := p.CurrentFrame(context.Background(), loc, optsClose, cache.NewNoOp())
+	if err != nil {
+		t.Fatalf("CurrentFrame close: %v", err)
+	}
+	if frameClose.IsComposite {
+		t.Error("close zoom frame (<=200km) for station product should have IsComposite = false")
 	}
 }
 

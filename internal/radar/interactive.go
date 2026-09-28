@@ -183,7 +183,11 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.frames = nil
 			m.frame = nil
 			m.loading = true
-			m.status = fmt.Sprintf("Zooming out (%.0f km)…", m.radius)
+			if m.radius > 200 {
+				m.status = fmt.Sprintf("Zooming out (%.0f km — Multi-Radar Composite)…", m.radius)
+			} else {
+				m.status = fmt.Sprintf("Zooming out (%.0f km)…", m.radius)
+			}
 			if m.loopMode {
 				return m, m.fetchLoop()
 			}
@@ -354,7 +358,11 @@ func (m InteractiveModel) helpBar() string {
 	parts = append(parts, prodStr)
 
 	// Radius
-	radStr := key.Render("+/-") + dim.Render(":") + val.Render(fmt.Sprintf("%.0fkm", m.radius))
+	radLabel := fmt.Sprintf("%.0fkm", m.radius)
+	if m.radius > 200 {
+		radLabel = fmt.Sprintf("%.0fkm (mosaic)", m.radius)
+	}
+	radStr := key.Render("+/-") + dim.Render(":") + val.Render(radLabel)
 	parts = append(parts, radStr)
 
 	// Loop status

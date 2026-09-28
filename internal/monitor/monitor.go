@@ -11,7 +11,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/mwirges/wx/internal/cache"
+	"github.com/mwirges/wx/internal/chase"
 	"github.com/mwirges/wx/internal/config"
+	"github.com/mwirges/wx/internal/cpc"
 	"github.com/mwirges/wx/internal/location"
 	"github.com/mwirges/wx/internal/models"
 	"github.com/mwirges/wx/internal/provider"
@@ -23,10 +25,12 @@ import (
 type tickMsg time.Time
 
 type weatherMsg struct {
-	conditions *models.CurrentConditions
-	forecast   *models.Forecast
-	alerts     []models.Alert
-	fetchedAt  time.Time
+	conditions    *models.CurrentConditions
+	forecast      *models.Forecast
+	alerts        []models.Alert
+	cpcShift      *models.CPCPatternShift
+	chaseClusters []models.StormCluster
+	fetchedAt     time.Time
 }
 
 type radarMsg struct {
@@ -72,6 +76,11 @@ type MonitorModel struct {
 	lastFetch  time.Time
 	fetchErr   error
 	hourly     bool
+
+	// synoptic & chase signals
+	cpcShift      *models.CPCPatternShift
+	chaseClusters []models.StormCluster
+	clusterIdx    int
 
 	// radar
 	radarVisible bool
@@ -179,6 +188,8 @@ func (m MonitorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		m.alerts = msg.alerts
+		m.cpcShift = msg.cpcShift
+		m.chaseClusters = msg.chaseClusters
 		m.lastFetch = msg.fetchedAt
 		m.forecastVisible = computeForecastVisible(m.height, alertCount(m.alerts))
 		m.forecastOffset = clampOffset(m.forecastOffset, forecastLen(m.forecast), m.forecastVisible)
@@ -267,6 +278,25 @@ func (m MonitorModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.inputQuery = ""
 		m.inputErr = nil
 		m.suggestIdx = -1
+		return m, nil
+
+	case "s":
+		if len(m.chaseClusters) > 0 {
+			m.clusterIdx = (m.clusterIdx + 1) % len(m.chaseClusters)
+			target := m.chaseClusters[m.clusterIdx]
+			m.loc = location.Location{
+				Lat:         target.CenterLat,
+				Lon:         target.CenterLon,
+				DisplayName: fmt.Sprintf("%s (%s)", target.Name, target.PrimaryHazard),
+			}
+			m.radarVisible = true
+			m.weatherLoading = true
+			m.radarLoading = true
+			return m, tea.Batch(
+				fetchWeatherCmd(m.cfg, m.loc, m.hourly),
+				fetchRadarCmd(m.cfg, m.loc, m.width, m.height),
+			)
+		}
 		return m, nil
 
 	case "up", "k":
@@ -405,11 +435,13 @@ func fetchWeatherCmd(cfg MonitorConfig, loc location.Location, hourly bool) tea.
 		}
 
 		var (
-			cond     *models.CurrentConditions
-			fc       *models.Forecast
-			alerts   []models.Alert
-			condErr  error
-			wg       sync.WaitGroup
+			cond          *models.CurrentConditions
+			fc            *models.Forecast
+			alerts        []models.Alert
+			cpcShift      *models.CPCPatternShift
+			chaseClusters []models.StormCluster
+			condErr       error
+			wg            sync.WaitGroup
 		)
 
 		if prov != nil {
@@ -431,6 +463,24 @@ func fetchWeatherCmd(cfg MonitorConfig, loc location.Location, hourly bool) tea.
 				alerts, _ = prov.Alerts(ctx, loc, cfg.Cache)
 			}()
 
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				cpcOut, err := cpc.NewClient().FetchOutlooks(ctx, loc, cfg.Cache)
+				if err == nil && cpcOut != nil && cpcOut.PatternShift.HasShift {
+					cpcShift = &cpcOut.PatternShift
+				}
+			}()
+
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				chaseOut, err := chase.FetchClusters(ctx, cfg.Cache)
+				if err == nil && chaseOut != nil && len(chaseOut.Clusters) > 0 {
+					chaseClusters = chaseOut.Clusters
+				}
+			}()
+
 			wg.Wait()
 		} else {
 			condErr = fmt.Errorf("no weather provider available for location")
@@ -440,10 +490,12 @@ func fetchWeatherCmd(cfg MonitorConfig, loc location.Location, hourly bool) tea.
 			return weatherErrMsg{condErr}
 		}
 		return weatherMsg{
-			conditions: cond,
-			forecast:   fc,
-			alerts:     alerts,
-			fetchedAt:  time.Now(),
+			conditions:    cond,
+			forecast:      fc,
+			alerts:        alerts,
+			cpcShift:      cpcShift,
+			chaseClusters: chaseClusters,
+			fetchedAt:     time.Now(),
 		}
 	}
 }

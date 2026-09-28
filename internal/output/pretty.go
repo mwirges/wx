@@ -183,6 +183,26 @@ func renderPretty(data RenderData, opts RenderOptions) error {
 				fmt.Printf("  %s %s%s%s\n", moonLabel, icon, phaseStr, detailStr)
 			}
 		}
+
+		if c.AirQuality != nil && (c.AirQuality.AQI != nil || c.AirQuality.UVIndex != nil) {
+			var aqParts []string
+			if c.AirQuality.AQI != nil {
+				aqiVal := *c.AirQuality.AQI
+				cat := c.AirQuality.Category
+				style := AQIStyle(aqiVal)
+				aqParts = append(aqParts, styleLabel.Render("Air Quality:")+" "+style.Render(fmt.Sprintf("%d (%s)", aqiVal, cat)))
+			}
+			if c.AirQuality.UVIndex != nil {
+				uvVal := *c.AirQuality.UVIndex
+				cat := c.AirQuality.UVCategory
+				style := UVStyle(uvVal)
+				aqParts = append(aqParts, styleLabel.Render("UV Index:")+" "+style.Render(fmt.Sprintf("%.1f (%s)", uvVal, cat)))
+			}
+			if len(aqParts) > 0 {
+				fmt.Printf("  %s\n", strings.Join(aqParts, "   "))
+			}
+		}
+
 		fmt.Println()
 	}
 
@@ -402,3 +422,41 @@ func FahrenheitToCelsius(f float64) float64 {
 func MphToKPH(mph float64) float64 {
 	return mph * 1.60934
 }
+
+// AQIStyle returns a lipgloss Style corresponding to EPA Air Quality Index bands:
+// Good (Green 34), Moderate (Yellow 220), Unhealthy for Sensitive (Orange 208),
+// Unhealthy (Red 196), Very Unhealthy (Purple 129), Hazardous (Maroon 88).
+func AQIStyle(aqi int) lipgloss.Style {
+	switch {
+	case aqi <= 50:
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("34")).Bold(true)
+	case aqi <= 100:
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("220")).Bold(true)
+	case aqi <= 150:
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("208")).Bold(true)
+	case aqi <= 200:
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
+	case aqi <= 300:
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("129")).Bold(true)
+	default:
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("88")).Bold(true)
+	}
+}
+
+// UVStyle returns a lipgloss Style corresponding to WHO UV Index bands:
+// Low (Green 34), Moderate (Yellow 220), High (Orange 208), Very High (Red 196), Extreme (Purple 129).
+func UVStyle(uv float64) lipgloss.Style {
+	switch {
+	case uv < 3.0:
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("34")).Bold(true)
+	case uv < 6.0:
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("220")).Bold(true)
+	case uv < 8.0:
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("208")).Bold(true)
+	case uv < 11.0:
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
+	default:
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("129")).Bold(true)
+	}
+}
+

@@ -165,6 +165,17 @@ func NearestStation(lat, lon float64) Station {
 	return best
 }
 
+// StationsWithinRadius returns all NEXRAD stations within radiusKM of (lat, lon).
+func StationsWithinRadius(lat, lon, radiusKM float64) []Station {
+	var matched []Station
+	for _, s := range nexradStations {
+		if haversine(lat, lon, s.Lat, s.Lon) <= radiusKM {
+			matched = append(matched, s)
+		}
+	}
+	return matched
+}
+
 // haversine returns the great-circle distance in km between two points.
 func haversine(lat1, lon1, lat2, lon2 float64) float64 {
 	const R = 6371.0 // Earth radius in km

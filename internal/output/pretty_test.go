@@ -509,4 +509,37 @@ func TestRenderPretty_ObservedAtAge(t *testing.T) {
 	}
 }
 
+func TestRenderPretty_AirQuality(t *testing.T) {
+	temp := 22.0
+	aqi := 45
+	uv := 2.5
+	data := RenderData{
+		Conditions: &models.CurrentConditions{
+			Location:      "Fort Wayne, IN",
+			ObservedAt:    time.Now(),
+			TempC:         &temp,
+			ConditionCode: "clear-day",
+			AirQuality: &models.AirQuality{
+				AQI:        &aqi,
+				Category:   models.AQICategory(aqi),
+				UVIndex:    &uv,
+				UVCategory: models.UVCategory(uv),
+			},
+		},
+	}
+
+	out := captureStdout(t, func() {
+		renderPretty(data, RenderOptions{Units: "imperial"})
+	})
+	outStr := string(out)
+
+	if !strings.Contains(outStr, "Air Quality:") || !strings.Contains(outStr, "45 (Good)") {
+		t.Errorf("expected Air Quality in pretty output, got:\n%s", outStr)
+	}
+	if !strings.Contains(outStr, "UV Index:") || !strings.Contains(outStr, "2.5 (Low)") {
+		t.Errorf("expected UV Index in pretty output, got:\n%s", outStr)
+	}
+}
+
+
 

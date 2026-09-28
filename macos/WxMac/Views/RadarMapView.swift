@@ -6,10 +6,12 @@ import MapKit
 final class RadarMapOverlay: NSObject, MKOverlay {
     let coordinate: CLLocationCoordinate2D
     let boundingMapRect: MKMapRect
-    let image: NSImage
+    var image: NSImage
+    let bbox: RadarBBox
 
     init(image: NSImage, bbox: RadarBBox, center: RadarCenter) {
         self.image = image
+        self.bbox = bbox
         self.coordinate = CLLocationCoordinate2D(latitude: center.lat, longitude: center.lon)
 
         let topLeft = MKMapPoint(CLLocationCoordinate2D(latitude: bbox.maxLat, longitude: bbox.minLon))
@@ -100,26 +102,40 @@ struct RadarMapView: NSViewRepresentable {
             let locationChanged = (lastLocationKey != locationKey)
             lastLocationKey = locationKey
 
-            // Swap radar overlay
-            if let existing = currentOverlay {
-                mapView.removeOverlay(existing)
+            // If the overlay exists and spatial bounds match, update image in-place for flicker-free frame transitions
+            if let existing = currentOverlay,
+               !locationChanged,
+               abs(existing.coordinate.latitude - center.lat) < 0.0001,
+               abs(existing.coordinate.longitude - center.lon) < 0.0001,
+               abs(existing.bbox.minLat - bbox.minLat) < 0.0001,
+               abs(existing.bbox.maxLat - bbox.maxLat) < 0.0001 {
+                existing.image = image
+                if let renderer = mapView.renderer(for: existing) as? RadarMapOverlayRenderer {
+                    renderer.setNeedsDisplay()
+                }
+            } else {
+                if let existing = currentOverlay {
+                    mapView.removeOverlay(existing)
+                }
+                let newOverlay = RadarMapOverlay(image: image, bbox: bbox, center: center)
+                currentOverlay = newOverlay
+                mapView.addOverlay(newOverlay, level: .aboveRoads)
             }
-            let newOverlay = RadarMapOverlay(image: image, bbox: bbox, center: center)
-            currentOverlay = newOverlay
-            mapView.addOverlay(newOverlay, level: .aboveRoads)
 
-            // Center target pin
-            if let existingAnnotation = currentLocationAnnotation {
-                mapView.removeAnnotation(existingAnnotation)
+            // Center target pin only if location changed or annotation missing
+            if locationChanged || currentLocationAnnotation == nil {
+                if let existingAnnotation = currentLocationAnnotation {
+                    mapView.removeAnnotation(existingAnnotation)
+                }
+                let pin = MKPointAnnotation()
+                pin.coordinate = CLLocationCoordinate2D(latitude: center.lat, longitude: center.lon)
+                pin.title = payload.location
+                if let station = payload.station, !station.isEmpty {
+                    pin.subtitle = "Radar Station: \(station)"
+                }
+                currentLocationAnnotation = pin
+                mapView.addAnnotation(pin)
             }
-            let pin = MKPointAnnotation()
-            pin.coordinate = CLLocationCoordinate2D(latitude: center.lat, longitude: center.lon)
-            pin.title = payload.location
-            if let station = payload.station, !station.isEmpty {
-                pin.subtitle = "Radar Station: \(station)"
-            }
-            currentLocationAnnotation = pin
-            mapView.addAnnotation(pin)
 
             if forceCenter || locationChanged {
                 let centerCoord = CLLocationCoordinate2D(latitude: center.lat, longitude: center.lon)

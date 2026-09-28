@@ -1,11 +1,35 @@
 import Foundation
 import Combine
 import AppKit
+import UserNotifications
+
+struct LocationGridCardData: Identifiable, Sendable {
+    var id: String { locationKey }
+    var locationKey: String
+    var displayName: String
+    var payload: WxPayload?
+    var isLoading: Bool
+    var errorMessage: String?
+    var lastUpdated: Date?
+}
+
+struct DecodedRadarFrame: Identifiable, Sendable {
+    let id: Int
+    let validTime: String
+    let date: Date?
+    let image: NSImage
+    let label: String
+    let isLive: Bool
+}
 
 enum DeskTab: String, CaseIterable, Identifiable {
-    case dual = "Dual"
+    case dual = "Tactical"
     case weather = "Weather"
     case radar = "Radar"
+    case outlooks = "Outlooks"
+    case chase = "Storm Chase"
+    case climate = "Climate"
+    case grid = "Grid"
 
     var id: String { rawValue }
 }
@@ -25,14 +49,37 @@ final class WeatherStore: ObservableObject {
 
     @Published var radarPayload: RadarPayload?
     @Published var radarImage: NSImage?
+    @Published var radarFrames: [DecodedRadarFrame] = []
+    @Published var activeFrameIndex: Int = 0
+    @Published var isLoopPlaying: Bool = true
+    @Published var loopStepMs: Int = 380
+    @Published var loopDwellMs: Int = 1100
     @Published var isRadarLoading = false
     @Published var radarErrorMessage: String?
     @Published var selectedRadarProduct: String = "composite-reflectivity"
     @Published var selectedRadarRadius: Double = 200
 
+    @Published var cpcPayload: CPCPayloadDTO?
+    @Published var isCPCLoading = false
+    @Published var cpcErrorMessage: String?
+
+    @Published var chasePayload: ChasePayloadDTO?
+    @Published var isChaseLoading = false
+    @Published var chaseErrorMessage: String?
+
+    @Published var historyPayload: HistoryPayloadDTO?
+    @Published var isHistoryLoading = false
+    @Published var historyErrorMessage: String?
+    @Published var historyDaysCount: Int = 14
+
     @Published var favorites: [WxLocationEntry] = []
     @Published var recentLocations: [String] = []
+    @Published var gridCards: [LocationGridCardData] = []
+    @Published var isGridLoading = false
     @Published var isLocating = false
+
+    private var notifiedAlertIDs = Set<String>()
+    private var loopTask: Task<Void, Never>?
 
     let locationManager = LocationManager()
 
@@ -121,6 +168,8 @@ final class WeatherStore: ObservableObject {
     func start() {
         Task {
             await refresh()
+            await refreshCPC()
+            await refreshChase()
             if selectedDeskTab == .dual || selectedDeskTab == .radar {
                 await refreshRadar()
             }
@@ -136,6 +185,8 @@ final class WeatherStore: ObservableObject {
                 }
                 guard !Task.isCancelled else { return }
                 await self?.refresh()
+                await self?.refreshCPC()
+                await self?.refreshChase()
             }
         }
     }
@@ -143,6 +194,7 @@ final class WeatherStore: ObservableObject {
     func stop() {
         refreshTask?.cancel()
         refreshTask = nil
+        stopLoopTimer()
     }
 
     func applyLocationAndUnits() async {
@@ -164,9 +216,80 @@ final class WeatherStore: ObservableObject {
             errorMessage = error.localizedDescription
         }
         await refresh()
+        await refreshCPC()
         if radarPayload != nil || selectedDeskTab == .radar || selectedDeskTab == .dual {
             await refreshRadar()
         }
+    }
+
+    func parseRadarDate(_ str: String) -> Date? {
+        let f1 = ISO8601DateFormatter()
+        f1.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = f1.date(from: str) { return d }
+        let f2 = ISO8601DateFormatter()
+        f2.formatOptions = [.withInternetDateTime]
+        return f2.date(from: str)
+    }
+
+    func startLoopTimer() {
+        loopTask?.cancel()
+        guard isLoopPlaying, radarFrames.count > 1 else { return }
+        loopTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                guard let self = self, self.isLoopPlaying, self.radarFrames.count > 1 else { break }
+                let isLast = (self.activeFrameIndex == self.radarFrames.count - 1)
+                let dwell = isLast ? self.loopDwellMs : self.loopStepMs
+                try? await Task.sleep(nanoseconds: UInt64(dwell) * 1_000_000)
+                guard !Task.isCancelled, self.isLoopPlaying, self.radarFrames.count > 1 else { break }
+                let nextIdx = (self.activeFrameIndex + 1) % self.radarFrames.count
+                self.activeFrameIndex = nextIdx
+                self.radarImage = self.radarFrames[nextIdx].image
+            }
+        }
+    }
+
+    func stopLoopTimer() {
+        loopTask?.cancel()
+        loopTask = nil
+    }
+
+    func toggleLoop() {
+        isLoopPlaying.toggle()
+        if isLoopPlaying {
+            startLoopTimer()
+        } else {
+            stopLoopTimer()
+        }
+    }
+
+    func stepFrameForward() {
+        stopLoopTimer()
+        isLoopPlaying = false
+        guard !radarFrames.isEmpty else { return }
+        activeFrameIndex = (activeFrameIndex + 1) % radarFrames.count
+        radarImage = radarFrames[activeFrameIndex].image
+    }
+
+    func stepFrameBackward() {
+        stopLoopTimer()
+        isLoopPlaying = false
+        guard !radarFrames.isEmpty else { return }
+        activeFrameIndex = (activeFrameIndex - 1 + radarFrames.count) % radarFrames.count
+        radarImage = radarFrames[activeFrameIndex].image
+    }
+
+    func seekFrame(to index: Int) {
+        stopLoopTimer()
+        isLoopPlaying = false
+        guard !radarFrames.isEmpty else { return }
+        let clamped = max(0, min(radarFrames.count - 1, index))
+        activeFrameIndex = clamped
+        radarImage = radarFrames[clamped].image
+    }
+
+    func jumpToLive() {
+        guard !radarFrames.isEmpty else { return }
+        seekFrame(to: radarFrames.count - 1)
     }
 
     func refreshRadar() async {
@@ -185,19 +308,218 @@ final class WeatherStore: ObservableObject {
                 location: loc.isEmpty ? nil : loc,
                 product: selectedRadarProduct,
                 radiusKm: selectedRadarRadius,
-                raw: true
+                raw: true,
+                loop: true,
+                frames: 8
             )
             radarPayload = res
-            if let data = Data(base64Encoded: res.imageBase64),
-               let img = NSImage(data: data) {
-                radarImage = img
+
+            var decoded: [DecodedRadarFrame] = []
+            if !res.frames.isEmpty {
+                for (idx, f) in res.frames.enumerated() {
+                    guard let data = Data(base64Encoded: f.imageBase64),
+                          let img = NSImage(data: data) else { continue }
+                    let valid = f.validTime ?? res.validTime
+                    let d = parseRadarDate(valid)
+                    let isLive = (idx == res.frames.count - 1)
+                    let label: String
+                    if let date = d {
+                        let mins = Int(round(Date().timeIntervalSince(date) / 60.0))
+                        label = (isLive || mins <= 2) ? "LIVE" : "-\(mins)m"
+                    } else {
+                        label = isLive ? "LIVE" : "F\(idx+1)"
+                    }
+                    decoded.append(DecodedRadarFrame(
+                        id: idx,
+                        validTime: valid,
+                        date: d,
+                        image: img,
+                        label: label,
+                        isLive: isLive
+                    ))
+                }
+            } else if let data = Data(base64Encoded: res.imageBase64),
+                      let img = NSImage(data: data) {
+                decoded = [DecodedRadarFrame(
+                    id: 0,
+                    validTime: res.validTime,
+                    date: parseRadarDate(res.validTime),
+                    image: img,
+                    label: "LIVE",
+                    isLive: true
+                )]
+            }
+
+            if !decoded.isEmpty {
+                radarFrames = decoded
+                activeFrameIndex = decoded.count - 1
+                radarImage = decoded.last?.image
+                if isLoopPlaying && decoded.count > 1 {
+                    startLoopTimer()
+                }
             } else {
+                radarFrames = []
                 radarImage = nil
-                radarErrorMessage = "Failed to decode radar image"
+                radarErrorMessage = "Failed to decode radar frame telemetry"
             }
         } catch {
             radarErrorMessage = error.localizedDescription
         }
+    }
+
+    func refreshCPC() async {
+        isCPCLoading = true
+        cpcErrorMessage = nil
+        defer { isCPCLoading = false }
+
+        guard backend.isAvailable else {
+            cpcErrorMessage = WxCLIError.binaryMissing.errorDescription
+            return
+        }
+
+        let loc = locationInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        do {
+            let res = try await backend.fetchCPC(location: loc.isEmpty ? nil : loc)
+            cpcPayload = res
+        } catch {
+            cpcErrorMessage = error.localizedDescription
+        }
+    }
+
+    func refreshChase() async {
+        isChaseLoading = true
+        chaseErrorMessage = nil
+        defer { isChaseLoading = false }
+
+        guard backend.isAvailable else {
+            chaseErrorMessage = WxCLIError.binaryMissing.errorDescription
+            return
+        }
+
+        do {
+            let res = try await backend.fetchChase()
+            chasePayload = res
+        } catch {
+            chaseErrorMessage = error.localizedDescription
+        }
+    }
+
+    func chaseCluster(_ cluster: StormClusterDTO) {
+        let coord = String(format: "%.4f,%.4f", cluster.centerLat, cluster.centerLon)
+        selectLocation(coord)
+        selectedDeskTab = .radar
+        selectedRadarRadius = 250
+        Task {
+            await refreshRadar()
+        }
+    }
+
+    func refreshHistory() async {
+        isHistoryLoading = true
+        historyErrorMessage = nil
+        defer { isHistoryLoading = false }
+
+        guard backend.isAvailable else {
+            historyErrorMessage = WxCLIError.binaryMissing.errorDescription
+            return
+        }
+
+        let loc = locationInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        do {
+            let res = try await backend.fetchHistory(
+                location: loc.isEmpty ? nil : loc,
+                days: historyDaysCount,
+                units: units
+            )
+            historyPayload = res
+        } catch {
+            historyErrorMessage = error.localizedDescription
+        }
+    }
+
+    func refreshGrid() async {
+        isGridLoading = true
+        defer { isGridLoading = false }
+
+        guard backend.isAvailable else { return }
+
+        let favs = favorites
+        guard !favs.isEmpty else {
+            gridCards = []
+            return
+        }
+
+        var currentCards = gridCards
+        var updatedCards: [LocationGridCardData] = []
+        for f in favs {
+            let key = f.value.isEmpty ? f.name : f.value
+            let name = f.name.isEmpty ? f.value : f.name
+            if let existing = currentCards.first(where: { $0.locationKey.caseInsensitiveCompare(key) == .orderedSame }) {
+                var c = existing
+                c.isLoading = true
+                updatedCards.append(c)
+            } else {
+                updatedCards.append(LocationGridCardData(
+                    locationKey: key,
+                    displayName: name,
+                    payload: nil,
+                    isLoading: true,
+                    errorMessage: nil,
+                    lastUpdated: nil
+                ))
+            }
+        }
+        gridCards = updatedCards
+
+        let currentUnits = self.units
+        await withTaskGroup(of: (String, Result<WxPayload, Error>).self) { group in
+            for f in favs {
+                let key = f.value.isEmpty ? f.name : f.value
+                group.addTask { [backend = self.backend] in
+                    do {
+                        let p = try await backend.fetch(location: key, units: currentUnits)
+                        return (key, .success(p))
+                    } catch {
+                        return (key, .failure(error))
+                    }
+                }
+            }
+
+            for await (key, res) in group {
+                if let idx = self.gridCards.firstIndex(where: { $0.locationKey.caseInsensitiveCompare(key) == .orderedSame }) {
+                    self.gridCards[idx].isLoading = false
+                    switch res {
+                    case .success(let p):
+                        self.gridCards[idx].payload = p
+                        self.gridCards[idx].lastUpdated = Date()
+                        self.gridCards[idx].errorMessage = nil
+                        if let locName = p.conditions?.location, !locName.isEmpty {
+                            self.gridCards[idx].displayName = locName
+                        }
+                    case .failure(let err):
+                        self.gridCards[idx].errorMessage = err.localizedDescription
+                    }
+                }
+            }
+        }
+    }
+
+    func refreshSingleGridCard(_ locationKey: String) async {
+        guard let idx = gridCards.firstIndex(where: { $0.locationKey.caseInsensitiveCompare(locationKey) == .orderedSame }) else { return }
+        gridCards[idx].isLoading = true
+        let currentUnits = self.units
+        do {
+            let p = try await backend.fetch(location: locationKey, units: currentUnits)
+            gridCards[idx].payload = p
+            gridCards[idx].lastUpdated = Date()
+            gridCards[idx].errorMessage = nil
+            if let locName = p.conditions?.location, !locName.isEmpty {
+                gridCards[idx].displayName = locName
+            }
+        } catch {
+            gridCards[idx].errorMessage = error.localizedDescription
+        }
+        gridCards[idx].isLoading = false
     }
 
     func refresh() async {
@@ -220,9 +542,45 @@ final class WeatherStore: ObservableObject {
             payload = result
             lastRefreshed = Date()
             updateStatusItemChrome()
+            notifySevereAlertsIfNeeded(result.alerts)
         } catch {
             errorMessage = error.localizedDescription
             updateStatusItemChrome()
+        }
+    }
+
+    private func notifySevereAlertsIfNeeded(_ alerts: [Alert]) {
+        let center = UNUserNotificationCenter.current()
+        for alert in alerts {
+            guard !notifiedAlertIDs.contains(alert.id) else { continue }
+            notifiedAlertIDs.insert(alert.id)
+
+            let isWarning = alert.event.localizedCaseInsensitiveContains("warning")
+            let isExtreme = alert.severity?.localizedCaseInsensitiveContains("extreme") ?? false
+            let isSevere = alert.severity?.localizedCaseInsensitiveContains("severe") ?? false
+
+            guard isWarning || isExtreme || isSevere else { continue }
+
+            let content = UNMutableNotificationContent()
+            content.title = "⚠️ " + alert.event.uppercased()
+            if let area = alert.area, !area.isEmpty {
+                content.subtitle = area
+            } else if let loc = payload?.conditions?.location {
+                content.subtitle = loc
+            }
+            content.body = alert.headline ?? alert.description ?? "Severe weather warning in effect."
+            content.sound = .defaultCritical
+
+            let request = UNNotificationRequest(
+                identifier: alert.id,
+                content: content,
+                trigger: nil
+            )
+            center.add(request) { err in
+                if let err {
+                    print("[Severe Alert Notification Error] \(err.localizedDescription)")
+                }
+            }
         }
     }
 

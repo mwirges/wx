@@ -401,3 +401,71 @@ func TestRenderJSON_Freshness(t *testing.T) {
 	}
 }
 
+func TestRenderJSON_AirQuality(t *testing.T) {
+	aqi := 42
+	uv := 3.2
+	pm25 := 2.5
+
+	data := RenderData{
+		Conditions: &models.CurrentConditions{
+			StationID:  "KFWA",
+			ObservedAt: time.Date(2026, 9, 27, 20, 0, 0, 0, time.UTC),
+			Location:   "Fort Wayne, IN",
+			AirQuality: &models.AirQuality{
+				AQI:        &aqi,
+				Category:   models.AQICategory(aqi),
+				UVIndex:    &uv,
+				UVCategory: models.UVCategory(uv),
+				PM25:       &pm25,
+			},
+		},
+	}
+	opts := RenderOptions{Units: "imperial"}
+
+	out := captureStdout(t, func() {
+		if err := renderJSON(data, opts); err != nil {
+			t.Errorf("renderJSON: %v", err)
+		}
+	})
+
+	var result struct {
+		Conditions struct {
+			AirQuality *struct {
+				AQI        *int     `json:"aqi"`
+				Category   string   `json:"category"`
+				UVIndex    *float64 `json:"uv_index"`
+				UVCategory string   `json:"uv_category"`
+				PM25       *float64 `json:"pm2_5"`
+			} `json:"air_quality"`
+		} `json:"conditions"`
+		AirQuality *struct {
+			AQI      *int   `json:"aqi"`
+			Category string `json:"category"`
+		} `json:"air_quality"`
+	}
+
+	if err := json.Unmarshal(out, &result); err != nil {
+		t.Fatalf("unmarshal output: %v\nraw: %s", err, out)
+	}
+
+	if result.Conditions.AirQuality == nil || result.Conditions.AirQuality.AQI == nil {
+		t.Fatalf("expected air_quality in conditions")
+	}
+	if *result.Conditions.AirQuality.AQI != 42 {
+		t.Errorf("aqi = %d, want 42", *result.Conditions.AirQuality.AQI)
+	}
+	if result.Conditions.AirQuality.Category != "Good" {
+		t.Errorf("category = %q, want 'Good'", result.Conditions.AirQuality.Category)
+	}
+	if result.Conditions.AirQuality.UVIndex == nil || *result.Conditions.AirQuality.UVIndex != 3.2 {
+		t.Errorf("uv_index = %v, want 3.2", result.Conditions.AirQuality.UVIndex)
+	}
+	if result.Conditions.AirQuality.UVCategory != "Moderate" {
+		t.Errorf("uv_category = %q, want 'Moderate'", result.Conditions.AirQuality.UVCategory)
+	}
+	if result.AirQuality == nil || result.AirQuality.AQI == nil || *result.AirQuality.AQI != 42 {
+		t.Fatalf("expected top-level air_quality with aqi 42")
+	}
+}
+
+

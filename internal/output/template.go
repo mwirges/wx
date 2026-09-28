@@ -18,6 +18,7 @@ type TemplateContext struct {
 	Alerts     []TemplateAlert
 	Freshness  Freshness
 	Astronomy  *TemplateAstronomy
+	AirQuality *TemplateAirQuality
 	Now        time.Time
 	Units      string
 	Imperial   bool
@@ -70,6 +71,21 @@ type TemplateConditions struct {
 	VisibilityKm  *float64
 
 	Astronomy     *TemplateAstronomy
+	AirQuality    *TemplateAirQuality
+}
+
+// TemplateAirQuality provides air quality and UV information.
+type TemplateAirQuality struct {
+	AQI        *int
+	Category   string
+	UVIndex    *float64
+	UVCategory string
+	PM25       *float64
+	PM10       *float64
+	Ozone      *float64
+	NO2        *float64
+	CO         *float64
+	SO2        *float64
 }
 
 // TemplateAstronomy provides calculated solar and lunar times.
@@ -290,6 +306,23 @@ func BuildTemplateContext(data RenderData, opts RenderOptions) TemplateContext {
 			}
 			tc.Astronomy = ta
 			ctx.Astronomy = ta
+		}
+
+		if aq := c.AirQuality; aq != nil {
+			taq := &TemplateAirQuality{
+				AQI:        aq.AQI,
+				Category:   aq.Category,
+				UVIndex:    aq.UVIndex,
+				UVCategory: aq.UVCategory,
+				PM25:       aq.PM25,
+				PM10:       aq.PM10,
+				Ozone:      aq.O3,
+				NO2:        aq.NO2,
+				CO:         aq.CO,
+				SO2:        aq.SO2,
+			}
+			tc.AirQuality = taq
+			ctx.AirQuality = taq
 		}
 
 		ctx.Conditions = tc

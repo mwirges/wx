@@ -35,6 +35,10 @@ type CurrentConditions struct {
 	// Astronomy contains calculated sunrise, sunset, and daylight duration.
 	// Nil if unavailable or calculation failed.
 	Astronomy *Astronomy
+
+	// AirQuality contains EPA US AQI, pollutants, and UV telemetry.
+	// Nil if unavailable.
+	AirQuality *AirQuality
 }
 
 // ComputeFeelsLike returns WindChillC if set, else HeatIndexC if set, otherwise nil.

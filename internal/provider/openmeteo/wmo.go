@@ -2,6 +2,16 @@ package openmeteo
 
 import "math"
 
+// WMOToConditionCode maps WMO weather interpretation codes to wx normalized condition codes.
+func WMOToConditionCode(code int, isDay bool) string {
+	return wmoToConditionCode(code, isDay)
+}
+
+// WMOToDescription maps WMO weather interpretation codes to human-readable descriptions.
+func WMOToDescription(code int) string {
+	return wmoToDescription(code)
+}
+
 // wmoToConditionCode maps WMO weather interpretation codes to wx normalized condition codes.
 func wmoToConditionCode(code int, isDay bool) string {
 	switch code {

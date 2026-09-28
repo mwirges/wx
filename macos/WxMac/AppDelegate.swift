@@ -1,8 +1,9 @@
 import AppKit
 import SwiftUI
+import UserNotifications
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     let store = WeatherStore()
     private var statusController: StatusItemController?
     private var deskWindow: NSWindow?
@@ -18,6 +19,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         DispatchQueue.main.async { [weak self] in
             self?.installMainMenu()
+        }
+
+        // Set up native severe weather notifications
+        let center = UNUserNotificationCenter.current()
+        center.delegate = self
+        center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            if let error {
+                print("[UserNotifications] Authorization error: \(error.localizedDescription)")
+            }
         }
 
         let status = StatusItemController(store: store)
@@ -56,6 +66,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if ProcessInfo.processInfo.environment["WX_QA_POPOVER"] == "1" {
             showPopoverQAWindow()
         }
+    }
+
+    // ── UNUserNotificationCenterDelegate ──────────────────────────────────────────
+
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        // Present banner and sound even when the app is in the foreground
+        completionHandler([.banner, .sound, .badge])
+    }
+
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        Task { @MainActor [weak self] in
+            self?.showDeskWindow()
+            self?.store.selectedDeskTab = .weather
+        }
+        completionHandler()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -151,7 +184,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 4. View Menu
         let viewMenuItem = NSMenuItem()
         let viewMenu = NSMenu(title: "View")
-        let dualModeItem = NSMenuItem(title: "Command Console (Dual)", action: #selector(selectDualTab(_:)), keyEquivalent: "1")
+        let dualModeItem = NSMenuItem(title: "Tactical Console", action: #selector(selectDualTab(_:)), keyEquivalent: "1")
         dualModeItem.target = self
         viewMenu.addItem(dualModeItem)
 
@@ -162,6 +195,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let radarModeItem = NSMenuItem(title: "Radar Tactical Display", action: #selector(selectRadarTab(_:)), keyEquivalent: "3")
         radarModeItem.target = self
         viewMenu.addItem(radarModeItem)
+
+        let outlooksModeItem = NSMenuItem(title: "CPC Outlooks & Pattern Shifts", action: #selector(selectOutlooksTab(_:)), keyEquivalent: "4")
+        outlooksModeItem.target = self
+        viewMenu.addItem(outlooksModeItem)
+
+        let chaseModeItem = NSMenuItem(title: "Remote Storm Chasing Clusters", action: #selector(selectChaseTab(_:)), keyEquivalent: "5")
+        chaseModeItem.target = self
+        viewMenu.addItem(chaseModeItem)
         viewMenu.addItem(.separator())
 
         let imperialItem = NSMenuItem(title: "Units: Imperial (°F)", action: #selector(setUnitsImperial(_:)), keyEquivalent: "")
@@ -290,6 +331,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    @objc private func selectOutlooksTab(_ sender: Any?) {
+        store.selectedDeskTab = .outlooks
+        showDeskWindow()
+        if store.cpcPayload == nil && !store.isCPCLoading {
+            Task { await store.refreshCPC() }
+        }
+    }
+
+    @objc private func selectChaseTab(_ sender: Any?) {
+        store.selectedDeskTab = .chase
+        showDeskWindow()
+        if store.chasePayload == nil && !store.isChaseLoading {
+            Task { await store.refreshChase() }
+        }
+    }
+
     @objc private func setUnitsImperial(_ sender: Any?) {
         store.units = "imperial"
         Task { await store.applyLocationAndUnits() }
@@ -401,6 +458,26 @@ extension AppDelegate: NSMenuItemValidation {
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         if let productId = menuItem.representedObject as? String {
             menuItem.state = (store.selectedRadarProduct == productId) ? .on : .off
+            return true
+        }
+        if menuItem.action == #selector(selectDualTab(_:)) {
+            menuItem.state = (store.selectedDeskTab == .dual) ? .on : .off
+            return true
+        }
+        if menuItem.action == #selector(selectWeatherTab(_:)) {
+            menuItem.state = (store.selectedDeskTab == .weather) ? .on : .off
+            return true
+        }
+        if menuItem.action == #selector(selectRadarTab(_:)) {
+            menuItem.state = (store.selectedDeskTab == .radar) ? .on : .off
+            return true
+        }
+        if menuItem.action == #selector(selectOutlooksTab(_:)) {
+            menuItem.state = (store.selectedDeskTab == .outlooks) ? .on : .off
+            return true
+        }
+        if menuItem.action == #selector(selectChaseTab(_:)) {
+            menuItem.state = (store.selectedDeskTab == .chase) ? .on : .off
             return true
         }
         if menuItem.action == #selector(setUnitsImperial(_:)) {

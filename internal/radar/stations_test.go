@@ -47,3 +47,19 @@ func TestIsStationProduct(t *testing.T) {
 		t.Error("storm total precip should be a station product (uses RIDGE NTP)")
 	}
 }
+
+func TestStationsWithinRadius(t *testing.T) {
+	// Fort Wayne, IN (approx 41.08, -85.14)
+	lat, lon := 41.0793, -85.1394
+	// Within 65km should include KIWX (North Webster, ~56km away)
+	closeStations := StationsWithinRadius(lat, lon, 65.0)
+	if len(closeStations) != 1 || closeStations[0].ID != "KIWX" {
+		t.Errorf("StationsWithinRadius(65km) = %v, want [KIWX]", closeStations)
+	}
+
+	// Within 300km should include multiple stations (KIWX, KIND, KLOT, KGRR, KDTX, KCLE, KILN, etc.)
+	regionalStations := StationsWithinRadius(lat, lon, 300.0)
+	if len(regionalStations) < 5 {
+		t.Errorf("StationsWithinRadius(300km) = %d stations, want >= 5", len(regionalStations))
+	}
+}

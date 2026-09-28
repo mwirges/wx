@@ -66,7 +66,14 @@ struct RadarPanelView: View {
     @State private var recenterID: Int = 0
 
     private var formattedValidTime: String? {
-        guard let iso = store.radarPayload?.validTime else { return nil }
+        let iso: String
+        if store.radarFrames.indices.contains(store.activeFrameIndex) {
+            iso = store.radarFrames[store.activeFrameIndex].validTime
+        } else if let payloadIso = store.radarPayload?.validTime {
+            iso = payloadIso
+        } else {
+            return nil
+        }
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         if let date = formatter.date(from: iso) {
@@ -208,15 +215,16 @@ struct RadarPanelView: View {
 
                     Spacer()
 
-                    // Live badge
+                    // Live badge / Multi-radar composite indicator
+                    let isComp = (store.radarPayload?.isComposite ?? false) || store.selectedRadarRadius > 200
                     HStack(spacing: 5) {
                         Circle()
                             .fill(WxTheme.snwGreen)
                             .frame(width: 5, height: 5)
                             .shadow(color: WxTheme.snwGreen.opacity(0.8), radius: 3)
-                        Text("NOAA MRMS 1KM // LIVE")
+                        Text(isComp ? "NOAA MRMS // COMPOSITE MOSAIC" : "NOAA MRMS 1KM // LIVE")
                             .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                            .foregroundStyle(WxTheme.text)
+                            .foregroundStyle(isComp ? WxTheme.snwCyan : WxTheme.text)
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
@@ -228,8 +236,8 @@ struct RadarPanelView: View {
 
                 Spacer()
 
-                // 3. Floating Bottom HUD: Scale Bar & Metadata
-                HStack(alignment: .bottom) {
+                // 3. Floating Bottom HUD: Scale Bar & Metadata + Radar Transport Bar
+                HStack(alignment: .bottom, spacing: 10) {
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
                             if let loc = store.radarPayload?.location {
@@ -252,7 +260,9 @@ struct RadarPanelView: View {
 
                         scaleBarView
 
-                        Text("NOAA MRMS SENSOR ARRAY · 200 KM SCAN RADIUS · WGS84 VECTOR OVERLAY")
+                        let isCompFooter = (store.radarPayload?.isComposite ?? false) || store.selectedRadarRadius > 200
+                        let radKm = String(format: "%.0f", store.radarPayload?.radiusKm ?? store.selectedRadarRadius)
+                        Text(isCompFooter ? "NOAA MRMS MULTI-RADAR COMPOSITE MOSAIC · \(radKm) KM RADIUS · WGS84 VECTOR OVERLAY" : "NOAA MRMS SENSOR ARRAY · \(radKm) KM SCAN RADIUS · WGS84 VECTOR OVERLAY")
                             .font(.system(size: 8, weight: .medium, design: .monospaced))
                             .foregroundStyle(WxTheme.snwSilver.opacity(0.7))
                     }
@@ -261,7 +271,10 @@ struct RadarPanelView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(WxTheme.border.opacity(0.45), lineWidth: 0.8))
                     .overlay(SNWCornerBrackets(color: WxTheme.snwCyan.opacity(0.7), length: 8, thickness: 1))
-                    .frame(maxWidth: 480)
+                    .frame(maxWidth: 440)
+
+                    RadarTransportBar(compact: false)
+                        .frame(maxWidth: 440)
 
                     Spacer()
                 }
@@ -363,14 +376,15 @@ struct RadarPanelView: View {
 
                             Spacer()
 
+                            let isComp = (store.radarPayload?.isComposite ?? false) || store.selectedRadarRadius > 200
                             HStack(spacing: 5) {
                                 Circle()
                                     .fill(WxTheme.snwGreen)
                                     .frame(width: 5, height: 5)
                                     .shadow(color: WxTheme.snwGreen.opacity(0.8), radius: 3)
-                                Text("NOAA MRMS 1KM // LIVE")
+                                Text(isComp ? "NOAA MRMS // COMPOSITE" : "NOAA MRMS 1KM // LIVE")
                                     .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                                    .foregroundStyle(WxTheme.text)
+                                    .foregroundStyle(isComp ? WxTheme.snwCyan : WxTheme.text)
                             }
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
@@ -460,6 +474,9 @@ struct RadarPanelView: View {
                     .strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 1)
             )
             .overlay(SNWCornerBrackets(color: WxTheme.snwCyan.opacity(0.8), length: 12, thickness: 1.5))
+
+            // Radar Transport Playback Bar
+            RadarTransportBar(compact: true)
 
             // Metadata footer & legend
             VStack(alignment: .leading, spacing: 6) {
@@ -600,3 +617,160 @@ struct RadarPanelView: View {
         }
     }
 }
+
+struct RadarTransportBar: View {
+    @EnvironmentObject var store: WeatherStore
+    var compact: Bool = false
+
+    private var hasFrames: Bool {
+        store.radarFrames.count > 1
+    }
+
+    private var activeFrame: DecodedRadarFrame? {
+        guard store.radarFrames.indices.contains(store.activeFrameIndex) else { return nil }
+        return store.radarFrames[store.activeFrameIndex]
+    }
+
+    private var formattedTime: String {
+        guard let frame = activeFrame else {
+            return store.radarPayload?.validTime ?? "--:--"
+        }
+        if let d = frame.date {
+            return d.formatted(date: .omitted, time: .shortened)
+        }
+        return frame.validTime
+    }
+
+    var body: some View {
+        HStack(spacing: compact ? 6 : 10) {
+            // Play / Pause Button
+            Button {
+                store.toggleLoop()
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: store.isLoopPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: compact ? 9 : 10.5, weight: .bold))
+                    if !compact {
+                        Text(store.isLoopPlaying ? "PAUSE" : "LOOP")
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    }
+                }
+                .foregroundStyle(store.isLoopPlaying ? Color.black : WxTheme.snwCyan)
+                .padding(.horizontal, compact ? 7 : 10)
+                .padding(.vertical, compact ? 4 : 5.5)
+                .background(
+                    store.isLoopPlaying ? WxTheme.snwCyan : WxTheme.snwPanel,
+                    in: RoundedRectangle(cornerRadius: 5)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5)
+                        .strokeBorder(WxTheme.snwCyan.opacity(0.8), lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
+            .disabled(!hasFrames)
+
+            // Step Backward Button
+            Button {
+                store.stepFrameBackward()
+            } label: {
+                Image(systemName: "backward.frame.fill")
+                    .font(.system(size: compact ? 8.5 : 9.5))
+                    .foregroundStyle(WxTheme.snwSilver)
+                    .padding(compact ? 4 : 5.5)
+                    .background(WxTheme.snwPanel, in: RoundedRectangle(cornerRadius: 4))
+                    .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 0.8))
+            }
+            .buttonStyle(.plain)
+            .disabled(!hasFrames)
+
+            // Step Forward Button
+            Button {
+                store.stepFrameForward()
+            } label: {
+                Image(systemName: "forward.frame.fill")
+                    .font(.system(size: compact ? 8.5 : 9.5))
+                    .foregroundStyle(WxTheme.snwSilver)
+                    .padding(compact ? 4 : 5.5)
+                    .background(WxTheme.snwPanel, in: RoundedRectangle(cornerRadius: 4))
+                    .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 0.8))
+            }
+            .buttonStyle(.plain)
+            .disabled(!hasFrames)
+
+            // Interactive Frame Timeline Ticks
+            if hasFrames {
+                HStack(spacing: 3) {
+                    ForEach(store.radarFrames) { f in
+                        let isSelected = (f.id == store.activeFrameIndex)
+                        Button {
+                            store.seekFrame(to: f.id)
+                        } label: {
+                            Capsule()
+                                .fill(isSelected ? WxTheme.snwCyan : (f.isLive ? WxTheme.snwGreen.opacity(0.7) : WxTheme.snwSilver.opacity(0.35)))
+                                .frame(width: compact ? 12 : 18, height: isSelected ? 8 : 5)
+                                .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isSelected)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 4)
+            }
+
+            Spacer(minLength: 4)
+
+            // Time & Relative Badge
+            HStack(spacing: 5) {
+                Text(formattedTime)
+                    .font(.system(size: compact ? 9 : 10, weight: .bold, design: .monospaced))
+                    .foregroundStyle(WxTheme.text)
+
+                let isLive = activeFrame?.isLive ?? true
+                Button {
+                    store.jumpToLive()
+                } label: {
+                    HStack(spacing: 3) {
+                        Circle()
+                            .fill(isLive ? WxTheme.snwGreen : WxTheme.snwCyan)
+                            .frame(width: 4.5, height: 4.5)
+                        Text(activeFrame?.label ?? "LIVE")
+                            .font(.system(size: 8, weight: .heavy, design: .monospaced))
+                            .foregroundStyle(isLive ? WxTheme.snwGreen : WxTheme.snwCyan)
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2.5)
+                    .background(
+                        (isLive ? WxTheme.snwGreen : WxTheme.snwCyan).opacity(0.12),
+                        in: Capsule()
+                    )
+                    .overlay(
+                        Capsule().strokeBorder((isLive ? WxTheme.snwGreen : WxTheme.snwCyan).opacity(0.4), lineWidth: 0.8)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+
+            // Speed toggle (only in full HUD)
+            if !compact {
+                Button {
+                    store.loopStepMs = (store.loopStepMs == 380) ? 190 : 380
+                } label: {
+                    Text(store.loopStepMs == 380 ? "1X" : "2X")
+                        .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                        .foregroundStyle(store.loopStepMs == 190 ? WxTheme.snwCyan : WxTheme.snwSilver)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
+                        .background(WxTheme.snwPanel, in: RoundedRectangle(cornerRadius: 4))
+                        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 0.8))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, compact ? 10 : 12)
+        .padding(.vertical, compact ? 6 : 8)
+        .background(WxTheme.snwChassis.opacity(0.92))
+        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(WxTheme.border.opacity(0.45), lineWidth: 0.8))
+    }
+}
+

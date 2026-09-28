@@ -71,7 +71,15 @@ func writeHeader(w io.Writer, locName string, frame *Frame, opts RenderOptions) 
 	subStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
 	prodStyle := lipgloss.NewStyle().Bold(true).Foreground(productColor(frame.Product))
 
-	prodBadge := "● " + ProductLabel(frame.Product)
+	label := ProductLabel(frame.Product)
+	if frame.IsComposite {
+		if opts.TermWidth >= 85 {
+			label += " (Multi-Radar Composite)"
+		} else if opts.TermWidth >= 65 {
+			label += " (Composite)"
+		}
+	}
+	prodBadge := "● " + label
 	gap := opts.TermWidth - len(locName) - len(prodBadge)
 	if gap < 2 {
 		gap = 2

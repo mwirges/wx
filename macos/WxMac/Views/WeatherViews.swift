@@ -157,6 +157,18 @@ struct NowBlockView: View {
                     }
                 }
             }
+
+            // Air Quality & UV Telemetry
+            if let aq = c?.airQuality ?? store.payload?.airQuality {
+                if let aqi = aq.aqi {
+                    let cat = aq.category.map { " (\($0))" } ?? ""
+                    MetricChip(label: "AQI", value: "\(aqi)\(cat)")
+                }
+                if let uv = aq.uvIndex {
+                    let cat = aq.uvCategory.map { " (\($0))" } ?? ""
+                    MetricChip(label: "UV Index", value: String(format: "%.1f%@", uv, cat))
+                }
+            }
         }
     }
 }
@@ -448,8 +460,8 @@ struct ControlsBar: View {
     var compact: Bool = false
 
     var body: some View {
-        VStack(spacing: compact ? 6 : 8) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
                 LocationBarView()
 
                 Picker("Units", selection: $store.units) {
@@ -458,53 +470,35 @@ struct ControlsBar: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .frame(width: 82)
+                .frame(width: 72)
                 .onChange(of: store.units) { _, _ in
                     Task { await store.applyLocationAndUnits() }
                 }
-            }
 
-            FavoritesQuickBarView()
-
-            HStack(spacing: 6) {
                 Button {
-                    Task { await store.refresh() }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                            .font(.system(size: 9))
-                        Text(compact ? "REFRESH" : "REFRESH SENSORS")
-                            .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                    Task {
+                        await store.refresh()
+                        await store.refreshCPC()
+                        await store.refreshChase()
                     }
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 4)
-                    .background(WxTheme.snwCyan.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
-                    .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwCyan.opacity(0.35), lineWidth: 0.8))
-                    .foregroundStyle(WxTheme.snwCyan)
+                } label: {
+                    if store.isLoading {
+                        ProgressView()
+                            .controlSize(.small)
+                            .frame(width: 14, height: 14)
+                    } else {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(WxTheme.snwCyan)
+                    }
                 }
                 .buttonStyle(.plain)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 5.5)
+                .background(WxTheme.snwChassis.opacity(0.85), in: RoundedRectangle(cornerRadius: 5))
+                .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 0.8))
+                .help("Refresh Sensor Telemetry (⌘R)")
                 .disabled(store.isLoading)
-
-                if !compact {
-                    Button {
-                        Task { await store.applyLocationAndUnits() }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "location.fill")
-                                .font(.system(size: 9))
-                            Text("LOCK LOCATION")
-                                .font(.system(size: 9, weight: .bold, design: .monospaced))
-                        }
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3.5)
-                        .background(WxTheme.snwGold.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
-                        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwGold.opacity(0.35), lineWidth: 0.8))
-                        .foregroundStyle(WxTheme.snwGold)
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                Spacer()
 
                 if showOpenWindow {
                     Button {
@@ -516,10 +510,10 @@ struct ControlsBar: View {
                             Text("RADAR")
                                 .font(.system(size: 8.5, weight: .bold, design: .monospaced))
                         }
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 4)
-                        .background(WxTheme.snwChassis.opacity(0.85), in: RoundedRectangle(cornerRadius: 4))
-                        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwCyan.opacity(0.4), lineWidth: 0.8))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 5.5)
+                        .background(WxTheme.snwChassis.opacity(0.85), in: RoundedRectangle(cornerRadius: 5))
+                        .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(WxTheme.snwCyan.opacity(0.4), lineWidth: 0.8))
                         .foregroundStyle(WxTheme.snwCyan)
                     }
                     .buttonStyle(.plain)
@@ -534,29 +528,29 @@ struct ControlsBar: View {
                             Text("DESK")
                                 .font(.system(size: 8.5, weight: .bold, design: .monospaced))
                         }
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 4)
-                        .background(WxTheme.snwChassis.opacity(0.85), in: RoundedRectangle(cornerRadius: 4))
-                        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwCyan.opacity(0.4), lineWidth: 0.8))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 5.5)
+                        .background(WxTheme.snwChassis.opacity(0.85), in: RoundedRectangle(cornerRadius: 5))
+                        .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(WxTheme.snwCyan.opacity(0.4), lineWidth: 0.8))
                         .foregroundStyle(WxTheme.snwCyan)
                     }
                     .buttonStyle(.plain)
-                    .help("Open Desk Console (⌘1)")
-                } else if let t = store.lastRefreshed {
-                    Text("SYNC // \(t.formatted(date: .omitted, time: .shortened))")
-                        .font(.system(size: 8.5, weight: .medium, design: .monospaced))
-                        .foregroundStyle(WxTheme.snwSilver.opacity(0.75))
+                    .help("Open Tactical Console (⌘1)")
                 }
+            }
+
+            if !store.favorites.isEmpty {
+                FavoritesQuickBarView()
             }
 
             if let err = store.errorMessage {
                 Text("// ALERT: \(err)")
-                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .font(.system(size: 9.5, weight: .medium, design: .monospaced))
                     .foregroundStyle(WxTheme.snwRed)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else if let warn = store.payload?.warning, !warn.isEmpty {
                 Text("// ADVISORY: \(warn)")
-                    .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+                    .font(.system(size: 9, weight: .medium, design: .monospaced))
                     .foregroundStyle(WxTheme.snwAmber)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }

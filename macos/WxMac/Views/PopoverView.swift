@@ -81,6 +81,56 @@ struct PopoverView: View {
                         ControlsBar(showOpenWindow: true, compact: true)
                     }
 
+                    if let shift = store.cpcPayload?.patternShift, shift.hasShift {
+                        Button {
+                            store.selectedDeskTab = .outlooks
+                            NotificationCenter.default.post(name: .wxOpenDeskWindow, object: nil)
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "exclamationmark.bubble.fill")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(WxTheme.snwAmber)
+                                Text("// REGIME SHIFT: \(shift.summary)")
+                                    .font(.system(size: 8.5, weight: .semibold, design: .monospaced))
+                                    .foregroundStyle(WxTheme.text)
+                                    .lineLimit(1)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 8))
+                                    .foregroundStyle(WxTheme.snwCyan)
+                            }
+                            .padding(6)
+                            .background(WxTheme.snwAmber.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
+                            .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwAmber.opacity(0.35), lineWidth: 0.8))
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    if let chase = store.chasePayload, chase.totalClusters > 0 {
+                        Button {
+                            store.selectedDeskTab = .chase
+                            NotificationCenter.default.post(name: .wxOpenDeskWindow, object: nil)
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "bolt.shield.fill")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(WxTheme.snwAmber)
+                                Text("// STORM CHASE: \(chase.totalClusters) ACTIVE CLUSTERS")
+                                    .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(WxTheme.text)
+                                    .lineLimit(1)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 8))
+                                    .foregroundStyle(WxTheme.snwCyan)
+                            }
+                            .padding(6)
+                            .background(WxTheme.snwChassis.opacity(0.85), in: RoundedRectangle(cornerRadius: 4))
+                            .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwCyan.opacity(0.35), lineWidth: 0.8))
+                        }
+                        .buttonStyle(.plain)
+                    }
+
                     SNWConsoleCard(title: "Atmospheric Telemetry", tag: "GRID.OBS") {
                         NowBlockView(compact: true, popoverMetrics: true)
                     }

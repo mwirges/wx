@@ -189,6 +189,8 @@ enum WxCLI {
         product: String? = nil,
         radiusKm: Double? = nil,
         raw: Bool = true,
+        loop: Bool = true,
+        frames: Int = 8,
         timeoutSeconds: TimeInterval = 45
     ) throws -> RadarPayload {
         guard let binary = locateBinary() else { throw WxCLIError.binaryMissing }
@@ -196,6 +198,9 @@ enum WxCLI {
         var args = ["radar", "--json"]
         if raw {
             args.append("--raw")
+        }
+        if loop {
+            args += ["--loop", "--frames", String(max(2, frames))]
         }
         if let location, !location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             args += ["--location", location.trimmingCharacters(in: .whitespacesAndNewlines)]
@@ -216,6 +221,87 @@ enum WxCLI {
 
         do {
             return try JSONDecoder().decode(RadarPayload.self, from: res.stdout)
+        } catch let e as WxCLIError {
+            throw e
+        } catch {
+            throw WxCLIError.decode(error.localizedDescription)
+        }
+    }
+
+    static func fetchCPC(
+        location: String?,
+        timeoutSeconds: TimeInterval = 20
+    ) throws -> CPCPayloadDTO {
+        guard let binary = locateBinary() else { throw WxCLIError.binaryMissing }
+
+        var args = ["outlook", "--json"]
+        if let location, !location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            args += ["--location", location.trimmingCharacters(in: .whitespacesAndNewlines)]
+        }
+
+        let res = try runProcess(binary: binary, args: args, timeoutSeconds: timeoutSeconds)
+        if res.timedOut { throw WxCLIError.timeout }
+
+        if res.exitCode != 0 && res.stdout.isEmpty {
+            throw WxCLIError.failed(status: res.exitCode, stderr: res.stderr)
+        }
+
+        do {
+            return try JSONDecoder().decode(CPCPayloadDTO.self, from: res.stdout)
+        } catch let e as WxCLIError {
+            throw e
+        } catch {
+            throw WxCLIError.decode(error.localizedDescription)
+        }
+    }
+
+    static func fetchChase(
+        timeoutSeconds: TimeInterval = 20
+    ) throws -> ChasePayloadDTO {
+        guard let binary = locateBinary() else { throw WxCLIError.binaryMissing }
+
+        let args = ["chase", "--list", "--json"]
+        let res = try runProcess(binary: binary, args: args, timeoutSeconds: timeoutSeconds)
+        if res.timedOut { throw WxCLIError.timeout }
+
+        if res.exitCode != 0 && res.stdout.isEmpty {
+            throw WxCLIError.failed(status: res.exitCode, stderr: res.stderr)
+        }
+
+        do {
+            return try JSONDecoder().decode(ChasePayloadDTO.self, from: res.stdout)
+        } catch let e as WxCLIError {
+            throw e
+        } catch {
+            throw WxCLIError.decode(error.localizedDescription)
+        }
+    }
+
+    static func fetchHistory(
+        location: String?,
+        days: Int = 14,
+        units: String? = nil,
+        timeoutSeconds: TimeInterval = 25
+    ) throws -> HistoryPayloadDTO {
+        guard let binary = locateBinary() else { throw WxCLIError.binaryMissing }
+
+        var args = ["history", "--json", "--days", String(days)]
+        if let location, !location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            args += ["--location", location.trimmingCharacters(in: .whitespacesAndNewlines)]
+        }
+        if let units, !units.isEmpty {
+            args += ["--units", units]
+        }
+
+        let res = try runProcess(binary: binary, args: args, timeoutSeconds: timeoutSeconds)
+        if res.timedOut { throw WxCLIError.timeout }
+
+        if res.exitCode != 0 && res.stdout.isEmpty {
+            throw WxCLIError.failed(status: res.exitCode, stderr: res.stderr)
+        }
+
+        do {
+            return try JSONDecoder().decode(HistoryPayloadDTO.self, from: res.stdout)
         } catch let e as WxCLIError {
             throw e
         } catch {

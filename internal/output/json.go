@@ -49,6 +49,20 @@ type jsonConditions struct {
 	VisibilityMi *float64 `json:"visibility_mi,omitempty"`
 
 	Astronomy *jsonAstronomy `json:"astronomy,omitempty"`
+	AirQuality *jsonAirQuality `json:"air_quality,omitempty"`
+}
+
+type jsonAirQuality struct {
+	AQI        *int     `json:"aqi,omitempty"`
+	Category   string   `json:"category,omitempty"`
+	UVIndex    *float64 `json:"uv_index,omitempty"`
+	UVCategory string   `json:"uv_category,omitempty"`
+	PM25       *float64 `json:"pm2_5,omitempty"`
+	PM10       *float64 `json:"pm10,omitempty"`
+	Ozone      *float64 `json:"ozone,omitempty"`
+	NO2        *float64 `json:"no2,omitempty"`
+	CO         *float64 `json:"co,omitempty"`
+	SO2        *float64 `json:"so2,omitempty"`
 }
 
 type jsonPeriod struct {
@@ -98,6 +112,7 @@ type jsonOutput struct {
 	Forecast   *jsonForecast   `json:"forecast,omitempty"`
 	Alerts     []jsonAlert     `json:"alerts,omitempty"`
 	Astronomy  *jsonAstronomy  `json:"astronomy,omitempty"`
+	AirQuality *jsonAirQuality `json:"air_quality,omitempty"`
 	Freshness  *jsonFreshness  `json:"freshness,omitempty"`
 }
 
@@ -231,6 +246,23 @@ func renderJSON(data RenderData, opts RenderOptions) error {
 			}
 			jc.Astronomy = ja
 			out.Astronomy = ja
+		}
+
+		if c.AirQuality != nil {
+			jaq := &jsonAirQuality{
+				AQI:        c.AirQuality.AQI,
+				Category:   c.AirQuality.Category,
+				UVIndex:    c.AirQuality.UVIndex,
+				UVCategory: c.AirQuality.UVCategory,
+				PM25:       c.AirQuality.PM25,
+				PM10:       c.AirQuality.PM10,
+				Ozone:      c.AirQuality.O3,
+				NO2:        c.AirQuality.NO2,
+				CO:         c.AirQuality.CO,
+				SO2:        c.AirQuality.SO2,
+			}
+			jc.AirQuality = jaq
+			out.AirQuality = jaq
 		}
 
 		out.Conditions = jc

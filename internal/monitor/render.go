@@ -31,9 +31,11 @@ var (
 	styleInputVal = lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
 	styleInputErr = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
 	styleErr      = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
-	styleAlert    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15")).Background(lipgloss.Color("160"))
-	styleHelpKey  = lipgloss.NewStyle().Foreground(lipgloss.Color("255")).Bold(true)
-	styleHelpDim  = lipgloss.NewStyle().Foreground(lipgloss.Color("238"))
+	styleAlert       = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15")).Background(lipgloss.Color("160"))
+	styleCPCBanner   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("230")).Background(lipgloss.Color("24"))
+	styleChaseBanner = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("230")).Background(lipgloss.Color("130"))
+	styleHelpKey     = lipgloss.NewStyle().Foreground(lipgloss.Color("255")).Bold(true)
+	styleHelpDim     = lipgloss.NewStyle().Foreground(lipgloss.Color("238"))
 	styleLoading  = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
 
 	styleForecastHeader = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
@@ -163,6 +165,13 @@ func (m MonitorModel) buildWeatherLines(w, maxH int) []string {
 		lines = append(lines, "")
 	}
 
+	// Synoptic & Chase Signals
+	sigLines := m.renderSignals(w)
+	if len(sigLines) > 0 {
+		lines = append(lines, sigLines...)
+		lines = append(lines, "")
+	}
+
 	// Conditions block
 	lines = append(lines, m.renderConditions(w)...)
 	lines = append(lines, "")
@@ -198,6 +207,21 @@ func (m MonitorModel) renderAlerts(w int) []string {
 			text += ": " + headline
 		}
 		lines = append(lines, alertStyle.Render(truncateStr(text, w)))
+	}
+	return lines
+}
+
+func (m MonitorModel) renderSignals(w int) []string {
+	var lines []string
+	if m.cpcShift != nil && m.cpcShift.HasShift {
+		text := fmt.Sprintf("🔄 CPC PATTERN SHIFT: %s (Confidence: %s)", m.cpcShift.Summary, m.cpcShift.Confidence)
+		lines = append(lines, styleCPCBanner.Width(w).Render(truncateStr(text, w)))
+	}
+	if len(m.chaseClusters) > 0 {
+		top := m.chaseClusters[0]
+		text := fmt.Sprintf("⚡ STORM CHASE: %d clusters active · Top: %s (%d warnings) · Press 's' to intercept",
+			len(m.chaseClusters), top.Name, top.TotalAlerts)
+		lines = append(lines, styleChaseBanner.Width(w).Render(truncateStr(text, w)))
 	}
 	return lines
 }
@@ -465,9 +489,14 @@ func (m MonitorModel) renderHelpBar() string {
 			key.Render("R") + dim.Render(":" + radarLabel),
 			key.Render("H") + dim.Render(":" + hourlyLabel),
 			key.Render("l") + dim.Render(":location"),
-			key.Render("↑↓") + dim.Render(":scroll"),
-			key.Render("q") + dim.Render(":quit"),
 		}
+		if len(m.chaseClusters) > 0 {
+			parts = append(parts, key.Render("s")+dim.Render(":chase-intercept"))
+		}
+		parts = append(parts,
+			key.Render("↑↓")+dim.Render(":scroll"),
+			key.Render("q")+dim.Render(":quit"),
+		)
 	}
 	bar := strings.Join(parts, dim.Render("  │  "))
 	return bar + "\x1b[K"

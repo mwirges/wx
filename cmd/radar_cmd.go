@@ -383,6 +383,7 @@ func runRadarJSON(
 			ImageBase64:  latestB64,
 			RadiusKM:     opts.RadiusKM,
 			Raw:          opts.Raw,
+			IsComposite:  latest.IsComposite,
 			BBox:         bbox,
 			Center:       center,
 			Frames:       jsonFrames,
@@ -419,6 +420,7 @@ func runRadarJSON(
 		ImageBase64:  b64,
 		RadiusKM:     opts.RadiusKM,
 		Raw:          opts.Raw,
+		IsComposite:  frame.IsComposite,
 		BBox:         bbox,
 		Center:       center,
 		Frames: []radar.JSONFrame{

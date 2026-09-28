@@ -105,10 +105,11 @@ type BBox struct {
 
 // Frame is a single decoded radar image with associated metadata.
 type Frame struct {
-	Img       image.Image
-	ValidTime time.Time
-	Product   Product
-	BBox      *BBox // geographic extent; used for city label overlay
+	Img         image.Image
+	ValidTime   time.Time
+	Product     Product
+	BBox        *BBox // geographic extent; used for city label overlay
+	IsComposite bool  // true if frame composites data from multiple radar stations (mosaic)
 }
 
 // Station represents a NEXRAD radar station.

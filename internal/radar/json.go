@@ -35,6 +35,7 @@ type JSONRadarOutput struct {
 	ImageBase64  string      `json:"image_base64"`
 	RadiusKM     float64     `json:"radius_km"`
 	Raw          bool        `json:"raw,omitempty"`
+	IsComposite  bool        `json:"is_composite,omitempty"`
 	BBox         *JSONBBox   `json:"bbox,omitempty"`
 	Center       *JSONCenter `json:"center,omitempty"`
 	Frames       []JSONFrame `json:"frames,omitempty"`

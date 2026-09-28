@@ -79,7 +79,7 @@ struct DeskWindowView: View {
                     // Wide Dual-Pane Command Console
                     let leftWidth = max(380, min(440, geo.size.width * 0.44))
                     HStack(alignment: .top, spacing: 14) {
-                        // Left Pane: Controls, Surface Conditions, Alerts, Synoptic Forecast
+                        // Left Pane: Controls, Surface Conditions (Atmospheric Telemetry), Alerts, Signals, Synoptic Forecast
                         ScrollView {
                             VStack(alignment: .leading, spacing: 12) {
                                 SNWConsoleCard(title: "Tactical Sensor Control", tag: "SYS.01") {
@@ -91,6 +91,8 @@ struct DeskWindowView: View {
                                 }
 
                                 AlertsListView(popoverMode: false)
+
+                                tacticalSignalsCard
 
                                 SNWConsoleCard(title: "Synoptic Forecast Log", tag: "NOAA.NWS") {
                                     PeriodsListView(limit: nil, compactRows: false)
@@ -119,8 +121,24 @@ struct DeskWindowView: View {
                     // Full Screen Edge-to-Edge Doppler Radar Array
                     RadarPanelView(fullScreen: true)
                         .frame(width: geo.size.width, height: geo.size.height)
+                } else if store.selectedDeskTab == .outlooks {
+                    // CPC Climate Prediction Center Long-Range Outlooks
+                    CPCOutlookView()
+                        .frame(width: geo.size.width, height: geo.size.height)
+                } else if store.selectedDeskTab == .chase {
+                    // Remote Storm Chasing and Active Alert Clusters
+                    StormChaseView()
+                        .frame(width: geo.size.width, height: geo.size.height)
+                } else if store.selectedDeskTab == .climate {
+                    // Climate & Historical Observations Archive
+                    ClimateTrendsView()
+                        .frame(width: geo.size.width, height: geo.size.height)
+                } else if store.selectedDeskTab == .grid {
+                    // Multi-Location Command Grid Matrix
+                    CommandGridView()
+                        .frame(width: geo.size.width, height: geo.size.height)
                 } else {
-                    // Single Column Responsive Layout
+                    // Single Column Responsive Layout (.weather or narrow .dual)
                     ScrollView {
                         VStack(alignment: .leading, spacing: 12) {
                             SNWConsoleCard(title: "Tactical Sensor Control", tag: "SYS.01") {
@@ -132,6 +150,8 @@ struct DeskWindowView: View {
                             }
 
                             AlertsListView(popoverMode: false)
+
+                            tacticalSignalsCard
 
                             SNWConsoleCard(title: "Synoptic Forecast Log", tag: "NOAA.NWS") {
                                 PeriodsListView(limit: nil, compactRows: false)
@@ -165,7 +185,7 @@ struct DeskWindowView: View {
                     .font(.system(size: 8.5, weight: .semibold, design: .monospaced))
                     .foregroundStyle(WxTheme.snwSilver.opacity(0.7))
                 Spacer()
-                Text("SEC.01 // DESK")
+                Text("SEC.01 // TACTICAL")
                     .font(.system(size: 8.5, weight: .bold, design: .monospaced))
                     .foregroundStyle(WxTheme.snwCyan.opacity(0.65))
             }
@@ -184,11 +204,95 @@ struct DeskWindowView: View {
     }
 
     @ViewBuilder
+    private var tacticalSignalsCard: some View {
+        let hasShift = store.cpcPayload?.patternShift.hasShift == true
+        let hasChase = (store.chasePayload?.totalClusters ?? 0) > 0
+
+        if hasShift || hasChase {
+            SNWConsoleCard(title: "Synoptic Signals & Active Hazards", tag: "NOAA.INTEL", statusColor: WxTheme.snwAmber) {
+                VStack(alignment: .leading, spacing: 9) {
+                    if let shift = store.cpcPayload?.patternShift, shift.hasShift {
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: "exclamationmark.bubble.fill")
+                                .font(.system(size: 13))
+                                .foregroundStyle(WxTheme.snwAmber)
+                            VStack(alignment: .leading, spacing: 3) {
+                                HStack {
+                                    Text("REGIME SHIFT:")
+                                        .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                                        .foregroundStyle(WxTheme.snwAmber)
+                                    Spacer()
+                                    Button {
+                                        store.selectedDeskTab = .outlooks
+                                    } label: {
+                                        HStack(spacing: 3) {
+                                            Text("VIEW OUTLOOKS")
+                                            Image(systemName: "arrow.right")
+                                        }
+                                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                                        .foregroundStyle(WxTheme.snwCyan)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                Text(shift.summary)
+                                    .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+                                    .foregroundStyle(WxTheme.text)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                    }
+
+                    if hasShift && hasChase {
+                        Divider().overlay(WxTheme.border.opacity(0.3))
+                    }
+
+                    if let chase = store.chasePayload, chase.totalClusters > 0 {
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: "bolt.shield.fill")
+                                .font(.system(size: 13))
+                                .foregroundStyle(WxTheme.snwAmber)
+                            VStack(alignment: .leading, spacing: 3) {
+                                HStack {
+                                    Text("STORM CHASE // \(chase.totalClusters) ACTIVE CLUSTERS")
+                                        .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                                        .foregroundStyle(WxTheme.snwAmber)
+                                    Spacer()
+                                    Button {
+                                        store.selectedDeskTab = .chase
+                                    } label: {
+                                        HStack(spacing: 3) {
+                                            Text("OPEN CHASE")
+                                            Image(systemName: "arrow.right")
+                                        }
+                                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                                        .foregroundStyle(WxTheme.snwCyan)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                if let top = chase.clusters.first {
+                                    Text("Top: \(top.name) (\(top.totalAlerts) warnings, score: \(top.score))")
+                                        .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+                                        .foregroundStyle(WxTheme.snwSilver)
+                                        .lineLimit(1)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
     private var modeSelector: some View {
-        HStack(spacing: 8) {
-            modeButton(tab: .dual, label: "DUAL CONSOLE", icon: "rectangle.split.2x1.fill")
-            modeButton(tab: .weather, label: "SURFACE SENSORS", icon: "thermometer.sun.fill")
-            modeButton(tab: .radar, label: "DOPPLER RADAR", icon: "dot.radiowaves.left.and.right")
+        HStack(spacing: 6) {
+            modeButton(tab: .dual, label: "TACTICAL", icon: "rectangle.split.2x1.fill")
+            modeButton(tab: .weather, label: "SURFACE", icon: "thermometer.sun.fill")
+            modeButton(tab: .radar, label: "RADAR", icon: "dot.radiowaves.left.and.right")
+            modeButton(tab: .outlooks, label: "CPC OUTLOOKS", icon: "chart.line.uptrend.xyaxis")
+            modeButton(tab: .chase, label: "STORM CHASE", icon: "bolt.shield.fill")
+            modeButton(tab: .climate, label: "CLIMATE", icon: "calendar.day.timeline.left")
+            modeButton(tab: .grid, label: "GRID", icon: "square.grid.2x2.fill")
         }
     }
 
@@ -198,12 +302,24 @@ struct DeskWindowView: View {
             if (tab == .dual || tab == .radar) && store.radarImage == nil && !store.isRadarLoading {
                 Task { await store.refreshRadar() }
             }
+            if tab == .outlooks && store.cpcPayload == nil && !store.isCPCLoading {
+                Task { await store.refreshCPC() }
+            }
+            if tab == .chase && store.chasePayload == nil && !store.isChaseLoading {
+                Task { await store.refreshChase() }
+            }
+            if tab == .climate && store.historyPayload == nil && !store.isHistoryLoading {
+                Task { await store.refreshHistory() }
+            }
+            if tab == .grid && store.gridCards.isEmpty && !store.isGridLoading {
+                Task { await store.refreshGrid() }
+            }
         } label: {
-            HStack(spacing: 5) {
+            HStack(spacing: 4) {
                 Image(systemName: icon)
-                    .font(.system(size: 10.5))
+                    .font(.system(size: 9.5))
                 Text(label)
-                    .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                    .font(.system(size: 8.5, weight: .bold, design: .monospaced))
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 6)

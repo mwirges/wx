@@ -7,9 +7,11 @@ struct WxPayload: Decodable, Sendable {
     var alerts: [Alert]
     var warning: String?
     var astronomy: AstronomyDTO?
+    var airQuality: AirQualityDTO?
 
     enum CodingKeys: String, CodingKey {
         case conditions, forecast, alerts, warning, astronomy
+        case airQuality = "air_quality"
     }
 
     init(from decoder: Decoder) throws {
@@ -19,6 +21,7 @@ struct WxPayload: Decodable, Sendable {
         alerts = try c.decodeIfPresent([Alert].self, forKey: .alerts) ?? []
         warning = try c.decodeIfPresent(String.self, forKey: .warning)
         astronomy = try c.decodeIfPresent(AstronomyDTO.self, forKey: .astronomy)
+        airQuality = try c.decodeIfPresent(AirQualityDTO.self, forKey: .airQuality)
     }
 }
 
@@ -63,6 +66,27 @@ struct AstronomyDTO: Decodable, Sendable {
     }
 }
 
+struct AirQualityDTO: Decodable, Sendable {
+    var aqi: Int?
+    var category: String?
+    var uvIndex: Double?
+    var uvCategory: String?
+    var pm25: Double?
+    var pm10: Double?
+    var ozone: Double?
+    var no2: Double?
+    var co: Double?
+    var so2: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case aqi, category, ozone, no2, co, so2
+        case uvIndex = "uv_index"
+        case uvCategory = "uv_category"
+        case pm25 = "pm2_5"
+        case pm10 = "pm10"
+    }
+}
+
 struct Conditions: Decodable, Sendable {
     var station: String?
     var observedAt: String?
@@ -86,6 +110,7 @@ struct Conditions: Decodable, Sendable {
     var visibilityM: Double?
     var visibilityMi: Double?
     var astronomy: AstronomyDTO?
+    var airQuality: AirQualityDTO?
 
     enum CodingKeys: String, CodingKey {
         case station, location, description
@@ -108,6 +133,7 @@ struct Conditions: Decodable, Sendable {
         case visibilityM = "visibility_m"
         case visibilityMi = "visibility_mi"
         case astronomy
+        case airQuality = "air_quality"
     }
 }
 
@@ -213,6 +239,7 @@ struct RadarPayload: Decodable, Sendable {
     var imageBase64: String
     var radiusKm: Double?
     var raw: Bool?
+    var isComposite: Bool?
     var bbox: RadarBBox?
     var center: RadarCenter?
     var frames: [RadarFrame]
@@ -226,6 +253,7 @@ struct RadarPayload: Decodable, Sendable {
         case imageBase64 = "image_base64"
         case radiusKm = "radius_km"
         case raw
+        case isComposite = "is_composite"
         case bbox
         case center
         case frames
@@ -241,8 +269,206 @@ struct RadarPayload: Decodable, Sendable {
         imageBase64 = try c.decode(String.self, forKey: .imageBase64)
         radiusKm = try c.decodeIfPresent(Double.self, forKey: .radiusKm)
         raw = try c.decodeIfPresent(Bool.self, forKey: .raw)
+        isComposite = try c.decodeIfPresent(Bool.self, forKey: .isComposite)
         bbox = try c.decodeIfPresent(RadarBBox.self, forKey: .bbox)
         center = try c.decodeIfPresent(RadarCenter.self, forKey: .center)
         frames = try c.decodeIfPresent([RadarFrame].self, forKey: .frames) ?? []
     }
 }
+
+struct HistoryDayDTO: Decodable, Identifiable, Sendable {
+    var id: String { date }
+    var date: String
+    var conditionCode: String?
+    var description: String?
+    var tempMaxC: Double?
+    var tempMaxF: Double?
+    var tempMinC: Double?
+    var tempMinF: Double?
+    var apparentMaxC: Double?
+    var apparentMaxF: Double?
+    var precipMm: Double?
+    var precipIn: Double?
+    var windMaxKph: Double?
+    var windMaxMph: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case date, description
+        case conditionCode = "condition_code"
+        case tempMaxC = "temperature_max_c"
+        case tempMaxF = "temperature_max_f"
+        case tempMinC = "temperature_min_c"
+        case tempMinF = "temperature_min_f"
+        case apparentMaxC = "apparent_max_c"
+        case apparentMaxF = "apparent_max_f"
+        case precipMm = "precipitation_mm"
+        case precipIn = "precipitation_in"
+        case windMaxKph = "wind_max_kph"
+        case windMaxMph = "wind_max_mph"
+    }
+}
+
+struct HistorySummaryDTO: Decodable, Sendable {
+    var daysCount: Int
+    var avgTempMaxC: Double?
+    var avgTempMaxF: Double?
+    var avgTempMinC: Double?
+    var avgTempMinF: Double?
+    var totalPrecipMm: Double?
+    var totalPrecipIn: Double?
+    var maxWindKph: Double?
+    var maxWindMph: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case daysCount = "days_count"
+        case avgTempMaxC = "avg_temperature_max_c"
+        case avgTempMaxF = "avg_temperature_max_f"
+        case avgTempMinC = "avg_temperature_min_c"
+        case avgTempMinF = "avg_temperature_min_f"
+        case totalPrecipMm = "total_precipitation_mm"
+        case totalPrecipIn = "total_precipitation_in"
+        case maxWindKph = "max_wind_kph"
+        case maxWindMph = "max_wind_mph"
+    }
+}
+
+struct HistoryPayload: Decodable, Sendable {
+    var location: String?
+    var latitude: Double
+    var longitude: Double
+    var elevationM: Double?
+    var days: [HistoryDayDTO]
+    var summary: HistorySummaryDTO
+
+    enum CodingKeys: String, CodingKey {
+        case location, latitude, longitude, days, summary
+        case elevationM = "elevation_m"
+    }
+}
+
+struct AlertCellDTO: Decodable, Identifiable, Sendable {
+    var id: String
+    var event: String
+    var headline: String?
+    var areaDesc: String?
+    var description: String?
+    var severity: String?
+    var urgency: String?
+    var certainty: String?
+    var senderName: String?
+    var states: [String]
+    var latitude: Double
+    var longitude: Double
+    var hasPolygon: Bool
+    var hazardText: String?
+    var radarSite: String?
+    var effective: String?
+    var expires: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, event, headline, description, severity, urgency, certainty, states, latitude, longitude
+        case areaDesc = "area_desc"
+        case senderName = "sender_name"
+        case hasPolygon = "has_polygon"
+        case hazardText = "hazard_text"
+        case radarSite = "radar_site"
+        case effective, expires
+    }
+}
+
+struct StormClusterDTO: Decodable, Identifiable, Sendable {
+    var id: Int
+    var name: String
+    var states: [String]
+    var centerLat: Double
+    var centerLon: Double
+    var nearestRadar: String
+    var totalAlerts: Int
+    var score: Int
+    var hazardsCount: [String: Int]
+    var primaryHazard: String
+    var cells: [AlertCellDTO]
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, states, score, cells
+        case centerLat = "center_lat"
+        case centerLon = "center_lon"
+        case nearestRadar = "nearest_radar"
+        case totalAlerts = "total_alerts"
+        case hazardsCount = "hazards_count"
+        case primaryHazard = "primary_hazard"
+    }
+}
+
+struct ChasePayloadDTO: Decodable, Sendable {
+    var generatedAt: String
+    var totalAlerts: Int
+    var totalClusters: Int
+    var clusters: [StormClusterDTO]
+
+    enum CodingKeys: String, CodingKey {
+        case clusters
+        case generatedAt = "generated_at"
+        case totalAlerts = "total_alerts"
+        case totalClusters = "total_clusters"
+    }
+}
+
+struct CPCOutlookItemDTO: Decodable, Identifiable, Sendable {
+    var id: String { horizon }
+    var horizon: String
+    var startDate: String
+    var endDate: String
+    var tempCategory: String
+    var tempProbability: Double
+    var precipCategory: String
+    var precipProbability: Double
+
+    enum CodingKeys: String, CodingKey {
+        case horizon
+        case startDate = "start_date"
+        case endDate = "end_date"
+        case tempCategory = "temp_category"
+        case tempProbability = "temp_probability"
+        case precipCategory = "precip_category"
+        case precipProbability = "precip_probability"
+    }
+}
+
+struct CPCDroughtDTO: Decodable, Sendable {
+    var status: String
+    var target: String?
+}
+
+struct CPCPatternShiftDTO: Decodable, Sendable {
+    var hasShift: Bool
+    var summary: String
+    var tempShift: String?
+    var precipShift: String?
+    var confidence: String?
+
+    enum CodingKeys: String, CodingKey {
+        case hasShift = "has_shift"
+        case summary
+        case tempShift = "temp_shift"
+        case precipShift = "precip_shift"
+        case confidence
+    }
+}
+
+struct CPCPayloadDTO: Decodable, Sendable {
+    var location: String
+    var coordinates: [Double]?
+    var fetchedAt: String
+    var outlooks: [CPCOutlookItemDTO]
+    var drought: CPCDroughtDTO?
+    var patternShift: CPCPatternShiftDTO
+
+    enum CodingKeys: String, CodingKey {
+        case location, coordinates, outlooks, drought
+        case fetchedAt = "fetched_at"
+        case patternShift = "pattern_shift"
+    }
+}
+
+typealias HistoryPayloadDTO = HistoryPayload
