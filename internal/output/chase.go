@@ -45,9 +45,32 @@ func RenderChaseTo(w io.Writer, payload *models.ChasePayload, opts ChaseOptions)
 		return enc.Encode(payload)
 	}
 
+	// ── SPC Convective Hazard Strip ──────────────────────────────────────
+	if payload.SPC != nil {
+		var spcParts []string
+		if payload.SPC.MaxNationalRisk.DN > 0 {
+			spcParts = append(spcParts, fmt.Sprintf("CONUS Risk Ceiling: [%s] %s", payload.SPC.MaxNationalRisk.Code, payload.SPC.MaxNationalRisk.Name))
+		}
+		if len(payload.SPC.ActiveWatches) > 0 {
+			spcParts = append(spcParts, fmt.Sprintf("%d Active Watch(es)", len(payload.SPC.ActiveWatches)))
+		}
+		if len(payload.SPC.ActiveMCDs) > 0 {
+			mcdSummaryList := make([]string, 0, len(payload.SPC.ActiveMCDs))
+			for _, m := range payload.SPC.ActiveMCDs {
+				mcdSummaryList = append(mcdSummaryList, fmt.Sprintf("%s (%s watch prob)", m.Name, m.WatchProbability))
+			}
+			spcParts = append(spcParts, fmt.Sprintf("Active MCD(s): %s", strings.Join(mcdSummaryList, ", ")))
+		}
+		if len(spcParts) > 0 {
+			spcBanner := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("220")).Render("⚡ SPC CONVECTIVE CONTEXT: ") +
+				lipgloss.NewStyle().Foreground(lipgloss.Color("252")).Render(strings.Join(spcParts, " • "))
+			fmt.Fprintln(w, spcBanner)
+		}
+	}
+
 	if len(payload.Clusters) == 0 {
 		fmt.Fprintln(w, styleLocation.Render("No active severe weather clusters detected nationwide."))
-		fmt.Fprintln(w, styleTime.Render("Sky is calm across the CONUS. Run 'wx' to check your local forecast."))
+		fmt.Fprintln(w, styleTime.Render("Sky is calm across the CONUS. Run 'wx' to check your local forecast or 'wx spc' for convective outlooks."))
 		return nil
 	}
 
@@ -66,7 +89,12 @@ func RenderChaseTo(w io.Writer, payload *models.ChasePayload, opts ChaseOptions)
 			topTag = " " + styleTopBadge.Render("★ HIGHEST IMPACT")
 		}
 
-		fmt.Fprintf(w, "%s %s %s%s\n", numBadge, title, alertsBadge, topTag)
+		spcTag := ""
+		if c.SPCRisk != "" && c.SPCRisk != "NONE" {
+			spcTag = " " + lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("220")).Render(fmt.Sprintf("[%s RISK]", c.SPCRisk))
+		}
+
+		fmt.Fprintf(w, "%s %s %s%s%s\n", numBadge, title, alertsBadge, spcTag, topTag)
 
 		statesStr := strings.Join(c.States, ", ")
 		if statesStr == "" {
@@ -78,6 +106,10 @@ func RenderChaseTo(w io.Writer, payload *models.ChasePayload, opts ChaseOptions)
 			radarStr = "N/A"
 		}
 		fmt.Fprintf(w, "    %s\n", styleClusterMeta.Render(fmt.Sprintf("States: %s • Center: %s • Radar: %s", statesStr, centerStr, radarStr)))
+
+		if c.MCDWatch != "" {
+			fmt.Fprintf(w, "    %s %s\n", styleLabel.Render("SPC Context:"), lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("214")).Render(c.MCDWatch))
+		}
 
 		// Hazard breakdown
 		var hazardList []string
@@ -136,6 +168,16 @@ func RenderClusterDetail(w io.Writer, c *models.StormCluster, opts ChaseOptions)
 	fmt.Fprintln(w, styleChaseHeader.Render(title))
 	statesStr := strings.Join(c.States, ", ")
 	fmt.Fprintln(w, styleClusterMeta.Render(fmt.Sprintf("States: %s • Center: %.2f, %.2f • Nearest Radar: %s • Severity Score: %d", statesStr, c.CenterLat, c.CenterLon, c.NearestRadar, c.Score)))
+	if c.MCDWatch != "" || (c.SPCRisk != "" && c.SPCRisk != "NONE") {
+		var spcNotes []string
+		if c.SPCRisk != "" && c.SPCRisk != "NONE" {
+			spcNotes = append(spcNotes, fmt.Sprintf("Convective Risk: [%s]", c.SPCRisk))
+		}
+		if c.MCDWatch != "" {
+			spcNotes = append(spcNotes, fmt.Sprintf("Active Watch/MCD: %s", c.MCDWatch))
+		}
+		fmt.Fprintf(w, "%s %s\n", styleLabel.Render("SPC Context:"), lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("214")).Render(strings.Join(spcNotes, " • ")))
+	}
 	fmt.Fprintln(w, styleLabel.Render(strings.Repeat("─", 78)))
 	fmt.Fprintln(w)
 

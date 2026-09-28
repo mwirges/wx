@@ -44,6 +44,10 @@ func chaseCommand() *cli.Command {
 				Usage:   "filter to only convective severe thunderstorm and tornado warnings",
 			},
 			&cli.BoolFlag{
+				Name:  "spc",
+				Usage: "display official SPC convective outlooks and active mesoscale discussions",
+			},
+			&cli.BoolFlag{
 				Name:    "list",
 				Aliases: []string{"l"},
 				Usage:   "list clusters and exit without interactive menu",
@@ -71,6 +75,7 @@ func runChase(c *cli.Context) error {
 	radarJump := c.Bool("radar")
 	onlyTornado := c.Bool("tornado")
 	onlySevere := c.Bool("severe")
+	onlySPC := c.Bool("spc")
 	noCache := c.Bool("no-cache")
 
 	var targetID int
@@ -86,6 +91,8 @@ func runChase(c *cli.Context) error {
 			onlyTornado = true
 		case "--severe", "-s":
 			onlySevere = true
+		case "--spc":
+			onlySPC = true
 		case "--no-cache":
 			noCache = true
 		default:
@@ -111,6 +118,14 @@ func runChase(c *cli.Context) error {
 	payload, err := chase.FetchClusters(ctx, ch)
 	if err != nil {
 		return fmt.Errorf("chase: %w", err)
+	}
+
+	// Direct SPC outlook mode if requested
+	if onlySPC {
+		if payload.SPC != nil {
+			return output.RenderSPC(payload.SPC, output.SPCOptions{ForceJSON: forceJSON, ForcePretty: !forceJSON})
+		}
+		return fmt.Errorf("no SPC convective data available")
 	}
 
 	// Apply filters if requested
@@ -190,7 +205,7 @@ func runInteractiveChase(payload *models.ChasePayload, ch *cache.Cache) error {
 			return nil
 		}
 
-		fmt.Print("⚡ Select cluster [1-N], [r]adar on top hotspot, or [q]uit: ")
+		fmt.Print("⚡ Select cluster [1-N], [r]adar on top hotspot, [s]pc outlook, or [q]uit: ")
 		input, err := reader.ReadString('\n')
 		if err != nil {
 			return nil
@@ -198,6 +213,14 @@ func runInteractiveChase(payload *models.ChasePayload, ch *cache.Cache) error {
 		input = strings.TrimSpace(input)
 		if input == "q" || input == "quit" || input == "exit" {
 			return nil
+		}
+		if input == "s" || input == "spc" {
+			if payload.SPC != nil {
+				_ = output.RenderSPC(payload.SPC, output.SPCOptions{ForcePretty: true})
+				fmt.Print("\nPress Enter to return to clusters...")
+				_, _ = reader.ReadString('\n')
+			}
+			continue
 		}
 		if input == "r" || input == "radar" {
 			top := &payload.Clusters[0]

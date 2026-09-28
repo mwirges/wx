@@ -35,6 +35,8 @@ type StormCluster struct {
 	Score         int            `json:"score"`
 	HazardsCount  map[string]int `json:"hazards_count"`
 	PrimaryHazard string         `json:"primary_hazard"`
+	SPCRisk       string         `json:"spc_risk,omitempty"`
+	MCDWatch      string         `json:"mcd_watch,omitempty"`
 	Cells         []AlertCell    `json:"cells"`
 }
 
@@ -43,5 +45,6 @@ type ChasePayload struct {
 	GeneratedAt   time.Time      `json:"generated_at"`
 	TotalAlerts   int            `json:"total_alerts"`
 	TotalClusters int            `json:"total_clusters"`
+	SPC           *SPCPayload    `json:"spc,omitempty"`
 	Clusters      []StormCluster `json:"clusters"`
 }

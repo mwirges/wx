@@ -10,11 +10,13 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/mwirges/wx/internal/cache"
 	"github.com/mwirges/wx/internal/models"
 	"github.com/mwirges/wx/internal/radar"
+	"github.com/mwirges/wx/internal/spc"
 )
 
 const (
@@ -158,11 +160,47 @@ func (cl *Client) FetchClusters(ctx context.Context, c *cache.Cache) (*models.Ch
 
 	clusters := clusterAlerts(cells)
 
+	// Fetch SPC convective context in parallel
+	var (
+		spcMCDs    []models.MesoscaleDiscussion
+		spcWatches []models.SPCWatch
+		spcMaxRisk models.SPCRiskCategory
+		spcWG      sync.WaitGroup
+	)
+	spcWG.Add(3)
+	go func() {
+		defer spcWG.Done()
+		if res, err := spc.FetchActiveMCDs(ctx, c); err == nil {
+			spcMCDs = res
+		}
+	}()
+	go func() {
+		defer spcWG.Done()
+		if res, err := spc.FetchActiveWatches(ctx, c); err == nil {
+			spcWatches = res
+		}
+	}()
+	go func() {
+		defer spcWG.Done()
+		if res, err := spc.FetchNationalMaxRisk(ctx, c); err == nil {
+			spcMaxRisk = res
+		}
+	}()
+	spcWG.Wait()
+
+	correlateClustersWithSPC(clusters, spcMCDs, spcWatches, spcMaxRisk)
+
 	payload := &models.ChasePayload{
 		GeneratedAt:   time.Now().UTC(),
 		TotalAlerts:   len(cells),
 		TotalClusters: len(clusters),
-		Clusters:      clusters,
+		SPC: &models.SPCPayload{
+			FetchedAt:       time.Now().UTC(),
+			ActiveMCDs:      spcMCDs,
+			ActiveWatches:   spcWatches,
+			MaxNationalRisk: spcMaxRisk,
+		},
+		Clusters: clusters,
 	}
 
 	if c != nil {
@@ -170,6 +208,53 @@ func (cl *Client) FetchClusters(ctx context.Context, c *cache.Cache) (*models.Ch
 	}
 
 	return payload, nil
+}
+
+func correlateClustersWithSPC(clusters []models.StormCluster, mcds []models.MesoscaleDiscussion, watches []models.SPCWatch, maxRisk models.SPCRiskCategory) {
+	for i := range clusters {
+		cl := &clusters[i]
+		if maxRisk.DN > 0 {
+			cl.SPCRisk = maxRisk.Code
+		}
+
+		// Check active watches first
+		for _, w := range watches {
+			if matchesAnyState(cl.States, w.States) {
+				cl.MCDWatch = fmt.Sprintf("Watch #%d (%s)", w.WatchNumber, w.Type)
+				break
+			}
+		}
+
+		// If no watch, check active MCDs
+		if cl.MCDWatch == "" && len(mcds) > 0 {
+			for _, m := range mcds {
+				if m.Lat != 0 && m.Lon != 0 {
+					d := haversineKm(cl.CenterLat, cl.CenterLon, m.Lat, m.Lon)
+					if d <= 450.0 {
+						probText := ""
+						if m.WatchProbability != "" {
+							probText = fmt.Sprintf(", %s watch prob", m.WatchProbability)
+						}
+						cl.MCDWatch = fmt.Sprintf("%s (%s%s)", m.Name, m.Concerning, probText)
+						break
+					}
+				}
+			}
+		}
+	}
+}
+
+func matchesAnyState(s1, s2 []string) bool {
+	set := make(map[string]bool)
+	for _, s := range s1 {
+		set[s] = true
+	}
+	for _, s := range s2 {
+		if set[s] {
+			return true
+		}
+	}
+	return false
 }
 
 func extractCentroid(feat nwsAlertFeature) (lat float64, lon float64, hasPoly bool) {

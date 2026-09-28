@@ -1,27 +1,28 @@
 # wx — Next Slice Handoff & Implementation Candidates
 
 Generated: 2026-09-27  
-Status: Options 1–5 successfully delivered and verified (`make test && make vet` passing, `make mac-dmg` verified). Ready for fresh session.
+Status: Items 1 & 2 delivered and verified (`make test && make vet` passing across all 18 packages, `make mac-dmg` verified). Ready for next slice.
 
 ---
 
-## 1. Multi-Radar Composite Mosaic (Zoom-Out Coverage)
-* **Goal**: When zoomed out beyond single-station range (>250–300 miles) or viewing regional/national scales, composite multiple adjacent NEXRAD stations or fetch NOAA MRMS CONUS seamless mosaic tiles.
-* **Architecture**:
-  - `internal/radar/`: Multi-station tile blending or MRMS national composite layer provider.
-  - Mac App (`RadarMapView.swift`): Switch smoothly between local NEXRAD high-res single-site and CONUS mosaic overlay based on MapKit zoom region span (`region.span.latitudeDelta`).
-  - Terminal (`internal/radar/render.go`): Multi-station sampling when bounding box spans multiple radars.
+## Completed Slices
+
+### 1. Multi-Radar Composite Mosaic (Zoom-Out Coverage) — Completed (babf266)
+* Multi-station tile blending with NOAA MRMS national composite fallback.
+* Terminal radar header displaying contributing station count.
+* MapKit dynamic scale switching and radar radius expansion chips.
+
+### 2. SPC Convective Outlooks & Mesoscale Discussions — Completed
+* Ingests official NOAA SPC Day 1 / Day 2 / Day 3 categorical risk boundaries (TSTM, MRGL, SLGT, ENH, MDT, HIGH) and probabilistic layers (Tornado, Hail, Damaging Wind).
+* Surfaces active Mesoscale Discussions (MCD) with watch probability, affected areas, and summaries.
+* Monitors active Tornado and Severe Thunderstorm Watches nationwide.
+* Exposes `wx spc [location]`, `wx outlook --spc`, `wx chase --spc`, and interactive `s` key in `wx chase`.
+* Auto-correlates remote storm chase clusters with active MCDs and convective risk ceilings.
+* High-visibility SPC Convective Intelligence & MCD Console in the Mac App `STORM CHASE` tab.
 
 ---
 
-## 2. SPC (Storm Prediction Center) Convective Outlooks & Mesoscale Discussions
-* **Goal**: Deepen the remote storm chasing and hazard awareness capabilities with official SPC severe weather outlooks.
-* **Deliverables**:
-  - Ingest SPC Day 1 / Day 2 / Day 3 categorical risk boundaries (General Thunder, Marginal, Slight, Enhanced, Moderate, High) and probabilistic layers (Tornado, Hail, Damaging Wind).
-  - Surface active Mesoscale Discussions (MCD) and Tornado/Severe Thunderstorm Watches.
-  - Wire into `wx chase` / `wx outlook --spc` and the Mac App `STORM CHASE` console.
-
----
+## Upcoming Candidates (In Priority Order)
 
 ## 3. Air Quality Index (AQI) & Smoke Plume Console
 * **Goal**: Surface real-time air quality metrics alongside atmospheric telemetry.

@@ -390,6 +390,8 @@ struct StormClusterDTO: Decodable, Identifiable, Sendable {
     var score: Int
     var hazardsCount: [String: Int]
     var primaryHazard: String
+    var spcRisk: String?
+    var mcdWatch: String?
     var cells: [AlertCellDTO]
 
     enum CodingKeys: String, CodingKey {
@@ -400,6 +402,8 @@ struct StormClusterDTO: Decodable, Identifiable, Sendable {
         case totalAlerts = "total_alerts"
         case hazardsCount = "hazards_count"
         case primaryHazard = "primary_hazard"
+        case spcRisk = "spc_risk"
+        case mcdWatch = "mcd_watch"
     }
 }
 
@@ -407,10 +411,11 @@ struct ChasePayloadDTO: Decodable, Sendable {
     var generatedAt: String
     var totalAlerts: Int
     var totalClusters: Int
+    var spc: SPCPayloadDTO?
     var clusters: [StormClusterDTO]
 
     enum CodingKeys: String, CodingKey {
-        case clusters
+        case clusters, spc
         case generatedAt = "generated_at"
         case totalAlerts = "total_alerts"
         case totalClusters = "total_clusters"
@@ -475,3 +480,108 @@ struct CPCPayloadDTO: Decodable, Sendable {
 }
 
 typealias HistoryPayloadDTO = HistoryPayload
+
+// ── SPC Convective Outlook & Mesoscale Discussion DTOs ──────────────────────
+
+struct SPCRiskCategoryDTO: Decodable, Sendable {
+    var dn: Int
+    var code: String
+    var name: String
+    var description: String
+    var color: String
+}
+
+struct SPCOutlookItemDTO: Decodable, Identifiable, Sendable {
+    var id: String { "Day \(day)" }
+    var day: Int
+    var valid: String?
+    var expires: String?
+    var issue: String?
+    var category: SPCRiskCategoryDTO
+    var tornadoProb: String?
+    var tornadoSig: Bool?
+    var hailProb: String?
+    var hailSig: Bool?
+    var windProb: String?
+    var windSig: Bool?
+    var severeProb: String?
+    var severeSig: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case day, valid, expires, issue, category
+        case tornadoProb = "tornado_prob"
+        case tornadoSig = "tornado_sig"
+        case hailProb = "hail_prob"
+        case hailSig = "hail_sig"
+        case windProb = "wind_prob"
+        case windSig = "wind_sig"
+        case severeProb = "severe_prob"
+        case severeSig = "severe_sig"
+    }
+}
+
+struct MesoscaleDiscussionDTO: Decodable, Identifiable, Sendable {
+    var id: Int
+    var name: String
+    var title: String?
+    var url: String?
+    var areasAffected: String?
+    var concerning: String?
+    var watchProbability: String?
+    var summary: String?
+    var sent: String?
+    var expires: String?
+    var lat: Double?
+    var lon: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, title, url, summary, sent, expires, lat, lon
+        case areasAffected = "areas_affected"
+        case concerning
+        case watchProbability = "watch_probability"
+    }
+}
+
+struct SPCWatchDTO: Decodable, Identifiable, Sendable {
+    var id: String
+    var watchNumber: Int
+    var type: String
+    var headline: String?
+    var areaDesc: String?
+    var states: [String]?
+    var effective: String?
+    var expires: String?
+    var active: Bool?
+    var severity: String?
+    var urgency: String?
+    var url: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, type, headline, states, effective, expires, active, severity, urgency, url
+        case watchNumber = "watch_number"
+        case areaDesc = "area_desc"
+    }
+}
+
+struct SPCPayloadDTO: Decodable, Sendable {
+    var location: String?
+    var coordinates: [Double]?
+    var fetchedAt: String?
+    var day1: SPCOutlookItemDTO?
+    var day2: SPCOutlookItemDTO?
+    var day3: SPCOutlookItemDTO?
+    var activeMCDs: [MesoscaleDiscussionDTO]?
+    var activeWatches: [SPCWatchDTO]?
+    var maxNationalRisk: SPCRiskCategoryDTO?
+    var convectiveSummary: String?
+
+    enum CodingKeys: String, CodingKey {
+        case location, coordinates
+        case fetchedAt = "fetched_at"
+        case day1, day2, day3
+        case activeMCDs = "active_mcds"
+        case activeWatches = "active_watches"
+        case maxNationalRisk = "max_national_risk"
+        case convectiveSummary = "convective_summary"
+    }
+}

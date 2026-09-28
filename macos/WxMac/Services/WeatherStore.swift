@@ -67,6 +67,10 @@ final class WeatherStore: ObservableObject {
     @Published var isChaseLoading = false
     @Published var chaseErrorMessage: String?
 
+    @Published var spcPayload: SPCPayloadDTO?
+    @Published var isSPCLoading = false
+    @Published var spcErrorMessage: String?
+
     @Published var historyPayload: HistoryPayloadDTO?
     @Published var isHistoryLoading = false
     @Published var historyErrorMessage: String?
@@ -399,8 +403,30 @@ final class WeatherStore: ObservableObject {
         do {
             let res = try await backend.fetchChase()
             chasePayload = res
+            if let spc = res.spc {
+                spcPayload = spc
+            }
         } catch {
             chaseErrorMessage = error.localizedDescription
+        }
+    }
+
+    func refreshSPC() async {
+        isSPCLoading = true
+        spcErrorMessage = nil
+        defer { isSPCLoading = false }
+
+        guard backend.isAvailable else {
+            spcErrorMessage = WxCLIError.binaryMissing.errorDescription
+            return
+        }
+
+        let loc = locationInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        do {
+            let res = try await backend.fetchSPC(location: loc.isEmpty ? nil : loc)
+            spcPayload = res
+        } catch {
+            spcErrorMessage = error.localizedDescription
         }
     }
 

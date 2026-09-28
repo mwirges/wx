@@ -255,6 +255,33 @@ enum WxCLI {
         }
     }
 
+    static func fetchSPC(
+        location: String? = nil,
+        timeoutSeconds: TimeInterval = 20
+    ) throws -> SPCPayloadDTO {
+        guard let binary = locateBinary() else { throw WxCLIError.binaryMissing }
+
+        var args = ["spc", "--json"]
+        if let loc = location, !loc.isEmpty {
+            args.append(contentsOf: ["--location", loc])
+        }
+
+        let res = try runProcess(binary: binary, args: args, timeoutSeconds: timeoutSeconds)
+        if res.timedOut { throw WxCLIError.timeout }
+
+        if res.exitCode != 0 && res.stdout.isEmpty {
+            throw WxCLIError.failed(status: res.exitCode, stderr: res.stderr)
+        }
+
+        do {
+            return try JSONDecoder().decode(SPCPayloadDTO.self, from: res.stdout)
+        } catch let e as WxCLIError {
+            throw e
+        } catch {
+            throw WxCLIError.decode(error.localizedDescription)
+        }
+    }
+
     static func fetchChase(
         timeoutSeconds: TimeInterval = 20
     ) throws -> ChasePayloadDTO {

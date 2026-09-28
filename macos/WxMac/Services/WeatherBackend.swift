@@ -7,6 +7,7 @@ protocol WeatherBackend: Sendable {
     func fetch(location: String?, units: String?) async throws -> WxPayload
     func fetchRadar(location: String?, product: String?, radiusKm: Double?, raw: Bool, loop: Bool, frames: Int) async throws -> RadarPayload
     func fetchCPC(location: String?) async throws -> CPCPayloadDTO
+    func fetchSPC(location: String?) async throws -> SPCPayloadDTO
     func fetchChase() async throws -> ChasePayloadDTO
     func fetchHistory(location: String?, days: Int, units: String?) async throws -> HistoryPayloadDTO
     func persistConfig(location: String?, units: String?) async throws
@@ -42,6 +43,12 @@ struct WxCLIBackend: WeatherBackend {
     func fetchCPC(location: String?) async throws -> CPCPayloadDTO {
         try await Task.detached(priority: .userInitiated) {
             try WxCLI.fetchCPC(location: location)
+        }.value
+    }
+
+    func fetchSPC(location: String?) async throws -> SPCPayloadDTO {
+        try await Task.detached(priority: .userInitiated) {
+            try WxCLI.fetchSPC(location: location)
         }.value
     }
 
