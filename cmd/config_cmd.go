@@ -58,6 +58,10 @@ func configCommand() *cli.Command {
 						Aliases: []string{"n"},
 						Usage:   "default desktop notifications: true or false (empty to clear)",
 					},
+					&cli.StringFlag{
+						Name:  "menu-bar-format",
+						Usage: "default macOS menu bar format: compact, standard, or tactical (empty to clear)",
+					},
 				},
 				Action: configSet,
 			},
@@ -87,6 +91,7 @@ func configShow(c *cli.Context) error {
 		notifVal = fmt.Sprintf("%t", *cfg.Notifications)
 	}
 	printConfigField("notifications", notifVal)
+	printConfigField("menu_bar_format", cfg.MenuBarFormat)
 	fmt.Println()
 
 	if len(cfg.Favorites) > 0 {
@@ -142,8 +147,8 @@ func printConfigField(key, value string) {
 }
 
 func configSet(c *cli.Context) error {
-	if !c.IsSet("location") && !c.IsSet("units") && !c.IsSet("notifications") {
-		return fmt.Errorf("provide at least one flag: --location, --units, or --notifications (see: wx config set --help)")
+	if !c.IsSet("location") && !c.IsSet("units") && !c.IsSet("provider") && !c.IsSet("notifications") && !c.IsSet("menu-bar-format") {
+		return fmt.Errorf("provide at least one flag: --location, --units, --provider, --notifications, or --menu-bar-format (see: wx config set --help)")
 	}
 
 	path, err := config.Path()
@@ -187,6 +192,13 @@ func configSet(c *cli.Context) error {
 			return fmt.Errorf("invalid notifications %q: must be true or false", v)
 		}
 	}
+	if c.IsSet("menu-bar-format") {
+		v := strings.ToLower(c.String("menu-bar-format"))
+		if v != "" && v != "compact" && v != "standard" && v != "tactical" {
+			return fmt.Errorf("invalid menu-bar-format %q: must be compact, standard, or tactical", v)
+		}
+		cfg.MenuBarFormat = v
+	}
 
 	if err := config.Save(path, cfg); err != nil {
 		return err
@@ -202,6 +214,7 @@ func configSet(c *cli.Context) error {
 		notifVal = fmt.Sprintf("%t", *cfg.Notifications)
 	}
 	printConfigField("notifications", notifVal)
+	printConfigField("menu_bar_format", cfg.MenuBarFormat)
 	fmt.Println()
 
 	return nil

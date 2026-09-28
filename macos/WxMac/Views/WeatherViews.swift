@@ -475,6 +475,36 @@ struct ControlsBar: View {
                     Task { await store.applyLocationAndUnits() }
                 }
 
+                Menu {
+                    ForEach(MenuBarFormat.allCases) { fmt in
+                        Button {
+                            store.setMenuBarFormat(fmt)
+                        } label: {
+                            HStack {
+                                Text(fmt.displayName)
+                                if store.menuBarFormat == fmt {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 3) {
+                        Image(systemName: "menubar.dock.rectangle")
+                            .font(.system(size: 8.5))
+                        Text(store.menuBarFormat.rawValue.uppercased())
+                            .font(.system(size: 8, weight: .bold, design: .monospaced))
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 5.5)
+                    .background(WxTheme.snwChassis.opacity(0.85), in: RoundedRectangle(cornerRadius: 5))
+                    .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 0.8))
+                    .foregroundStyle(WxTheme.snwSilver)
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .help("Configure Menu Bar HUD Format (Compact, Standard, Tactical)")
+
                 Button {
                     Task {
                         await store.refresh()

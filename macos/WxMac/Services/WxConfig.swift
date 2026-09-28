@@ -27,6 +27,7 @@ struct WxConfigFile: Codable, Sendable {
     var units: String?
     var provider: String?
     var notifications: Bool?
+    var menuBarFormat: String?
     var favorites: [WxLocationEntry]?
     var recentLocations: [String]?
     var perLocation: [String: WxPerLocationSettings]?
@@ -36,6 +37,7 @@ struct WxConfigFile: Codable, Sendable {
         case units
         case provider
         case notifications
+        case menuBarFormat = "menu_bar_format"
         case favorites
         case recentLocations = "recent_locations"
         case perLocation = "per_location"
@@ -109,6 +111,12 @@ enum WxConfig {
     static func clearRecents() {
         var cfg = load()
         cfg.recentLocations = []
+        save(cfg)
+    }
+
+    static func setMenuBarFormat(_ format: String) {
+        var cfg = load()
+        cfg.menuBarFormat = format
         save(cfg)
     }
 

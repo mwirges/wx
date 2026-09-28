@@ -51,6 +51,9 @@ type Config struct {
 
 	// PerLocation stores customized settings per location (alias, zip, or city name).
 	PerLocation map[string]PerLocationSettings `json:"per_location,omitempty"`
+
+	// MenuBarFormat specifies the macOS menu bar format: "compact", "standard", or "tactical".
+	MenuBarFormat string `json:"menu_bar_format,omitempty"`
 }
 
 // GetFavorite looks up a favorite location by name (case-insensitive).

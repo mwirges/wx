@@ -43,6 +43,7 @@ final class WeatherStore: ObservableObject {
     @Published var errorMessage: String?
     @Published var locationInput: String = ""
     @Published var units: String = "imperial"
+    @Published var menuBarFormat: MenuBarFormat = .standard
     @Published var lastRefreshed: Date?
     @Published var deskWindowOpen = false
     @Published var selectedDeskTab: DeskTab = .dual
@@ -97,6 +98,11 @@ final class WeatherStore: ObservableObject {
         locationInput = cfg.defaultLocation ?? ""
         let u = (cfg.units ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         units = (u == "metric") ? "metric" : "imperial"
+        if let fmt = cfg.menuBarFormat, let parsed = MenuBarFormat(rawValue: fmt.lowercased()) {
+            menuBarFormat = parsed
+        } else {
+            menuBarFormat = .standard
+        }
         favorites = cfg.favorites ?? []
         recentLocations = cfg.recentLocations ?? []
     }
@@ -174,6 +180,9 @@ final class WeatherStore: ObservableObject {
             await refresh()
             await refreshCPC()
             await refreshChase()
+            if !favorites.isEmpty {
+                await refreshGrid()
+            }
             if selectedDeskTab == .dual || selectedDeskTab == .radar {
                 await refreshRadar()
             }
@@ -191,6 +200,9 @@ final class WeatherStore: ObservableObject {
                 await self?.refresh()
                 await self?.refreshCPC()
                 await self?.refreshChase()
+                if let favs = self?.favorites, !favs.isEmpty {
+                    await self?.refreshGrid()
+                }
             }
         }
     }
@@ -616,6 +628,86 @@ final class WeatherStore: ObservableObject {
                 }
             }
         }
+    }
+
+    func setMenuBarFormat(_ format: MenuBarFormat) {
+        menuBarFormat = format
+        WxConfig.setMenuBarFormat(format.rawValue)
+        updateStatusItemChrome()
+    }
+
+    var activeAlerts: [Alert] {
+        payload?.alerts ?? []
+    }
+
+    var hasActiveWarning: Bool {
+        activeAlerts.contains { $0.isWarning }
+    }
+
+    var hasActiveWatchOrAdvisory: Bool {
+        activeAlerts.contains { $0.isWatch || $0.isAdvisory }
+    }
+
+    var tacticalStationTag: String {
+        if let st = payload?.conditions?.station, !st.isEmpty {
+            let upper = st.uppercased()
+            if upper.count == 4 && upper.hasPrefix("K") {
+                return String(upper.dropFirst())
+            }
+            if upper.count <= 4 && upper != "OPENMETEO" {
+                return upper
+            }
+        }
+        if let loc = payload?.conditions?.location, !loc.isEmpty {
+            let words = loc.split(separator: " ")
+            if let first = words.first {
+                let letters = first.filter { $0.isLetter }.prefix(3).uppercased()
+                if !letters.isEmpty {
+                    return String(letters)
+                }
+            }
+        }
+        return "WX"
+    }
+
+    static func windArrow(for direction: String?) -> String {
+        guard let dir = direction?.uppercased().trimmingCharacters(in: .whitespacesAndNewlines) else { return "" }
+        switch dir {
+        case "N": return "↓"
+        case "NNE", "NE": return "↙"
+        case "ENE", "E": return "←"
+        case "ESE", "SE": return "↖"
+        case "SSE", "S": return "↑"
+        case "SSW", "SW": return "↗"
+        case "WSW", "W": return "→"
+        case "WNW", "NW": return "↘"
+        case "NNW": return "↓"
+        default: return ""
+        }
+    }
+
+    var tacticalWindString: String {
+        guard let c = payload?.conditions else { return "" }
+        let speed: String
+        if units == "metric" {
+            guard let w = c.windKph else { return "" }
+            speed = String(format: "%.0fkm/h", w)
+        } else {
+            guard let w = c.windMph else { return "" }
+            speed = String(format: "%.0fmph", w)
+        }
+        let arrow = Self.windArrow(for: c.windDirection)
+        return "\(arrow)\(speed)"
+    }
+
+    var tacticalStatusText: String {
+        let tag = tacticalStationTag
+        let temp = displayTemp
+        let wind = tacticalWindString
+        if wind.isEmpty {
+            return "[\(tag)] \(temp)"
+        }
+        return "[\(tag)] \(temp) \(wind)"
     }
 
     var displayTemp: String {

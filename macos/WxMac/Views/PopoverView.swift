@@ -81,6 +81,12 @@ struct PopoverView: View {
                         ControlsBar(showOpenWindow: true, compact: true)
                     }
 
+                    if !store.gridCards.isEmpty {
+                        SNWConsoleCard(title: "Command Grid // Pinned Stations", tag: "GRID.PINNED") {
+                            PopoverGridPreviewBar()
+                        }
+                    }
+
                     if let shift = store.cpcPayload?.patternShift, shift.hasShift {
                         Button {
                             store.selectedDeskTab = .outlooks
@@ -180,3 +186,117 @@ struct PopoverView: View {
         .preferredColorScheme(.dark)
     }
 }
+
+struct PopoverGridPreviewBar: View {
+    @EnvironmentObject var store: WeatherStore
+
+    private var isMetric: Bool {
+        store.units == "metric"
+    }
+
+    var body: some View {
+        VStack(spacing: 6) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(store.gridCards) { card in
+                        let isCurrent = (store.locationInput.caseInsensitiveCompare(card.locationKey) == .orderedSame) ||
+                            (store.payload?.conditions?.location?.caseInsensitiveCompare(card.displayName) == .orderedSame)
+
+                        let tempStr: String = {
+                            guard let c = card.payload?.conditions else { return "--" }
+                            let t = isMetric ? c.temperatureC : c.temperatureF
+                            return t.map { String(format: "%.0f°", $0) } ?? "--"
+                        }()
+
+                        let sym = ConditionSymbol.systemName(for: card.payload?.conditions?.conditionCode)
+                        let windStr: String = {
+                            guard let c = card.payload?.conditions else { return "" }
+                            let w = isMetric ? c.windKph.map { String(format: "%.0fkm/h", $0) } : c.windMph.map { String(format: "%.0fmph", $0) }
+                            guard let w else { return "" }
+                            let arrow = WeatherStore.windArrow(for: c.windDirection)
+                            return "\(arrow)\(w)"
+                        }()
+
+                        let hasWarning = (card.payload?.alerts ?? []).contains { $0.isWarning }
+                        let hasWatch = !hasWarning && (card.payload?.alerts ?? []).contains { $0.isWatch || $0.isAdvisory }
+
+                        Button {
+                            store.selectLocation(card.locationKey)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 3) {
+                                HStack(spacing: 4) {
+                                    if isCurrent {
+                                        Circle().fill(WxTheme.snwCyan).frame(width: 4.5, height: 4.5)
+                                    }
+                                    Text(card.displayName)
+                                        .font(.system(size: 9.5, weight: isCurrent ? .bold : .semibold, design: .default))
+                                        .foregroundStyle(isCurrent ? WxTheme.snwCyan : WxTheme.text)
+                                        .lineLimit(1)
+                                    Spacer(minLength: 0)
+                                    if hasWarning {
+                                        Circle().fill(WxTheme.snwRed).frame(width: 5, height: 5)
+                                    } else if hasWatch {
+                                        Circle().fill(WxTheme.snwAmber).frame(width: 5, height: 5)
+                                    }
+                                }
+
+                                HStack(spacing: 5) {
+                                    Image(systemName: sym)
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(WxTheme.snwCyan)
+                                    Text(tempStr)
+                                        .font(.system(size: 11.5, weight: .bold, design: .monospaced))
+                                        .foregroundStyle(WxTheme.text)
+                                    if !windStr.isEmpty {
+                                        Text(windStr)
+                                            .font(.system(size: 8.5, design: .monospaced))
+                                            .foregroundStyle(WxTheme.snwSilver)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                            .frame(width: 125, alignment: .leading)
+                            .background(
+                                isCurrent
+                                    ? WxTheme.snwCyan.opacity(0.15)
+                                    : WxTheme.snwChassis.opacity(0.85),
+                                in: RoundedRectangle(cornerRadius: 5)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 5)
+                                    .strokeBorder(
+                                        isCurrent ? WxTheme.snwCyan.opacity(0.6) : WxTheme.border.opacity(0.4),
+                                        lineWidth: isCurrent ? 1 : 0.6
+                                    )
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+
+            HStack {
+                Text("\(store.gridCards.count) PINNED STATIONS ACTIVE")
+                    .font(.system(size: 7.5, weight: .bold, design: .monospaced))
+                    .foregroundStyle(WxTheme.snwSilver.opacity(0.7))
+                Spacer()
+                Button {
+                    store.selectedDeskTab = .grid
+                    NotificationCenter.default.post(name: .wxOpenDeskWindow, object: nil)
+                } label: {
+                    HStack(spacing: 3) {
+                        Text("COMMAND GRID")
+                            .font(.system(size: 7.5, weight: .bold, design: .monospaced))
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 6.5))
+                    }
+                    .foregroundStyle(WxTheme.snwCyan)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+}
+

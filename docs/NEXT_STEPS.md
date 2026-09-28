@@ -1,7 +1,7 @@
 # wx — Next Slice Handoff & Implementation Candidates
 
 Generated: 2026-09-27  
-Status: Items 1, 2, 3 & 4 delivered and verified (`make test && make vet` passing across all 18 packages, `make mac-dmg` verified). Ready for Item 5.
+Status: Items 1, 2, 3, 4 & 5 delivered and verified (`make test && make vet` passing across all 18 packages, `make mac-dmg` verified). Ready for Item 6.
 
 ---
 
@@ -37,15 +37,19 @@ Status: Items 1, 2, 3 & 4 delivered and verified (`make test && make vet` passin
 
 ---
 
-## 5. Menu Bar Customization & Ambient HUD
-* **Goal**: Fine-grained user control over the macOS menu bar footprint.
-* **Deliverables**:
-  - Configurable status item formats:
-    - Compact: `72°`
-    - Standard: `☀️ 72°`
-    - Tactical: `[FWA] 72° ↘12mph`
-    - Hazard alert indicator: pulsing amber/red pip when severe warnings are active.
-  - Multi-location dropdown menu: quick preview cards for all pinned Command Grid locations directly from the menu bar item.
+### 5. Menu Bar Customization & Ambient HUD — Completed
+* Configurable macOS menu bar format settings (`compact`, `standard`, `tactical`):
+  - Compact: `72°`
+  - Standard: `☀️ 72°`
+  - Tactical: `[FWA] 72° ↘12mph` (station abbreviation, temperature, cardinal wind direction arrow, and wind speed)
+* Real-time pulsing amber/red hazard pip alert indicator when active severe warnings or watches/advisories are in effect.
+* Multi-location dropdown menu with quick preview cards for all pinned Command Grid locations directly from the menu bar item (with condition symbol, temperature, wind, and warning badges).
+* Pinned Command Grid stations preview bar integrated directly into ambient `PopoverView` HUD with 1-click station switching.
+* CLI `--menu-bar-format` configuration support via `wx config set --menu-bar-format <compact|standard|tactical>`.
+
+---
+
+## Upcoming Candidates (In Priority Order)
 
 ---
 

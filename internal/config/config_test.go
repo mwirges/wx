@@ -36,6 +36,22 @@ func TestLoadFrom_Valid(t *testing.T) {
 	}
 }
 
+func TestLoadFrom_MenuBarFormat(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.json")
+	os.WriteFile(path, []byte(`{
+		"menu_bar_format": "tactical"
+	}`), 0o644)
+
+	cfg, err := LoadFrom(path)
+	if err != nil {
+		t.Fatalf("LoadFrom: %v", err)
+	}
+	if cfg.MenuBarFormat != "tactical" {
+		t.Errorf("MenuBarFormat = %q, want %q", cfg.MenuBarFormat, "tactical")
+	}
+}
+
 func TestLoadFrom_ZipCode(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.json")

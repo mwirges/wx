@@ -270,6 +270,37 @@ struct Alert: Decodable, Identifiable, Sendable {
     var area: String?
     var description: String?
     var instruction: String?
+
+    var isWarning: Bool {
+        event.localizedCaseInsensitiveContains("warning") ||
+        severity?.localizedCaseInsensitiveCompare("extreme") == .orderedSame ||
+        severity?.localizedCaseInsensitiveCompare("severe") == .orderedSame
+    }
+
+    var isWatch: Bool {
+        event.localizedCaseInsensitiveContains("watch")
+    }
+
+    var isAdvisory: Bool {
+        event.localizedCaseInsensitiveContains("advisory") ||
+        event.localizedCaseInsensitiveContains("statement")
+    }
+}
+
+enum MenuBarFormat: String, CaseIterable, Identifiable, Codable, Sendable {
+    case compact = "compact"
+    case standard = "standard"
+    case tactical = "tactical"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .compact: return "Compact (72°)"
+        case .standard: return "Standard (☀️ 72°)"
+        case .tactical: return "Tactical ([FWA] 72° ↘12mph)"
+        }
+    }
 }
 
 struct RadarFrame: Decodable, Sendable {
