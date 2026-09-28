@@ -139,6 +139,10 @@ struct DeskWindowView: View {
                     // Climate & Historical Observations Archive
                     ClimateTrendsView()
                         .frame(width: geo.size.width, height: geo.size.height)
+                } else if store.selectedDeskTab == .tropics {
+                    // NOAA National Hurricane Center Tropical Tracker
+                    TropicsView()
+                        .frame(width: geo.size.width, height: geo.size.height)
                 } else if store.selectedDeskTab == .grid {
                     // Multi-Location Command Grid Matrix
                     CommandGridView()
@@ -325,6 +329,7 @@ struct DeskWindowView: View {
             modeButton(tab: .outlooks, label: "CPC OUTLOOKS", icon: "chart.line.uptrend.xyaxis")
             modeButton(tab: .chase, label: "STORM CHASE", icon: "bolt.shield.fill")
             modeButton(tab: .climate, label: "CLIMATE", icon: "calendar.day.timeline.left")
+            modeButton(tab: .tropics, label: "TROPICS", icon: "tornado")
             modeButton(tab: .grid, label: "GRID", icon: "square.grid.2x2.fill")
         }
     }
@@ -343,6 +348,9 @@ struct DeskWindowView: View {
             }
             if tab == .climate && store.historyPayload == nil && !store.isHistoryLoading {
                 Task { await store.refreshHistory() }
+            }
+            if tab == .tropics && store.tropicsPayload == nil && !store.isTropicsLoading {
+                Task { await store.refreshTropics() }
             }
             if tab == .grid && store.gridCards.isEmpty && !store.isGridLoading {
                 Task { await store.refreshGrid() }

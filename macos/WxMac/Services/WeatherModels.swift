@@ -1044,4 +1044,115 @@ struct SoundingPayloadDTO: Decodable, Sendable {
     var sounding: SoundingReportDTO?
 }
 
+struct TropicalStormDTO: Decodable, Identifiable, Sendable {
+    var id: String
+    var binNumber: String?
+    var name: String
+    var classification: String
+    var classificationName: String?
+    var category: Int
+    var categoryLabel: String?
+    var intensityKt: Int
+    var windSpeedMph: Int
+    var windSpeedKmh: Int
+    var pressureMb: Int
+    var pressureInHg: Double
+    var latitude: Double
+    var longitude: Double
+    var locationText: String
+    var movementDir: Int
+    var movementCompass: String
+    var movementSpeedMph: Int
+    var movementSpeedKmh: Int
+    var headline: String?
+    var proximityText: String?
+    var distanceKm: Double?
+    var distanceMiles: Double?
+    var watchesWarnings: [String]?
+    var advisoryNumber: String?
+    var advisoryTime: String?
+    var publicAdvisoryUrl: String?
+    var forecastDiscussionUrl: String?
+    var graphicsUrl: String?
+    var trackConeKmz: String?
+    var lastUpdate: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case binNumber = "bin_number"
+        case name, classification
+        case classificationName = "classification_name"
+        case category
+        case categoryLabel = "category_label"
+        case intensityKt = "intensity_kt"
+        case windSpeedMph = "wind_speed_mph"
+        case windSpeedKmh = "wind_speed_kmh"
+        case pressureMb = "pressure_mb"
+        case pressureInHg = "pressure_inhg"
+        case latitude, longitude
+        case locationText = "location_text"
+        case movementDir = "movement_dir"
+        case movementCompass = "movement_compass"
+        case movementSpeedMph = "movement_speed_mph"
+        case movementSpeedKmh = "movement_speed_kmh"
+        case headline
+        case proximityText = "proximity_text"
+        case distanceKm = "distance_km"
+        case distanceMiles = "distance_miles"
+        case watchesWarnings = "watches_warnings"
+        case advisoryNumber = "advisory_number"
+        case advisoryTime = "advisory_time"
+        case publicAdvisoryUrl = "public_advisory_url"
+        case forecastDiscussionUrl = "forecast_discussion_url"
+        case graphicsUrl = "graphics_url"
+        case trackConeKmz = "track_cone_kmz"
+        case lastUpdate = "last_update"
+    }
+}
+
+struct TropicalDisturbanceDTO: Decodable, Identifiable, Sendable {
+    var id: String
+    var basin: String
+    var name: String
+    var chance48h: Int
+    var category48h: String
+    var chance7d: Int
+    var category7d: String
+    var summary: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, basin, name
+        case chance48h = "chance_48h"
+        case category48h = "category_48h"
+        case chance7d = "chance_7d"
+        case category7d = "category_7d"
+        case summary
+    }
+}
+
+struct TropicsReportDTO: Decodable, Sendable {
+    var generatedAt: String?
+    var totalActive: Int
+    var storms: [TropicalStormDTO]
+    var disturbances: [TropicalDisturbanceDTO]?
+    var atlanticOutlookUrl: String?
+    var pacificOutlookUrl: String?
+    var referenceLocation: String?
+
+    enum CodingKeys: String, CodingKey {
+        case generatedAt = "generated_at"
+        case totalActive = "total_active"
+        case storms, disturbances
+        case atlanticOutlookUrl = "atlantic_outlook_url"
+        case pacificOutlookUrl = "pacific_outlook_url"
+        case referenceLocation = "reference_location"
+    }
+}
+
+struct TropicsPayloadDTO: Decodable, Sendable {
+    var location: String?
+    var tropics: TropicsReportDTO?
+}
+
+
 

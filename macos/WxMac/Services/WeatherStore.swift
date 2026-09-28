@@ -29,6 +29,7 @@ enum DeskTab: String, CaseIterable, Identifiable {
     case outlooks = "Outlooks"
     case chase = "Storm Chase"
     case climate = "Climate"
+    case tropics = "Tropics"
     case grid = "Grid"
 
     var id: String { rawValue }
@@ -88,6 +89,10 @@ final class WeatherStore: ObservableObject {
     @Published var soundingPayload: SoundingPayloadDTO?
     @Published var isSoundingLoading = false
     @Published var soundingErrorMessage: String?
+
+    @Published var tropicsPayload: TropicsPayloadDTO?
+    @Published var isTropicsLoading = false
+    @Published var tropicsErrorMessage: String?
 
     @Published var favorites: [WxLocationEntry] = []
     @Published var recentLocations: [String] = []
@@ -556,6 +561,29 @@ final class WeatherStore: ObservableObject {
             soundingPayload = res
         } catch {
             soundingErrorMessage = error.localizedDescription
+        }
+    }
+
+    func refreshTropics(storm: String? = nil) async {
+        isTropicsLoading = true
+        tropicsErrorMessage = nil
+        defer { isTropicsLoading = false }
+
+        guard backend.isAvailable else {
+            tropicsErrorMessage = WxCLIError.binaryMissing.errorDescription
+            return
+        }
+
+        let loc = locationInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        do {
+            let res = try await backend.fetchTropics(
+                location: loc.isEmpty ? nil : loc,
+                storm: storm,
+                units: units
+            )
+            tropicsPayload = res
+        } catch {
+            tropicsErrorMessage = error.localizedDescription
         }
     }
 

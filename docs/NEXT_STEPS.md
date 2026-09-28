@@ -1,7 +1,7 @@
 # wx — Next Slice Handoff & Implementation Candidates
 
-Generated: 2026-09-27  
-Status: All roadmap items 1 through 7 delivered and verified (`make test && make vet` passing across all 18 packages, `make mac-dmg` verified).
+Generated: 2026-09-28  
+Status: All roadmap items 1 through 10 delivered and verified (`make test && make vet` passing across all packages, `make mac-dmg` verified).
 
 ---
 
@@ -105,12 +105,22 @@ Status: All roadmap items 1 through 7 delivered and verified (`make test && make
 
 ---
 
-## Upcoming Candidates (In Priority Order)
+### 10. NOAA National Hurricane Center (NHC) Tropical Tracker (`wx tropics` / `wx nhc`) — **COMPLETED**
+* **CLI Subcommand**: `wx tropics [location]` (aliases: `nhc`, `hurricane`, `cyclone`, `tropical`)
+  - Direct ingestion of official NOAA NHC `CurrentStorms.json` feed covering Atlantic, Eastern Pacific, and Central Pacific basins.
+  - Ingestion of Tropical Weather Outlook (TWO) bulletins for active invest disturbances (AL9x, EP9x, CP9x) with 48-hour and 7-day genesis probabilities (Low, Medium, High).
+  - Saffir-Simpson Hurricane Wind Scale classification: Category 1 through Category 5 (Major Hurricane), Tropical Storm, Tropical Depression, Potential Tropical Cyclone.
+  - Full telemetry: maximum sustained winds (mph, kt, km/h), minimum central pressure (mb, inHg), movement compass heading (degrees and cardinal) & speed, decimal coordinates, proximity text to landmarks/coastlines, and Haversine distance from user reference location.
+  - Scrapes active public advisory bulletins for storm headlines, landfall warnings, and active coastal watches/warnings.
+  - Direct links to NOAA NHC interactive track/cone of uncertainty graphics, forecast discussions, public advisories, and KMZ/GIS layers.
+  - Filtering by specific storm name or ID via `--storm <name|id>` flag.
+  - Full `--json` payload support.
+* **Mac App Integration**:
+  - Dedicated `TROPICS` console tab added to DeskWindowView mode selector.
+  - Real-time active storm telemetry cards with Saffir-Simpson color coding (Cat 5 Magenta, Cat 4 Red, Cat 3 Amber, Cat 1-2 Gold, TS Cyan, TD Green).
+  - Quick action buttons to open official NHC Track & Cone graphics in browser, or jump radar array directly to cyclone coordinates.
+  - Invest disturbance cards with 48h and 7d probability pills.
+  - Direct action links for Atlantic and Eastern Pacific 7-Day Graphical Tropical Weather Outlook maps.
 
-## 10. NOAA National Hurricane Center (NHC) Tropical Tracker (`wx tropics` / `wx nhc`)
-* **Goal**: Real-time Atlantic & Eastern Pacific tropical cyclone monitoring.
-* **Deliverables**:
-  - Active storms, category, winds, pressure, storm track speed/heading, and watches/warnings.
-  - CLI: `wx tropics` (aliases: `nhc`, `hurricane`).
 
 
