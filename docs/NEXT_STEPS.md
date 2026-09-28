@@ -1,7 +1,7 @@
 # wx — Next Slice Handoff & Implementation Candidates
 
 Generated: 2026-09-27  
-Status: All roadmap items 1 through 6 delivered and verified (`make test && make vet` passing across all 18 packages, `make mac-dmg` verified).
+Status: All roadmap items 1 through 7 delivered and verified (`make test && make vet` passing across all 18 packages, `make mac-dmg` verified).
 
 ---
 
@@ -57,4 +57,46 @@ Status: All roadmap items 1 through 6 delivered and verified (`make test && make
   - "EXPORT SCAN" menu in `RadarTransportBar` supporting 1-click "Copy Frame to Clipboard", "Save Frame (PNG)...", and "Export Loop (Animated GIF)...".
   - Native ImageIO GIF generation and NSSavePanel integration.
   - Ambient toast confirmation banner (`COPIED`, `SAVED`).
+
+---
+
+### 7. Quantitative Precip Nowcasting & Rain Timeline — Completed
+* High-resolution 15-minute / hourly precipitation onset, intensity rate, accumulation, and phase discrimination (Rain, Snow, Freezing Rain, Ice Pellets).
+* CLI: `wx nowcast [location]` (aliases: `precip`, `rain`, `qpf`) with:
+  - Onset / cessation countdowns ("Rain starting in ~20m", "Stopping in ~15m", or "Dry next 6h").
+  - 15-min / hourly precipitation probability, intensity rate (`in/h` or `mm/h`), and liquid/snow accumulation totals.
+  - Unicode intensity sparkline bar chart (` ▂▃▄▅▆▇█`).
+  - Full `--json` payload support.
+* Unified across core models (`models.Nowcast` in `models.CurrentConditions`), terminal output, and JSON serialization.
+* TUI: Precipitation sparkline and onset/cessation indicator integrated directly into `wx monitor` observation block.
+* Mac App: `NowcastCardView` with dynamic timeline bars, status badge, accumulation summary, and interval inspection integrated into `SURFACE` and `TACTICAL` tabs, plus ambient `PopoverView` HUD.
+
+---
+
+## Upcoming Candidates (In Priority Order)
+
+## 8. NOAA Climate Normals & Departure Telemetry (`wx climate` / `wx normals`)
+* **Goal**: Compare current calendar day against 30-year NOAA Climate Normals (1991–2020) and records.
+* **Deliverables**:
+  - Normal High/Low, record high/low with year, and departure anomaly (`+4.2°F Above Normal`).
+  - CLI: `wx climate [location]` (aliases: `normals`, `records`).
+  - Integration with `wx monitor` and macOS App `CLIMATE` tab.
+
+---
+
+## 9. Atmospheric Sounding & Convective Instability (`wx sounding` / `wx cape`)
+* **Goal**: Ingest NOAA / SPC upper-air soundings for deep convective storm environment analysis.
+* **Deliverables**:
+  - Sounding telemetry: CAPE, CIN, 0–6km Bulk Shear, Lifted Index, PWAT.
+  - CLI: `wx sounding [location]` (aliases: `cape`, `instability`).
+  - Integration with `wx chase` and macOS `STORM CHASE` tab.
+
+---
+
+## 10. NOAA National Hurricane Center (NHC) Tropical Tracker (`wx tropics` / `wx nhc`)
+* **Goal**: Real-time Atlantic & Eastern Pacific tropical cyclone monitoring.
+* **Deliverables**:
+  - Active storms, category, winds, pressure, storm track speed/heading, and watches/warnings.
+  - CLI: `wx tropics` (aliases: `nhc`, `hurricane`).
+
 

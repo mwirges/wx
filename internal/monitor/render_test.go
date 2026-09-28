@@ -225,3 +225,30 @@ func TestRenderConditions_WithAirQuality(t *testing.T) {
 	}
 }
 
+func TestRenderConditions_WithNowcast(t *testing.T) {
+	temp := 18.0
+	m := New(MonitorConfig{Imperial: true}, testLoc())
+	m.conditions = &models.CurrentConditions{
+		TempC:         &temp,
+		ConditionCode: "rain",
+		Description:   "Rain",
+		Nowcast: &models.Nowcast{
+			IsActivePrecip: true,
+			Headline:       "Rain stopping in ~25 min",
+			Intervals: []models.PrecipInterval{
+				{RateInH: 0.15},
+				{RateInH: 0.08},
+			},
+		},
+	}
+
+	lines := m.renderConditions(80)
+	joined := strings.Join(lines, "\n")
+	if !strings.Contains(joined, "Precip:") {
+		t.Errorf("expected conditions to contain 'Precip:', got:\n%s", joined)
+	}
+	if !strings.Contains(joined, "Rain stopping in ~25 min") {
+		t.Errorf("expected conditions to contain nowcast headline, got:\n%s", joined)
+	}
+}
+

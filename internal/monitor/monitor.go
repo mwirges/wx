@@ -17,6 +17,7 @@ import (
 	"github.com/mwirges/wx/internal/cpc"
 	"github.com/mwirges/wx/internal/location"
 	"github.com/mwirges/wx/internal/models"
+	"github.com/mwirges/wx/internal/nowcast"
 	"github.com/mwirges/wx/internal/provider"
 	"github.com/mwirges/wx/internal/radar"
 )
@@ -489,9 +490,21 @@ func fetchWeatherCmd(cfg MonitorConfig, loc location.Location, hourly bool) tea.
 				aq, _ = airquality.Fetch(ctx, loc.Lat, loc.Lon, cfg.Cache)
 			}()
 
+			var nc *models.Nowcast
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				nc, _ = nowcast.Fetch(ctx, loc.Lat, loc.Lon, loc.DisplayName, cfg.Cache)
+			}()
+
 			wg.Wait()
-			if cond != nil && aq != nil {
-				cond.AirQuality = aq
+			if cond != nil {
+				if aq != nil {
+					cond.AirQuality = aq
+				}
+				if nc != nil {
+					cond.Nowcast = nc
+				}
 			}
 		} else {
 			condErr = fmt.Errorf("no weather provider available for location")

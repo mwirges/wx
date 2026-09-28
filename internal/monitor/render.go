@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/mwirges/wx/internal/models"
+	"github.com/mwirges/wx/internal/nowcast"
 	"github.com/mwirges/wx/internal/output"
 )
 
@@ -14,7 +15,7 @@ import (
 const (
 	headerLines          = 3 // title + location/status line + separator
 	helpBarLines         = 1
-	conditionsBlockLines = 8 // 5 icon rows + 3 telemetry rows (sun, moon, air)
+	conditionsBlockLines = 9 // 5 icon rows + 4 telemetry rows (sun, moon, air, nowcast)
 	maxAlertLines        = 3
 	maxForecastPeriods   = 10 // 5 days × day+night
 )
@@ -401,6 +402,35 @@ func (m MonitorModel) renderConditions(w int) []string {
 			aqiStr += "  " + styleDesc.Render("("+strings.Join(extras, " · ")+")")
 		}
 		out = append(out, truncateStr(aqiStr, w))
+	}
+
+	// Nowcast precipitation sparkline & countdown
+	if c.Nowcast != nil {
+		nc := c.Nowcast
+		var sparkRunes strings.Builder
+		for _, iv := range nc.Intervals {
+			sparkRunes.WriteRune(nowcast.SparklineRune(iv.RateInH))
+		}
+		sparkStr := sparkRunes.String()
+		if len(sparkStr) > 16 {
+			sparkStr = sparkStr[:16] // first 4 hours
+		}
+		var badge string
+		if nc.IsActivePrecip {
+			badge = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("196")).Render("●")
+		} else if nc.NextPrecipTime != nil {
+			badge = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("220")).Render("▲")
+		} else {
+			badge = lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Render("○")
+		}
+
+		nowcastLine := fmt.Sprintf("  %s %s [%s] %s",
+			styleLabel.Render("Precip:"),
+			badge,
+			lipgloss.NewStyle().Foreground(lipgloss.Color("39")).Render(sparkStr),
+			styleValue.Render(nc.Headline),
+		)
+		out = append(out, truncateStr(nowcastLine, w))
 	}
 
 	if len(out) > conditionsBlockLines {

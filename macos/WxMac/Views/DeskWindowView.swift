@@ -94,6 +94,8 @@ struct DeskWindowView: View {
 
                                 airQualityCard
 
+                                nowcastCard
+
                                 AlertsListView(popoverMode: false)
 
                                 tacticalSignalsCard
@@ -156,6 +158,8 @@ struct DeskWindowView: View {
                             ephemerisCard
 
                             airQualityCard
+
+                            nowcastCard
 
                             AlertsListView(popoverMode: false)
 
@@ -302,6 +306,13 @@ struct DeskWindowView: View {
     private var airQualityCard: some View {
         if let aq = store.payload?.conditions?.airQuality ?? store.payload?.airQuality {
             AirQualityCardView(airQuality: aq)
+        }
+    }
+
+    @ViewBuilder
+    private var nowcastCard: some View {
+        if let nc = store.nowcastPayload?.nowcast ?? store.payload?.conditions?.nowcast ?? store.payload?.nowcast {
+            NowcastCardView(nowcast: nc)
         }
     }
 

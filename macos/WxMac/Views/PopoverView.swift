@@ -141,6 +141,11 @@ struct PopoverView: View {
                         NowBlockView(compact: true, popoverMetrics: true)
                     }
 
+                    if let nc = store.nowcastPayload?.nowcast ?? store.payload?.conditions?.nowcast ?? store.payload?.nowcast,
+                       (nc.isActivePrecip == true || nc.nextPrecipTime != nil || (nc.totalLiquidMm ?? 0) > 0.1) {
+                        NowcastCardView(nowcast: nc)
+                    }
+
                     if hasConditionAlerts {
                         SNWConsoleCard(title: "Tactical Alerts", tag: "NWS.WARN", statusColor: WxTheme.snwRed) {
                             AlertsListView(popoverMode: true)

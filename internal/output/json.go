@@ -65,6 +65,7 @@ type jsonConditions struct {
 
 	Astronomy *jsonAstronomy `json:"astronomy,omitempty"`
 	AirQuality *jsonAirQuality `json:"air_quality,omitempty"`
+	Nowcast    *models.Nowcast `json:"nowcast,omitempty"`
 }
 
 type jsonAirQuality struct {
@@ -130,6 +131,7 @@ type jsonOutput struct {
 	Alerts     []jsonAlert     `json:"alerts,omitempty"`
 	Astronomy  *jsonAstronomy  `json:"astronomy,omitempty"`
 	AirQuality *jsonAirQuality `json:"air_quality,omitempty"`
+	Nowcast    *models.Nowcast `json:"nowcast,omitempty"`
 	Freshness  *jsonFreshness  `json:"freshness,omitempty"`
 }
 
@@ -332,6 +334,11 @@ func renderJSON(data RenderData, opts RenderOptions) error {
 			}
 			jc.AirQuality = jaq
 			out.AirQuality = jaq
+		}
+
+		if c.Nowcast != nil {
+			jc.Nowcast = c.Nowcast
+			out.Nowcast = c.Nowcast
 		}
 
 		out.Conditions = jc

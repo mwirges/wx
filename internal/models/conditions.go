@@ -39,6 +39,10 @@ type CurrentConditions struct {
 	// AirQuality contains EPA US AQI, pollutants, and UV telemetry.
 	// Nil if unavailable.
 	AirQuality *AirQuality
+
+	// Nowcast contains quantitative precipitation nowcast telemetry (0-8h).
+	// Nil if unavailable.
+	Nowcast *Nowcast
 }
 
 // ComputeFeelsLike returns WindChillC if set, else HeatIndexC if set, otherwise nil.

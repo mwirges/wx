@@ -8,9 +8,10 @@ struct WxPayload: Decodable, Sendable {
     var warning: String?
     var astronomy: AstronomyDTO?
     var airQuality: AirQualityDTO?
+    var nowcast: NowcastDTO?
 
     enum CodingKeys: String, CodingKey {
-        case conditions, forecast, alerts, warning, astronomy
+        case conditions, forecast, alerts, warning, astronomy, nowcast
         case airQuality = "air_quality"
     }
 
@@ -22,6 +23,7 @@ struct WxPayload: Decodable, Sendable {
         warning = try c.decodeIfPresent(String.self, forKey: .warning)
         astronomy = try c.decodeIfPresent(AstronomyDTO.self, forKey: .astronomy)
         airQuality = try c.decodeIfPresent(AirQualityDTO.self, forKey: .airQuality)
+        nowcast = try c.decodeIfPresent(NowcastDTO.self, forKey: .nowcast)
     }
 }
 
@@ -182,6 +184,7 @@ struct Conditions: Decodable, Sendable {
     var visibilityMi: Double?
     var astronomy: AstronomyDTO?
     var airQuality: AirQualityDTO?
+    var nowcast: NowcastDTO?
 
     enum CodingKeys: String, CodingKey {
         case station, location, description
@@ -205,6 +208,7 @@ struct Conditions: Decodable, Sendable {
         case visibilityMi = "visibility_mi"
         case astronomy
         case airQuality = "air_quality"
+        case nowcast
     }
 }
 
@@ -686,4 +690,106 @@ struct SPCPayloadDTO: Decodable, Sendable {
         case maxNationalRisk = "max_national_risk"
         case convectiveSummary = "convective_summary"
     }
+}
+
+struct PrecipIntervalDTO: Decodable, Identifiable, Sendable {
+    var id: String { startTime ?? UUID().uuidString }
+    var startTime: String?
+    var endTime: String?
+    var probability: Double?
+    var rateMmh: Double?
+    var rateInh: Double?
+    var accumMm: Double?
+    var accumIn: Double?
+    var phase: String?
+    var summary: String?
+
+    enum CodingKeys: String, CodingKey {
+        case startTime = "start_time"
+        case endTime = "end_time"
+        case probability
+        case rateMmh = "rate_mmh"
+        case rateInh = "rate_inh"
+        case accumMm = "accum_mm"
+        case accumIn = "accum_in"
+        case phase, summary
+    }
+
+    var formattedTime: String {
+        guard let startTime else { return "—" }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        var date = formatter.date(from: startTime)
+        if date == nil {
+            formatter.formatOptions = [.withInternetDateTime]
+            date = formatter.date(from: startTime)
+        }
+        guard let date else {
+            if startTime.contains("T") {
+                let parts = startTime.split(separator: "T")
+                if parts.count > 1 {
+                    return String(parts[1].prefix(5))
+                }
+            }
+            return startTime
+        }
+        let out = DateFormatter()
+        out.timeStyle = .short
+        return out.string(from: date)
+    }
+
+    var sparkRune: Character {
+        let rate = rateInh ?? 0
+        if rate <= 0.001 { return " " }
+        if rate < 0.03 { return " " }
+        if rate < 0.08 { return "▂" }
+        if rate < 0.15 { return "▃" }
+        if rate < 0.25 { return "▄" }
+        if rate < 0.40 { return "▅" }
+        if rate < 0.60 { return "▆" }
+        if rate < 0.90 { return "▇" }
+        return "█"
+    }
+}
+
+struct NowcastDTO: Decodable, Sendable {
+    var generatedAt: String?
+    var location: String?
+    var headline: String?
+    var isActivePrecip: Bool?
+    var summary: String?
+    var primaryPhase: String?
+    var totalLiquidMm: Double?
+    var totalLiquidIn: Double?
+    var totalSnowCm: Double?
+    var totalSnowIn: Double?
+    var peakRateMmh: Double?
+    var peakRateInh: Double?
+    var peakTime: String?
+    var nextPrecipTime: String?
+    var precipEndTime: String?
+    var intervals: [PrecipIntervalDTO]?
+
+    enum CodingKeys: String, CodingKey {
+        case generatedAt = "generated_at"
+        case location, headline
+        case isActivePrecip = "is_active_precip"
+        case summary
+        case primaryPhase = "primary_phase"
+        case totalLiquidMm = "total_liquid_mm"
+        case totalLiquidIn = "total_liquid_in"
+        case totalSnowCm = "total_snow_cm"
+        case totalSnowIn = "total_snow_in"
+        case peakRateMmh = "peak_rate_mmh"
+        case peakRateInh = "peak_rate_inh"
+        case peakTime = "peak_time"
+        case nextPrecipTime = "next_precip_time"
+        case precipEndTime = "precip_end_time"
+        case intervals
+    }
+}
+
+struct NowcastPayloadDTO: Decodable, Sendable {
+    var location: String?
+    var nowcast: NowcastDTO?
 }

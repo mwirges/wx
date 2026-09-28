@@ -15,6 +15,7 @@ import (
 	"github.com/mwirges/wx/internal/config"
 	"github.com/mwirges/wx/internal/location"
 	"github.com/mwirges/wx/internal/models"
+	"github.com/mwirges/wx/internal/nowcast"
 	"github.com/mwirges/wx/internal/output"
 	"github.com/mwirges/wx/internal/provider"
 	_ "github.com/mwirges/wx/internal/provider/nws"       // register NWS provider
@@ -91,7 +92,7 @@ func NewApp() *cli.App {
 			},
 		},
 		Action:   action,
-		Commands: []*cli.Command{configCommand(), locationsCommand(), radarCommand(), monitorCommand(), hourlyCommand(), historyCommand(), chaseCommand(), outlookCommand(), spcCommand(), aqiCommand(), astroCommand()},
+		Commands: []*cli.Command{configCommand(), locationsCommand(), radarCommand(), monitorCommand(), hourlyCommand(), historyCommand(), chaseCommand(), outlookCommand(), spcCommand(), aqiCommand(), astroCommand(), nowcastCommand()},
 		ExitErrHandler: func(c *cli.Context, err error) {
 			if err != nil && err.Error() != "" {
 				fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -192,6 +193,7 @@ func runWeather(c *cli.Context, opts weatherOpts) error {
 			fcRes    *models.Forecast
 			alRes    []models.Alert
 			aqRes    *models.AirQuality
+			ncRes    *models.Nowcast
 			cErr     error
 			fErr     error
 			aErr     error
@@ -208,6 +210,12 @@ func runWeather(c *cli.Context, opts weatherOpts) error {
 		go func() {
 			defer fetchWg.Done()
 			aqRes, _ = airquality.Fetch(ctx, loc.Lat, loc.Lon, ch)
+		}()
+
+		fetchWg.Add(1)
+		go func() {
+			defer fetchWg.Done()
+			ncRes, _ = nowcast.Fetch(ctx, loc.Lat, loc.Lon, loc.DisplayName, ch)
 		}()
 
 		if opts.showForecast {
@@ -227,8 +235,13 @@ func runWeather(c *cli.Context, opts weatherOpts) error {
 		}
 
 		fetchWg.Wait()
-		if condRes != nil && aqRes != nil {
-			condRes.AirQuality = aqRes
+		if condRes != nil {
+			if aqRes != nil {
+				condRes.AirQuality = aqRes
+			}
+			if ncRes != nil {
+				condRes.Nowcast = ncRes
+			}
 		}
 		return condRes, fcRes, alRes, cErr, fErr, aErr
 	}

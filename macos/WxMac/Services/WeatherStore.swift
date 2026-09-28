@@ -77,6 +77,10 @@ final class WeatherStore: ObservableObject {
     @Published var historyErrorMessage: String?
     @Published var historyDaysCount: Int = 14
 
+    @Published var nowcastPayload: NowcastPayloadDTO?
+    @Published var isNowcastLoading = false
+    @Published var nowcastErrorMessage: String?
+
     @Published var favorites: [WxLocationEntry] = []
     @Published var recentLocations: [String] = []
     @Published var gridCards: [LocationGridCardData] = []
@@ -439,6 +443,25 @@ final class WeatherStore: ObservableObject {
             spcPayload = res
         } catch {
             spcErrorMessage = error.localizedDescription
+        }
+    }
+
+    func refreshNowcast() async {
+        isNowcastLoading = true
+        nowcastErrorMessage = nil
+        defer { isNowcastLoading = false }
+
+        guard backend.isAvailable else {
+            nowcastErrorMessage = WxCLIError.binaryMissing.errorDescription
+            return
+        }
+
+        let loc = locationInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        do {
+            let res = try await backend.fetchNowcast(location: loc.isEmpty ? nil : loc, units: units)
+            nowcastPayload = res
+        } catch {
+            nowcastErrorMessage = error.localizedDescription
         }
     }
 
