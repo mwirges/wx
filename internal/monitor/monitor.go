@@ -13,6 +13,7 @@ import (
 	"github.com/mwirges/wx/internal/airquality"
 	"github.com/mwirges/wx/internal/cache"
 	"github.com/mwirges/wx/internal/chase"
+	"github.com/mwirges/wx/internal/climate"
 	"github.com/mwirges/wx/internal/config"
 	"github.com/mwirges/wx/internal/cpc"
 	"github.com/mwirges/wx/internal/location"
@@ -497,6 +498,15 @@ func fetchWeatherCmd(cfg MonitorConfig, loc location.Location, hourly bool) tea.
 				nc, _ = nowcast.Fetch(ctx, loc.Lat, loc.Lon, loc.DisplayName, cfg.Cache)
 			}()
 
+			var cl *models.ClimateReport
+			if loc.CountryCode == "US" {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					cl, _ = climate.Fetch(ctx, loc.Lat, loc.Lon, loc.DisplayName, nil, time.Time{}, cfg.Cache)
+				}()
+			}
+
 			wg.Wait()
 			if cond != nil {
 				if aq != nil {
@@ -504,6 +514,12 @@ func fetchWeatherCmd(cfg MonitorConfig, loc location.Location, hourly bool) tea.
 				}
 				if nc != nil {
 					cond.Nowcast = nc
+				}
+				if cl != nil {
+					if cl.TodayNormals.NormalHighF != 0 || cl.TodayNormals.NormalLowF != 0 {
+						cl.Departure = climate.ComputeDeparture(cl.TodayNormals, cond)
+					}
+					cond.Climate = cl
 				}
 			}
 		} else {

@@ -15,7 +15,7 @@ import (
 const (
 	headerLines          = 3 // title + location/status line + separator
 	helpBarLines         = 1
-	conditionsBlockLines = 9 // 5 icon rows + 4 telemetry rows (sun, moon, air, nowcast)
+	conditionsBlockLines = 10 // 5 icon rows + 5 telemetry rows (sun, moon, air, nowcast, climate)
 	maxAlertLines        = 3
 	maxForecastPeriods   = 10 // 5 days × day+night
 )
@@ -433,11 +433,63 @@ func (m MonitorModel) renderConditions(w int) []string {
 		out = append(out, truncateStr(nowcastLine, w))
 	}
 
+	// Climate Normals & Departure indicator
+	if c.Climate != nil && c.Climate.Departure != nil {
+		dep := c.Climate.Departure
+		var depStr string
+		if imperial && dep.DepartureCurrentF != nil {
+			depStr = fmt.Sprintf("%+.1f°F", *dep.DepartureCurrentF)
+		} else if !imperial && dep.DepartureCurrentC != nil {
+			depStr = fmt.Sprintf("%+.1f°C", *dep.DepartureCurrentC)
+		}
+		if depStr != "" {
+			var badge lipgloss.Style
+			val := 0.0
+			if imperial && dep.DepartureCurrentF != nil {
+				val = *dep.DepartureCurrentF
+			} else if !imperial && dep.DepartureCurrentC != nil {
+				val = *dep.DepartureCurrentC
+			}
+			thresh := 3.0
+			if !imperial {
+				thresh = 1.7
+			}
+			if val >= thresh {
+				badge = lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true) // red
+			} else if val <= -thresh {
+				badge = lipgloss.NewStyle().Foreground(lipgloss.Color("39")).Bold(true) // cyan
+			} else {
+				badge = lipgloss.NewStyle().Foreground(lipgloss.Color("82")).Bold(true) // green
+			}
+
+			normHighStr := "--"
+			normLowStr := "--"
+			if c.Climate.TodayNormals.NormalHighF != 0 || c.Climate.TodayNormals.NormalLowF != 0 {
+				if imperial {
+					normHighStr = fmt.Sprintf("%.0f°F", c.Climate.TodayNormals.NormalHighF)
+					normLowStr = fmt.Sprintf("%.0f°F", c.Climate.TodayNormals.NormalLowF)
+				} else {
+					normHighStr = fmt.Sprintf("%.0f°C", c.Climate.TodayNormals.NormalHighC)
+					normLowStr = fmt.Sprintf("%.0f°C", c.Climate.TodayNormals.NormalLowC)
+				}
+			}
+
+			climateLine := fmt.Sprintf("  %s %s (%s)   Normals: %s / %s",
+				styleLabel.Render("Climate:"),
+				badge.Render(depStr),
+				styleDesc.Render(dep.Summary),
+				styleValue.Render(normHighStr),
+				styleValue.Render(normLowStr),
+			)
+			out = append(out, truncateStr(climateLine, w))
+		}
+	}
+
 	if len(out) > conditionsBlockLines {
 		out = out[:conditionsBlockLines]
 	}
 
-	// Pad to conditionsBlockLines (8)
+	// Pad to conditionsBlockLines (10)
 	return padLines(out, conditionsBlockLines, w)
 }
 

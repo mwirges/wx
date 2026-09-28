@@ -43,6 +43,10 @@ type CurrentConditions struct {
 	// Nowcast contains quantitative precipitation nowcast telemetry (0-8h).
 	// Nil if unavailable.
 	Nowcast *Nowcast
+
+	// Climate contains NOAA 30-year normals, all-time records, and departure telemetry.
+	// Nil if unavailable.
+	Climate *ClimateReport
 }
 
 // ComputeFeelsLike returns WindChillC if set, else HeatIndexC if set, otherwise nil.

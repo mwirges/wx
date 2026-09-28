@@ -11,6 +11,7 @@ protocol WeatherBackend: Sendable {
     func fetchChase() async throws -> ChasePayloadDTO
     func fetchHistory(location: String?, days: Int, units: String?) async throws -> HistoryPayloadDTO
     func fetchNowcast(location: String?, units: String?) async throws -> NowcastPayloadDTO
+    func fetchClimate(location: String?, units: String?) async throws -> ClimatePayloadDTO
     func persistConfig(location: String?, units: String?) async throws
     var isAvailable: Bool { get }
 }
@@ -68,6 +69,12 @@ struct WxCLIBackend: WeatherBackend {
     func fetchNowcast(location: String?, units: String?) async throws -> NowcastPayloadDTO {
         try await Task.detached(priority: .userInitiated) {
             try WxCLI.fetchNowcast(location: location, units: units)
+        }.value
+    }
+
+    func fetchClimate(location: String?, units: String?) async throws -> ClimatePayloadDTO {
+        try await Task.detached(priority: .userInitiated) {
+            try WxCLI.fetchClimate(location: location, units: units)
         }.value
     }
 

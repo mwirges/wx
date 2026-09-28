@@ -27,6 +27,13 @@ struct ClimateTrendsView: View {
                 // Header & Range Control
                 headerBar
 
+                // NOAA 30-Year Normals & Daily Historical Records
+                if let climate = store.climatePayload?.climate {
+                    climateNormalsCard(climate)
+                } else if store.isClimateLoading {
+                    climateLoadingCard
+                }
+
                 if store.isHistoryLoading && store.historyPayload == nil {
                     loadingView
                 } else if let err = store.historyErrorMessage {
@@ -53,6 +60,9 @@ struct ClimateTrendsView: View {
         .onAppear {
             if store.historyPayload == nil && !store.isHistoryLoading {
                 Task { await store.refreshHistory() }
+            }
+            if store.climatePayload == nil && !store.isClimateLoading {
+                Task { await store.refreshClimate() }
             }
         }
     }
@@ -92,10 +102,13 @@ struct ClimateTrendsView: View {
             .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(WxTheme.border.opacity(0.35), lineWidth: 0.8))
 
             Button {
-                Task { await store.refreshHistory() }
+                Task {
+                    await store.refreshHistory()
+                    await store.refreshClimate()
+                }
             } label: {
                 HStack(spacing: 4) {
-                    if store.isHistoryLoading {
+                    if store.isHistoryLoading || store.isClimateLoading {
                         ProgressView().controlSize(.small).tint(WxTheme.snwCyan)
                     } else {
                         Image(systemName: "arrow.triangle.2.circlepath")
@@ -110,7 +123,7 @@ struct ClimateTrendsView: View {
                 .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(WxTheme.snwCyan.opacity(0.35), lineWidth: 0.8))
             }
             .buttonStyle(.plain)
-            .disabled(store.isHistoryLoading)
+            .disabled(store.isHistoryLoading || store.isClimateLoading)
         }
         .padding(10)
         .background(WxTheme.snwPanel, in: RoundedRectangle(cornerRadius: 8))
@@ -138,6 +151,237 @@ struct ClimateTrendsView: View {
                 .foregroundStyle(selectedRange == days ? WxTheme.snwCyan : WxTheme.textSecondary)
         }
         .buttonStyle(.plain)
+    }
+
+    // ── NOAA Climate Normals & Daily Historical Records ───────────────────────────
+
+    @ViewBuilder
+    private var climateLoadingCard: some View {
+        HStack(spacing: 8) {
+            ProgressView().controlSize(.small).tint(WxTheme.snwAmber)
+            Text("ACQUIRING NOAA ACIS CLIMATE NORMALS & HISTORICAL EXTREMES...")
+                .font(.system(size: 9.5, weight: .semibold, design: .monospaced))
+                .foregroundStyle(WxTheme.snwSilver)
+            Spacer()
+        }
+        .padding(10)
+        .background(WxTheme.snwPanel, in: RoundedRectangle(cornerRadius: 6))
+        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(WxTheme.border.opacity(0.3), lineWidth: 0.8))
+    }
+
+    @ViewBuilder
+    private func climateNormalsCard(_ c: ClimateReportDTO) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            // Header Bar
+            HStack(spacing: 8) {
+                Image(systemName: "gauge.with.needle")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(WxTheme.snwAmber)
+                Text("NOAA 30-YEAR CLIMATE NORMALS & ALL-TIME RECORDS")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .tracking(0.5)
+                    .foregroundStyle(WxTheme.text)
+
+                Spacer()
+
+                if let station = c.stationName {
+                    Text(station)
+                        .font(.system(size: 8.5, weight: .medium, design: .monospaced))
+                        .foregroundStyle(WxTheme.snwSilver)
+                }
+
+                Text(c.normalsPeriod ?? "1991–2020")
+                    .font(.system(size: 8, weight: .bold, design: .monospaced))
+                    .foregroundStyle(WxTheme.snwAmber)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(WxTheme.snwAmber.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
+                    .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwAmber.opacity(0.35), lineWidth: 0.8))
+            }
+
+            // Departure Anomaly Banner
+            if let dep = c.departure {
+                departureBanner(dep)
+            }
+
+            // Normals and Records Grid
+            HStack(alignment: .top, spacing: 10) {
+                // Today's 30-Year Normals
+                if let norm = c.todayNormals {
+                    todayNormalsPanel(norm)
+                }
+
+                // All-Time Records
+                if let rec = c.records {
+                    recordsPanel(rec)
+                }
+
+                // Monthly Normals
+                if let monthly = c.monthlyNormals {
+                    monthlyNormalsPanel(monthly)
+                }
+            }
+        }
+        .padding(12)
+        .background(WxTheme.snwPanel, in: RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(WxTheme.snwAmber.opacity(0.35), lineWidth: 0.8))
+    }
+
+    @ViewBuilder
+    private func departureBanner(_ dep: ClimateDepartureDTO) -> some View {
+        let val = isMetric ? dep.departureCurrentC : dep.departureCurrentF
+        let badgeColor: Color = {
+            guard let v = val else { return WxTheme.snwGreen }
+            let thresh = isMetric ? 1.7 : 3.0
+            if v >= thresh { return WxTheme.snwRed }
+            if v <= -thresh { return WxTheme.snwCyan }
+            return WxTheme.snwGreen
+        }()
+
+        HStack(spacing: 8) {
+            Image(systemName: "thermometer.transmission")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(badgeColor)
+
+            Text(dep.summary ?? "Climatological Departure Nominal")
+                .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                .foregroundStyle(badgeColor)
+
+            Spacer()
+
+            if let obs = isMetric ? dep.observedCurrentC : dep.observedCurrentF {
+                Text(String(format: "OBSERVED: %.1f%@", obs, tempUnit))
+                    .font(.system(size: 8.5, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(WxTheme.textSecondary)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(badgeColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 5))
+        .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(badgeColor.opacity(0.35), lineWidth: 0.8))
+    }
+
+    @ViewBuilder
+    private func todayNormalsPanel(_ norm: DailyNormalsDTO) -> some View {
+        let hi = isMetric ? norm.normalHighC : norm.normalHighF
+        let lo = isMetric ? norm.normalLowC : norm.normalLowF
+        let mean = isMetric ? norm.normalMeanC : norm.normalMeanF
+        let pcpn = isMetric ? norm.normalPrecipMm : norm.normalPrecipIn
+
+        VStack(alignment: .leading, spacing: 6) {
+            Text("TODAY'S 30-YR NORMALS")
+                .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                .foregroundStyle(WxTheme.snwAmber)
+
+            Divider().overlay(WxTheme.border.opacity(0.3))
+
+            climateStatRow(label: "NORMAL HIGH", value: hi.map { String(format: "%.0f%@", $0, tempUnit) } ?? "--", color: WxTheme.snwRed)
+            climateStatRow(label: "NORMAL LOW", value: lo.map { String(format: "%.0f%@", $0, tempUnit) } ?? "--", color: WxTheme.snwCyan)
+            climateStatRow(label: "NORMAL MEAN", value: mean.map { String(format: "%.1f%@", $0, tempUnit) } ?? "--", color: WxTheme.text)
+            climateStatRow(label: "NORMAL PRECIP", value: pcpn.map { String(format: "%.2f %@", $0, precipUnit) } ?? "--", color: WxTheme.snwGreen)
+        }
+        .padding(9)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(WxTheme.snwChassis, in: RoundedRectangle(cornerRadius: 6))
+        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(WxTheme.border.opacity(0.3), lineWidth: 0.8))
+    }
+
+    @ViewBuilder
+    private func recordsPanel(_ rec: DailyRecordsDTO) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("ALL-TIME DAILY RECORDS")
+                    .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                    .foregroundStyle(WxTheme.snwGold)
+                Spacer()
+                if let sampled = rec.totalYearsSampled {
+                    Text("\(sampled) YRS")
+                        .font(.system(size: 7.5, weight: .bold, design: .monospaced))
+                        .foregroundStyle(WxTheme.snwSilver)
+                }
+            }
+
+            Divider().overlay(WxTheme.border.opacity(0.3))
+
+            climateRecordRow(label: "RECORD HIGH", record: rec.recordHigh, isTemp: true, color: WxTheme.snwRed)
+            climateRecordRow(label: "RECORD LOW", record: rec.recordLow, isTemp: true, color: WxTheme.snwCyan)
+            climateRecordRow(label: "MAX PRECIP", record: rec.recordPrecip, isTemp: false, color: WxTheme.snwGreen)
+            climateRecordRow(label: "COLDEST HIGH", record: rec.coldestHigh, isTemp: true, color: WxTheme.snwSilver)
+            climateRecordRow(label: "WARMEST LOW", record: rec.warmestLow, isTemp: true, color: WxTheme.snwSilver)
+        }
+        .padding(9)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(WxTheme.snwChassis, in: RoundedRectangle(cornerRadius: 6))
+        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(WxTheme.border.opacity(0.3), lineWidth: 0.8))
+    }
+
+    @ViewBuilder
+    private func monthlyNormalsPanel(_ monthly: MonthlyNormalsDTO) -> some View {
+        let hi = isMetric ? monthly.normalAvgHighC : monthly.normalAvgHighF
+        let lo = isMetric ? monthly.normalAvgLowC : monthly.normalAvgLowF
+        let pcpn = isMetric ? monthly.normalTotalPrecipMm : monthly.normalTotalPrecipIn
+        let month = (monthly.monthName ?? "MONTH").uppercased()
+
+        VStack(alignment: .leading, spacing: 6) {
+            Text("\(month) NORMALS")
+                .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                .foregroundStyle(WxTheme.snwCyan)
+
+            Divider().overlay(WxTheme.border.opacity(0.3))
+
+            climateStatRow(label: "AVG HIGH", value: hi.map { String(format: "%.1f%@", $0, tempUnit) } ?? "--", color: WxTheme.snwRed)
+            climateStatRow(label: "AVG LOW", value: lo.map { String(format: "%.1f%@", $0, tempUnit) } ?? "--", color: WxTheme.snwCyan)
+            climateStatRow(label: "TOTAL PRECIP", value: pcpn.map { String(format: "%.2f %@", $0, precipUnit) } ?? "--", color: WxTheme.snwGreen)
+            climateStatRow(label: "STATUS", value: "30-YR BASELINE", color: WxTheme.snwSilver)
+        }
+        .padding(9)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(WxTheme.snwChassis, in: RoundedRectangle(cornerRadius: 6))
+        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(WxTheme.border.opacity(0.3), lineWidth: 0.8))
+    }
+
+    private func climateStatRow(label: String, value: String, color: Color) -> some View {
+        HStack {
+            Text(label)
+                .font(.system(size: 8, weight: .medium, design: .monospaced))
+                .foregroundStyle(WxTheme.snwSilver)
+            Spacer()
+            Text(value)
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .foregroundStyle(color)
+        }
+    }
+
+    private func climateRecordRow(label: String, record: DailyRecordDTO?, isTemp: Bool, color: Color) -> some View {
+        let valStr: String = {
+            guard let r = record else { return "--" }
+            if isTemp {
+                let v = isMetric ? r.valueC : r.valueF
+                return v.map { String(format: "%.0f%@", $0, tempUnit) } ?? "--"
+            } else {
+                let v = isMetric ? r.valueMm : r.valueIn
+                return v.map { String(format: "%.2f %@", $0, precipUnit) } ?? "--"
+            }
+        }()
+        let yrsStr: String = {
+            guard let yrs = record?.years, !yrs.isEmpty else { return "" }
+            return "(" + yrs.map { String($0) }.joined(separator: ", ") + ")"
+        }()
+
+        return HStack(spacing: 4) {
+            Text(label)
+                .font(.system(size: 8, weight: .medium, design: .monospaced))
+                .foregroundStyle(WxTheme.snwSilver)
+            Spacer()
+            Text(valStr)
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .foregroundStyle(color)
+            if !yrsStr.isEmpty {
+                Text(yrsStr)
+                    .font(.system(size: 7.5, design: .monospaced))
+                    .foregroundStyle(WxTheme.textSecondary)
+            }
+        }
     }
 
     // ── Executive Summary KPI Cards ───────────────────────────────────────────────

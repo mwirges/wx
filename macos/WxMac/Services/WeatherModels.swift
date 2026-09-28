@@ -793,3 +793,134 @@ struct NowcastPayloadDTO: Decodable, Sendable {
     var location: String?
     var nowcast: NowcastDTO?
 }
+
+struct DailyNormalsDTO: Decodable, Sendable {
+    var date: String?
+    var normalHighF: Double?
+    var normalHighC: Double?
+    var normalLowF: Double?
+    var normalLowC: Double?
+    var normalMeanF: Double?
+    var normalMeanC: Double?
+    var normalPrecipIn: Double?
+    var normalPrecipMm: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case date
+        case normalHighF = "normal_high_f"
+        case normalHighC = "normal_high_c"
+        case normalLowF = "normal_low_f"
+        case normalLowC = "normal_low_c"
+        case normalMeanF = "normal_mean_f"
+        case normalMeanC = "normal_mean_c"
+        case normalPrecipIn = "normal_precip_in"
+        case normalPrecipMm = "normal_precip_mm"
+    }
+}
+
+struct DailyRecordDTO: Decodable, Sendable {
+    var valueF: Double?
+    var valueC: Double?
+    var valueIn: Double?
+    var valueMm: Double?
+    var years: [Int]?
+
+    enum CodingKeys: String, CodingKey {
+        case valueF = "value_f"
+        case valueC = "value_c"
+        case valueIn = "value_in"
+        case valueMm = "value_mm"
+        case years
+    }
+}
+
+struct DailyRecordsDTO: Decodable, Sendable {
+    var recordHigh: DailyRecordDTO?
+    var recordLow: DailyRecordDTO?
+    var recordPrecip: DailyRecordDTO?
+    var coldestHigh: DailyRecordDTO?
+    var warmestLow: DailyRecordDTO?
+    var periodOfRecord: String?
+    var totalYearsSampled: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case recordHigh = "record_high"
+        case recordLow = "record_low"
+        case recordPrecip = "record_precip"
+        case coldestHigh = "coldest_high"
+        case warmestLow = "warmest_low"
+        case periodOfRecord = "period_of_record"
+        case totalYearsSampled = "total_years_sampled"
+    }
+}
+
+struct ClimateDepartureDTO: Decodable, Sendable {
+    var observedCurrentF: Double?
+    var observedCurrentC: Double?
+    var departureCurrentF: Double?
+    var departureCurrentC: Double?
+    var summary: String?
+
+    enum CodingKeys: String, CodingKey {
+        case observedCurrentF = "observed_current_f"
+        case observedCurrentC = "observed_current_c"
+        case departureCurrentF = "departure_current_f"
+        case departureCurrentC = "departure_current_c"
+        case summary
+    }
+}
+
+struct MonthlyNormalsDTO: Decodable, Sendable {
+    var monthName: String?
+    var normalAvgHighF: Double?
+    var normalAvgHighC: Double?
+    var normalAvgLowF: Double?
+    var normalAvgLowC: Double?
+    var normalTotalPrecipIn: Double?
+    var normalTotalPrecipMm: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case monthName = "month_name"
+        case normalAvgHighF = "normal_avg_high_f"
+        case normalAvgHighC = "normal_avg_high_c"
+        case normalAvgLowF = "normal_avg_low_f"
+        case normalAvgLowC = "normal_avg_low_c"
+        case normalTotalPrecipIn = "normal_total_precip_in"
+        case normalTotalPrecipMm = "normal_total_precip_mm"
+    }
+}
+
+struct ClimateReportDTO: Decodable, Sendable {
+    var date: String?
+    var location: String?
+    var stationId: String?
+    var stationName: String?
+    var latitude: Double?
+    var longitude: Double?
+    var elevationFt: Double?
+    var elevationM: Double?
+    var normalsPeriod: String?
+    var todayNormals: DailyNormalsDTO?
+    var records: DailyRecordsDTO?
+    var departure: ClimateDepartureDTO?
+    var monthlyNormals: MonthlyNormalsDTO?
+
+    enum CodingKeys: String, CodingKey {
+        case date, location
+        case stationId = "station_id"
+        case stationName = "station_name"
+        case latitude, longitude
+        case elevationFt = "elevation_ft"
+        case elevationM = "elevation_m"
+        case normalsPeriod = "normals_period"
+        case todayNormals = "today_normals"
+        case records, departure
+        case monthlyNormals = "monthly_normals"
+    }
+}
+
+struct ClimatePayloadDTO: Decodable, Sendable {
+    var location: String?
+    var climate: ClimateReportDTO?
+}
+

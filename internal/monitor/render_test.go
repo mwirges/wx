@@ -252,3 +252,42 @@ func TestRenderConditions_WithNowcast(t *testing.T) {
 	}
 }
 
+func TestRenderConditions_WithClimate(t *testing.T) {
+	temp := 22.0
+	depF := 5.4
+	depC := 3.0
+	m := New(MonitorConfig{Imperial: true}, testLoc())
+	m.conditions = &models.CurrentConditions{
+		TempC:         &temp,
+		ConditionCode: "clear-day",
+		Description:   "Sunny",
+		Climate: &models.ClimateReport{
+			TodayNormals: models.DailyNormals{
+				NormalHighF: 72.0,
+				NormalLowF:  50.0,
+			},
+			Departure: &models.ClimateDeparture{
+				DepartureCurrentF: &depF,
+				DepartureCurrentC: &depC,
+				Summary:           "+5.4°F Departure (Above Normal)",
+			},
+		},
+	}
+
+	lines := m.renderConditions(80)
+	joined := strings.Join(lines, "\n")
+	if !strings.Contains(joined, "Climate:") {
+		t.Errorf("expected conditions to contain 'Climate:', got:\n%s", joined)
+	}
+	if !strings.Contains(joined, "+5.4°F") {
+		t.Errorf("expected conditions to contain departure '+5.4°F', got:\n%s", joined)
+	}
+	if !strings.Contains(joined, "Above Normal") {
+		t.Errorf("expected conditions to contain summary 'Above Normal', got:\n%s", joined)
+	}
+	if !strings.Contains(joined, "72°F / 50°F") {
+		t.Errorf("expected conditions to contain normals '72°F / 50°F', got:\n%s", joined)
+	}
+}
+
+

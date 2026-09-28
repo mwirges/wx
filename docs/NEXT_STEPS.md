@@ -73,16 +73,21 @@ Status: All roadmap items 1 through 7 delivered and verified (`make test && make
 
 ---
 
-## Upcoming Candidates (In Priority Order)
-
-## 8. NOAA Climate Normals & Departure Telemetry (`wx climate` / `wx normals`)
-* **Goal**: Compare current calendar day against 30-year NOAA Climate Normals (1991–2020) and records.
-* **Deliverables**:
-  - Normal High/Low, record high/low with year, and departure anomaly (`+4.2°F Above Normal`).
-  - CLI: `wx climate [location]` (aliases: `normals`, `records`).
-  - Integration with `wx monitor` and macOS App `CLIMATE` tab.
+### 8. NOAA Climate Normals & Departure Telemetry — Completed
+* Official NOAA ACIS 30-year (1991–2020) Climate Normals, all-time daily records (sampled across up to 130+ years of station history with tie-year tracking), and real-time departure anomaly calculation.
+* CLI: `wx climate [location]` (aliases: `normals`, `records`) with:
+  - Daily 30-year normals: Normal High, Normal Low, Normal Mean, Normal Precipitation.
+  - All-time daily records: Record High, Record Low, Record Precipitation, Coldest High, Warmest Low with tie years.
+  - Departure anomaly telemetry: `+4.2°F Departure (Above Normal)` or `-12.3°F Departure (Significantly Below Normal)`.
+  - Monthly normals baseline: Monthly Average High/Low and Total Normal Precipitation.
+  - Automatic station discovery with active-station date range filtering and national grid fallback (`GridData`).
+  - Full `--json` payload support.
+* TUI: Real-time climate departure anomaly badge and normals integrated into `wx monitor` observation block.
+* Mac App: Dedicated Climate Normals and All-Time Records telemetry card integrated into the `CLIMATE` tab, featuring departure anomaly badge, 30-year daily baseline, historical extremes, and monthly statistics alongside historical charts.
 
 ---
+
+## Upcoming Candidates (In Priority Order)
 
 ## 9. Atmospheric Sounding & Convective Instability (`wx sounding` / `wx cape`)
 * **Goal**: Ingest NOAA / SPC upper-air soundings for deep convective storm environment analysis.

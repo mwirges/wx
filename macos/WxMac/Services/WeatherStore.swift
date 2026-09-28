@@ -81,6 +81,10 @@ final class WeatherStore: ObservableObject {
     @Published var isNowcastLoading = false
     @Published var nowcastErrorMessage: String?
 
+    @Published var climatePayload: ClimatePayloadDTO?
+    @Published var isClimateLoading = false
+    @Published var climateErrorMessage: String?
+
     @Published var favorites: [WxLocationEntry] = []
     @Published var recentLocations: [String] = []
     @Published var gridCards: [LocationGridCardData] = []
@@ -503,6 +507,28 @@ final class WeatherStore: ObservableObject {
             historyPayload = res
         } catch {
             historyErrorMessage = error.localizedDescription
+        }
+    }
+
+    func refreshClimate() async {
+        isClimateLoading = true
+        climateErrorMessage = nil
+        defer { isClimateLoading = false }
+
+        guard backend.isAvailable else {
+            climateErrorMessage = WxCLIError.binaryMissing.errorDescription
+            return
+        }
+
+        let loc = locationInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        do {
+            let res = try await backend.fetchClimate(
+                location: loc.isEmpty ? nil : loc,
+                units: units
+            )
+            climatePayload = res
+        } catch {
+            climateErrorMessage = error.localizedDescription
         }
     }
 
