@@ -803,6 +803,8 @@ struct RadarTransportBar: View {
     @EnvironmentObject var store: WeatherStore
     var compact: Bool = false
 
+    @State private var exportToast: String?
+
     private var hasFrames: Bool {
         store.radarFrames.count > 1
     }
@@ -810,6 +812,17 @@ struct RadarTransportBar: View {
     private var activeFrame: DecodedRadarFrame? {
         guard store.radarFrames.indices.contains(store.activeFrameIndex) else { return nil }
         return store.radarFrames[store.activeFrameIndex]
+    }
+
+    private var currentFrameImage: NSImage? {
+        activeFrame?.image ?? store.radarImage
+    }
+
+    private var exportBaseName: String {
+        let loc = store.locationInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = loc.isEmpty ? "radar" : loc
+        let time = activeFrame?.validTime ?? "latest"
+        return "\(name)-\(time)"
     }
 
     private var formattedTime: String {
@@ -820,6 +833,14 @@ struct RadarTransportBar: View {
             return d.formatted(date: .omitted, time: .shortened)
         }
         return frame.validTime
+    }
+
+    private func triggerToast(_ msg: String) {
+        exportToast = msg
+        Task {
+            try? await Task.sleep(nanoseconds: 1_800_000_000)
+            exportToast = nil
+        }
     }
 
     var body: some View {
@@ -946,6 +967,66 @@ struct RadarTransportBar: View {
                 }
                 .buttonStyle(.plain)
             }
+
+            // Export Scan Menu
+            Menu {
+                Button {
+                    if let img = currentFrameImage {
+                        RadarExportService.copyImageToPasteboard(img)
+                        triggerToast("COPIED")
+                    }
+                } label: {
+                    Label("Copy Frame to Clipboard", systemImage: "doc.on.doc")
+                }
+                .disabled(currentFrameImage == nil)
+
+                Button {
+                    if let img = currentFrameImage {
+                        RadarExportService.saveImageAsPNG(img, suggestedFilename: "wx-radar-\(exportBaseName)")
+                    }
+                } label: {
+                    Label("Save Frame (PNG)...", systemImage: "arrow.down.doc")
+                }
+                .disabled(currentFrameImage == nil)
+
+                Button {
+                    let images = store.radarFrames.map { $0.image }
+                    if !images.isEmpty {
+                        let delay = Double(store.loopStepMs) / 1000.0
+                        RadarExportService.exportLoopAsGIF(
+                            images: images,
+                            frameDelay: delay,
+                            suggestedFilename: "wx-radar-loop-\(exportBaseName)"
+                        )
+                    }
+                } label: {
+                    Label("Export Loop (\(max(1, store.radarFrames.count))-Frame GIF)...", systemImage: "film")
+                }
+                .disabled(store.radarFrames.isEmpty)
+            } label: {
+                HStack(spacing: 3) {
+                    if let toast = exportToast {
+                        Text(toast)
+                            .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                            .foregroundStyle(WxTheme.snwGreen)
+                    } else {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: compact ? 8 : 9, weight: .bold))
+                        if !compact {
+                            Text("EXPORT SCAN")
+                                .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                        }
+                    }
+                }
+                .foregroundStyle(exportToast != nil ? WxTheme.snwGreen : WxTheme.snwCyan)
+                .padding(.horizontal, compact ? 6 : 8)
+                .padding(.vertical, compact ? 3.5 : 4)
+                .background(WxTheme.snwPanel, in: RoundedRectangle(cornerRadius: 4))
+                .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwCyan.opacity(0.5), lineWidth: 0.8))
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .help("Export Scan: Copy PNG to clipboard, save PNG, or export animated GIF loop")
         }
         .padding(.horizontal, compact ? 10 : 12)
         .padding(.vertical, compact ? 6 : 8)

@@ -3,8 +3,10 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"image"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -90,14 +92,18 @@ func radarCommand() *cli.Command {
 				Name:  "save",
 				Usage: "save radar image directly to a PNG file path",
 			},
+			&cli.StringFlag{
+				Name:  "save-gif",
+				Usage: "save animated radar loop directly to a GIF file path",
+			},
 		},
 		Action: radarAction,
 	}
 }
 
 func radarAction(c *cli.Context) error {
-	if !term.IsTerminal(int(os.Stdout.Fd())) && !c.Bool("json") && c.String("save") == "" {
-		return fmt.Errorf("radar rendering requires a TTY (use --json for machine-readable output or --save to write to file) — pipe output is not supported")
+	if !term.IsTerminal(int(os.Stdout.Fd())) && !c.Bool("json") && c.String("save") == "" && c.String("save-gif") == "" {
+		return fmt.Errorf("radar rendering requires a TTY (use --json for machine-readable output, --save to write PNG, or --save-gif to write animated GIF) — pipe output is not supported")
 	}
 
 	termW, termH := 120, 40
@@ -192,7 +198,52 @@ func radarAction(c *cli.Context) error {
 		Raw:      c.Bool("raw"),
 	}
 
-	if savePath := c.String("save"); savePath != "" {
+	saveGifPath := c.String("save-gif")
+	savePath := c.String("save")
+	if savePath != "" && strings.HasSuffix(strings.ToLower(savePath), ".gif") && saveGifPath == "" {
+		saveGifPath = savePath
+		savePath = ""
+	}
+
+	if saveGifPath != "" {
+		nFrames := c.Int("frames")
+		if nFrames <= 0 {
+			nFrames = 8
+		}
+		interval := c.Int("interval")
+		if interval <= 0 {
+			interval = 500
+		}
+		fmt.Fprintf(os.Stderr, "Fetching %d radar frames for animated GIF…\n", nFrames)
+		frames, err := prov.RecentFrames(ctx, loc, opts, nFrames, ch)
+		if err != nil {
+			return fmt.Errorf("radar loop: %w", err)
+		}
+		if len(frames) == 0 {
+			return fmt.Errorf("no radar frames available to export")
+		}
+
+		var imgs []image.Image
+		for _, f := range frames {
+			img := f.Img
+			if !opts.Raw && !c.Bool("no-labels") {
+				img = radar.DrawCityLabels(img, f.BBox)
+			}
+			imgs = append(imgs, img)
+		}
+
+		gifBytes, err := radar.EncodeGIF(imgs, interval)
+		if err != nil {
+			return fmt.Errorf("encode gif: %w", err)
+		}
+		if err := os.WriteFile(saveGifPath, gifBytes, 0644); err != nil {
+			return fmt.Errorf("save gif: %w", err)
+		}
+		fmt.Fprintf(os.Stderr, "Saved animated radar loop (%d frames) to %s\n", len(frames), saveGifPath)
+		return nil
+	}
+
+	if savePath != "" {
 		frame, err := prov.CurrentFrame(ctx, loc, opts, ch)
 		if err != nil {
 			return fmt.Errorf("radar: %w", err)

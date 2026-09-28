@@ -1,7 +1,7 @@
 # wx — Next Slice Handoff & Implementation Candidates
 
 Generated: 2026-09-27  
-Status: Items 1, 2, 3, 4 & 5 delivered and verified (`make test && make vet` passing across all 18 packages, `make mac-dmg` verified). Ready for Item 6.
+Status: All roadmap items 1 through 6 delivered and verified (`make test && make vet` passing across all 18 packages, `make mac-dmg` verified).
 
 ---
 
@@ -49,12 +49,12 @@ Status: Items 1, 2, 3, 4 & 5 delivered and verified (`make test && make vet` pas
 
 ---
 
-## Upcoming Candidates (In Priority Order)
+### 6. Radar Export Tooling (PNG / Animated GIF) — Completed
+* CLI:
+  - `wx radar --save frame.png` saves current radar image with city labels directly to disk.
+  - `wx radar --loop --save-gif radar.gif` (and `wx radar --save-gif radar.gif` or `--save animation.gif`) fetches chronological radar frames, overlays city labels, and compiles into an animated GIF with extended live scan dwell time.
+* Mac App:
+  - "EXPORT SCAN" menu in `RadarTransportBar` supporting 1-click "Copy Frame to Clipboard", "Save Frame (PNG)...", and "Export Loop (Animated GIF)...".
+  - Native ImageIO GIF generation and NSSavePanel integration.
+  - Ambient toast confirmation banner (`COPIED`, `SAVED`).
 
----
-
-## 6. Radar Export Tooling (PNG / Animated GIF)
-* **Goal**: Allow saving and sharing radar scans directly from CLI and Mac App.
-* **Deliverables**:
-  - CLI: `wx radar --save frame.png` and `wx radar --loop --save-gif radar.gif`.
-  - Mac App: "Export Scan" button in `RadarTransportBar` to copy current radar frame or export 8-frame loop GIF.
