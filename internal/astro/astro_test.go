@@ -199,3 +199,63 @@ func TestCalculate_ZeroTime(t *testing.T) {
 		t.Errorf("expected non-zero SolarNoon")
 	}
 }
+
+func TestCalculate_TwilightsAndSolarCoordinates(t *testing.T) {
+	loc, _ := time.LoadLocation("America/Indiana/Indianapolis")
+	noon := time.Date(2026, 9, 26, 13, 30, 0, 0, loc) // close to solar noon
+	lat, lon := 41.0793, -85.1394                     // Fort Wayne, IN
+
+	res, err := Calculate(lat, lon, noon)
+	if err != nil {
+		t.Fatalf("Calculate error: %v", err)
+	}
+
+	// Verify twilights exist and are chronologically ordered:
+	// AstroDawn < NauticalDawn < CivilDawn < Sunrise
+	if res.AstroDawn == nil || res.NauticalDawn == nil || res.CivilDawn == nil || res.Sunrise == nil {
+		t.Fatalf("expected morning twilights to be populated")
+	}
+	if !res.AstroDawn.Before(*res.NauticalDawn) {
+		t.Errorf("AstroDawn (%v) should be before NauticalDawn (%v)", res.AstroDawn, res.NauticalDawn)
+	}
+	if !res.NauticalDawn.Before(*res.CivilDawn) {
+		t.Errorf("NauticalDawn (%v) should be before CivilDawn (%v)", res.NauticalDawn, res.CivilDawn)
+	}
+	if !res.CivilDawn.Before(*res.Sunrise) {
+		t.Errorf("CivilDawn (%v) should be before Sunrise (%v)", res.CivilDawn, res.Sunrise)
+	}
+
+	// Sunset < CivilDusk < NauticalDusk < AstroDusk
+	if res.Sunset == nil || res.CivilDusk == nil || res.NauticalDusk == nil || res.AstroDusk == nil {
+		t.Fatalf("expected evening twilights to be populated")
+	}
+	if !res.Sunset.Before(*res.CivilDusk) {
+		t.Errorf("Sunset (%v) should be before CivilDusk (%v)", res.Sunset, res.CivilDusk)
+	}
+	if !res.CivilDusk.Before(*res.NauticalDusk) {
+		t.Errorf("CivilDusk (%v) should be before NauticalDusk (%v)", res.CivilDusk, res.NauticalDusk)
+	}
+	if !res.NauticalDusk.Before(*res.AstroDusk) {
+		t.Errorf("NauticalDusk (%v) should be before AstroDusk (%v)", res.NauticalDusk, res.AstroDusk)
+	}
+
+	// Golden hour
+	if res.GoldenHourMorningStart == nil || res.GoldenHourMorningEnd == nil {
+		t.Errorf("expected morning golden hour to be populated")
+	}
+	if res.GoldenHourEveningStart == nil || res.GoldenHourEveningEnd == nil {
+		t.Errorf("expected evening golden hour to be populated")
+	}
+
+	// Solar elevation and azimuth at midday
+	if res.SolarElevationDeg == nil || *res.SolarElevationDeg < 30.0 {
+		t.Errorf("expected midday solar elevation > 30 deg, got %v", res.SolarElevationDeg)
+	}
+	if res.SolarAzimuthDeg == nil || *res.SolarAzimuthDeg < 150.0 || *res.SolarAzimuthDeg > 220.0 {
+		t.Errorf("expected midday solar azimuth ~180 deg (South), got %v", res.SolarAzimuthDeg)
+	}
+	if res.CurrentPeriod != "Daylight" {
+		t.Errorf("expected current period 'Daylight', got %q", res.CurrentPeriod)
+	}
+}
+

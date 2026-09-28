@@ -327,6 +327,19 @@ func (m MonitorModel) renderConditions(w int) []string {
 				downArrow, styleValue.Render(ss),
 				styleDesc.Render("("+dayLenStr+")"),
 			)
+			if c.Astronomy.SolarElevationDeg != nil {
+				elev := *c.Astronomy.SolarElevationDeg
+				var icon string
+				if elev > 0 {
+					icon = "☀️ "
+				} else {
+					icon = "🌙 "
+				}
+				regime := c.Astronomy.CurrentPeriod
+				if regime != "" {
+					sunLine += fmt.Sprintf("   %s%s (%.0f°)", styleDesc.Render(icon), styleValue.Render(regime), elev)
+				}
+			}
 		}
 		if sunLine != "" {
 			out = append(out, truncateStr(sunLine, w))

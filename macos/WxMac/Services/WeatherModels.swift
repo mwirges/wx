@@ -33,6 +33,19 @@ struct AstronomyDTO: Decodable, Sendable {
     var dayLength: String?
     var isPolarDay: Bool?
     var isPolarNight: Bool?
+    var civilDawn: String?
+    var civilDusk: String?
+    var nauticalDawn: String?
+    var nauticalDusk: String?
+    var astroDawn: String?
+    var astroDusk: String?
+    var goldenHourMorningStart: String?
+    var goldenHourMorningEnd: String?
+    var goldenHourEveningStart: String?
+    var goldenHourEveningEnd: String?
+    var solarElevationDeg: Double?
+    var solarAzimuthDeg: Double?
+    var currentPeriod: String?
     var moonPhase: String?
     var moonPhaseIcon: String?
     var moonIlluminationPct: Double?
@@ -45,24 +58,57 @@ struct AstronomyDTO: Decodable, Sendable {
         case dayLength = "day_length"
         case isPolarDay = "is_polar_day"
         case isPolarNight = "is_polar_night"
+        case civilDawn = "civil_dawn"
+        case civilDusk = "civil_dusk"
+        case nauticalDawn = "nautical_dawn"
+        case nauticalDusk = "nautical_dusk"
+        case astroDawn = "astro_dawn"
+        case astroDusk = "astro_dusk"
+        case goldenHourMorningStart = "golden_hour_morning_start"
+        case goldenHourMorningEnd = "golden_hour_morning_end"
+        case goldenHourEveningStart = "golden_hour_evening_start"
+        case goldenHourEveningEnd = "golden_hour_evening_end"
+        case solarElevationDeg = "solar_elevation_deg"
+        case solarAzimuthDeg = "solar_azimuth_deg"
+        case currentPeriod = "current_period"
         case moonPhase = "moon_phase"
         case moonPhaseIcon = "moon_phase_icon"
         case moonIlluminationPct = "moon_illumination_pct"
         case moonAgeDays = "moon_age_days"
     }
 
-    var sunriseFormatted: String? {
-        guard let sunrise, let date = ISO8601DateFormatter().date(from: sunrise) else { return nil }
+    private func formatIsoTime(_ iso: String?) -> String? {
+        guard let iso, let date = ISO8601DateFormatter().date(from: iso) else { return nil }
         let formatter = DateFormatter()
         formatter.timeStyle = .short
         return formatter.string(from: date)
     }
 
-    var sunsetFormatted: String? {
-        guard let sunset, let date = ISO8601DateFormatter().date(from: sunset) else { return nil }
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
+    var sunriseFormatted: String? { formatIsoTime(sunrise) }
+    var sunsetFormatted: String? { formatIsoTime(sunset) }
+    var solarNoonFormatted: String? { formatIsoTime(solarNoon) }
+    var civilDawnFormatted: String? { formatIsoTime(civilDawn) }
+    var civilDuskFormatted: String? { formatIsoTime(civilDusk) }
+    var nauticalDawnFormatted: String? { formatIsoTime(nauticalDawn) }
+    var nauticalDuskFormatted: String? { formatIsoTime(nauticalDusk) }
+    var astroDawnFormatted: String? { formatIsoTime(astroDawn) }
+    var astroDuskFormatted: String? { formatIsoTime(astroDusk) }
+
+    var goldenHourMorningFormatted: String? {
+        guard let s = formatIsoTime(goldenHourMorningStart), let e = formatIsoTime(goldenHourMorningEnd) else { return nil }
+        return "\(s) – \(e)"
+    }
+
+    var goldenHourEveningFormatted: String? {
+        guard let s = formatIsoTime(goldenHourEveningStart), let e = formatIsoTime(goldenHourEveningEnd) else { return nil }
+        return "\(s) – \(e)"
+    }
+
+    var solarAzimuthCompass: String {
+        guard let az = solarAzimuthDeg else { return "" }
+        let dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
+        let idx = Int((az + 11.25) / 22.5) % 16
+        return dirs[max(0, min(15, idx))]
     }
 }
 

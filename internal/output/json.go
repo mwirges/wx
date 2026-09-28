@@ -10,17 +10,30 @@ import (
 )
 
 type jsonAstronomy struct {
-	Sunrise             *string  `json:"sunrise,omitempty"`
-	Sunset              *string  `json:"sunset,omitempty"`
-	SolarNoon           string   `json:"solar_noon,omitempty"`
-	DayLengthSec        int64    `json:"day_length_seconds"`
-	DayLength           string   `json:"day_length"`
-	IsPolarDay          bool     `json:"is_polar_day,omitempty"`
-	IsPolarNight        bool     `json:"is_polar_night,omitempty"`
-	MoonPhase           string   `json:"moon_phase,omitempty"`
-	MoonPhaseIcon       string   `json:"moon_phase_icon,omitempty"`
-	MoonIlluminationPct *float64 `json:"moon_illumination_pct,omitempty"`
-	MoonAgeDays         *float64 `json:"moon_age_days,omitempty"`
+	Sunrise                *string  `json:"sunrise,omitempty"`
+	Sunset                 *string  `json:"sunset,omitempty"`
+	SolarNoon              string   `json:"solar_noon,omitempty"`
+	DayLengthSec           int64    `json:"day_length_seconds"`
+	DayLength              string   `json:"day_length"`
+	IsPolarDay             bool     `json:"is_polar_day,omitempty"`
+	IsPolarNight           bool     `json:"is_polar_night,omitempty"`
+	CivilDawn              *string  `json:"civil_dawn,omitempty"`
+	CivilDusk              *string  `json:"civil_dusk,omitempty"`
+	NauticalDawn           *string  `json:"nautical_dawn,omitempty"`
+	NauticalDusk           *string  `json:"nautical_dusk,omitempty"`
+	AstroDawn              *string  `json:"astro_dawn,omitempty"`
+	AstroDusk              *string  `json:"astro_dusk,omitempty"`
+	GoldenHourMorningStart *string  `json:"golden_hour_morning_start,omitempty"`
+	GoldenHourMorningEnd   *string  `json:"golden_hour_morning_end,omitempty"`
+	GoldenHourEveningStart *string  `json:"golden_hour_evening_start,omitempty"`
+	GoldenHourEveningEnd   *string  `json:"golden_hour_evening_end,omitempty"`
+	SolarElevationDeg      *float64 `json:"solar_elevation_deg,omitempty"`
+	SolarAzimuthDeg        *float64 `json:"solar_azimuth_deg,omitempty"`
+	CurrentPeriod          string   `json:"current_period,omitempty"`
+	MoonPhase              string   `json:"moon_phase,omitempty"`
+	MoonPhaseIcon          string   `json:"moon_phase_icon,omitempty"`
+	MoonIlluminationPct    *float64 `json:"moon_illumination_pct,omitempty"`
+	MoonAgeDays            *float64 `json:"moon_age_days,omitempty"`
 }
 
 type jsonConditions struct {
@@ -235,6 +248,9 @@ func renderJSON(data RenderData, opts RenderOptions) error {
 				DayLength:           fmt.Sprintf("%dh %dm", int(c.Astronomy.DayLength.Hours()), int(c.Astronomy.DayLength.Minutes())%60),
 				IsPolarDay:          c.Astronomy.IsPolarDay,
 				IsPolarNight:        c.Astronomy.IsPolarNight,
+				SolarElevationDeg:   c.Astronomy.SolarElevationDeg,
+				SolarAzimuthDeg:     c.Astronomy.SolarAzimuthDeg,
+				CurrentPeriod:       c.Astronomy.CurrentPeriod,
 				MoonPhase:           c.Astronomy.MoonPhase,
 				MoonPhaseIcon:       c.Astronomy.MoonPhaseIcon,
 				MoonIlluminationPct: c.Astronomy.MoonIlluminationPct,
@@ -247,6 +263,46 @@ func renderJSON(data RenderData, opts RenderOptions) error {
 			if c.Astronomy.Sunset != nil {
 				ss := c.Astronomy.Sunset.Format(time.RFC3339)
 				ja.Sunset = &ss
+			}
+			if c.Astronomy.CivilDawn != nil {
+				tStr := c.Astronomy.CivilDawn.Format(time.RFC3339)
+				ja.CivilDawn = &tStr
+			}
+			if c.Astronomy.CivilDusk != nil {
+				tStr := c.Astronomy.CivilDusk.Format(time.RFC3339)
+				ja.CivilDusk = &tStr
+			}
+			if c.Astronomy.NauticalDawn != nil {
+				tStr := c.Astronomy.NauticalDawn.Format(time.RFC3339)
+				ja.NauticalDawn = &tStr
+			}
+			if c.Astronomy.NauticalDusk != nil {
+				tStr := c.Astronomy.NauticalDusk.Format(time.RFC3339)
+				ja.NauticalDusk = &tStr
+			}
+			if c.Astronomy.AstroDawn != nil {
+				tStr := c.Astronomy.AstroDawn.Format(time.RFC3339)
+				ja.AstroDawn = &tStr
+			}
+			if c.Astronomy.AstroDusk != nil {
+				tStr := c.Astronomy.AstroDusk.Format(time.RFC3339)
+				ja.AstroDusk = &tStr
+			}
+			if c.Astronomy.GoldenHourMorningStart != nil {
+				tStr := c.Astronomy.GoldenHourMorningStart.Format(time.RFC3339)
+				ja.GoldenHourMorningStart = &tStr
+			}
+			if c.Astronomy.GoldenHourMorningEnd != nil {
+				tStr := c.Astronomy.GoldenHourMorningEnd.Format(time.RFC3339)
+				ja.GoldenHourMorningEnd = &tStr
+			}
+			if c.Astronomy.GoldenHourEveningStart != nil {
+				tStr := c.Astronomy.GoldenHourEveningStart.Format(time.RFC3339)
+				ja.GoldenHourEveningStart = &tStr
+			}
+			if c.Astronomy.GoldenHourEveningEnd != nil {
+				tStr := c.Astronomy.GoldenHourEveningEnd.Format(time.RFC3339)
+				ja.GoldenHourEveningEnd = &tStr
 			}
 			jc.Astronomy = ja
 			out.Astronomy = ja

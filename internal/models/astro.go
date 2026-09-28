@@ -15,6 +15,23 @@ type Astronomy struct {
 	IsPolarDay   bool          `json:"is_polar_day,omitempty"`
 	IsPolarNight bool          `json:"is_polar_night,omitempty"`
 
+	// Solar twilight & golden hour horizons
+	CivilDawn              *time.Time `json:"civil_dawn,omitempty"`
+	CivilDusk              *time.Time `json:"civil_dusk,omitempty"`
+	NauticalDawn           *time.Time `json:"nautical_dawn,omitempty"`
+	NauticalDusk           *time.Time `json:"nautical_dusk,omitempty"`
+	AstroDawn              *time.Time `json:"astro_dawn,omitempty"`
+	AstroDusk              *time.Time `json:"astro_dusk,omitempty"`
+	GoldenHourMorningStart *time.Time `json:"golden_hour_morning_start,omitempty"`
+	GoldenHourMorningEnd   *time.Time `json:"golden_hour_morning_end,omitempty"`
+	GoldenHourEveningStart *time.Time `json:"golden_hour_evening_start,omitempty"`
+	GoldenHourEveningEnd   *time.Time `json:"golden_hour_evening_end,omitempty"`
+
+	// Instantaneous solar positioning
+	SolarElevationDeg *float64 `json:"solar_elevation_deg,omitempty"`
+	SolarAzimuthDeg   *float64 `json:"solar_azimuth_deg,omitempty"`
+	CurrentPeriod     string   `json:"current_period,omitempty"` // "Day", "Golden Hour", "Civil Twilight", "Nautical Twilight", "Astronomical Twilight", "Night"
+
 	// Lunar ephemeris
 	MoonPhase           string   `json:"moon_phase,omitempty"`           // e.g. "Waxing Gibbous", "Full Moon"
 	MoonPhaseIcon       string   `json:"moon_phase_icon,omitempty"`      // Unicode emoji: 🌑, 🌒, 🌓, 🌔, 🌕, 🌖, 🌗, 🌘
@@ -37,3 +54,13 @@ func (a *Astronomy) MoonAgeStr() string {
 	}
 	return fmt.Sprintf("%.1fd", *a.MoonAgeDays)
 }
+
+// AstroPayload encapsulates location context and calculated astronomical ephemeris.
+type AstroPayload struct {
+	Location     string     `json:"location,omitempty"`
+	Latitude     float64    `json:"latitude"`
+	Longitude    float64    `json:"longitude"`
+	CalculatedAt time.Time  `json:"calculated_at"`
+	Astronomy    *Astronomy `json:"astronomy"`
+}
+

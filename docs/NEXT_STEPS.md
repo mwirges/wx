@@ -1,7 +1,7 @@
 # wx — Next Slice Handoff & Implementation Candidates
 
 Generated: 2026-09-27  
-Status: Items 1, 2 & 3 delivered and verified (`make test && make vet` passing across all 18 packages, `make mac-dmg` verified). Ready for next slice.
+Status: Items 1, 2, 3 & 4 delivered and verified (`make test && make vet` passing across all 18 packages, `make mac-dmg` verified). Ready for Item 5.
 
 ---
 
@@ -29,14 +29,11 @@ Status: Items 1, 2 & 3 delivered and verified (`make test && make vet` passing a
 
 ---
 
-## Upcoming Candidates (In Priority Order)
-
-## 4. Astro & Ephemeris HUD (Solar Arc & Lunar Cycle)
-* **Goal**: Offline, pure-calculation astronomy metrics (zero API calls needed).
-* **Deliverables**:
-  - Expose `wx astro [location]` in CLI via `internal/astro`.
-  - Display solar elevation arc, sunrise/sunset, civil/nautical/astronomical twilight, golden hour, and moon phase illumination (with Unicode glyphs).
-  - Add an Ephemeris card to the Mac App desk window and `wx monitor`.
+### 4. Astro & Ephemeris HUD (Solar Arc & Lunar Cycle) — Completed
+* Pure offline astronomical ephemeris calculation with zero external APIs using NOAA solar position & Meeus algorithms.
+* Exposes `wx astro [location]` in CLI (aliases: `ephemeris`, `sun`, `moon`) with `--date` support.
+* Displays solar elevation arc, twilight horizons (civil, nautical, astronomical dawn/dusk), morning/evening golden hour, daylight duration, and lunar illumination/cycle progress meter.
+* High-visibility Ephemeris HUD card integrated into macOS App (`SURFACE` & `TACTICAL` tabs) and `wx monitor` TUI with real-time solar elevation and twilight phase badge.
 
 ---
 
