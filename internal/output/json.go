@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"time"
+
+	"github.com/mwirges/wx/internal/models"
 )
 
 type jsonAstronomy struct {
@@ -53,16 +55,18 @@ type jsonConditions struct {
 }
 
 type jsonAirQuality struct {
-	AQI        *int     `json:"aqi,omitempty"`
-	Category   string   `json:"category,omitempty"`
-	UVIndex    *float64 `json:"uv_index,omitempty"`
-	UVCategory string   `json:"uv_category,omitempty"`
-	PM25       *float64 `json:"pm2_5,omitempty"`
-	PM10       *float64 `json:"pm10,omitempty"`
-	Ozone      *float64 `json:"ozone,omitempty"`
-	NO2        *float64 `json:"no2,omitempty"`
-	CO         *float64 `json:"co,omitempty"`
-	SO2        *float64 `json:"so2,omitempty"`
+	AQI            *int     `json:"aqi,omitempty"`
+	Category       string   `json:"category,omitempty"`
+	UVIndex        *float64 `json:"uv_index,omitempty"`
+	UVCategory     string   `json:"uv_category,omitempty"`
+	PM25           *float64 `json:"pm2_5,omitempty"`
+	PM10           *float64 `json:"pm10,omitempty"`
+	Ozone          *float64 `json:"ozone,omitempty"`
+	NO2            *float64 `json:"no2,omitempty"`
+	CO             *float64 `json:"co,omitempty"`
+	SO2            *float64 `json:"so2,omitempty"`
+	HealthAdvisory string   `json:"health_advisory,omitempty"`
+	SmokeAdvisory  string   `json:"smoke_advisory,omitempty"`
 }
 
 type jsonPeriod struct {
@@ -249,17 +253,26 @@ func renderJSON(data RenderData, opts RenderOptions) error {
 		}
 
 		if c.AirQuality != nil {
+			var healthAdv, smokeAdv string
+			if c.AirQuality.AQI != nil {
+				healthAdv = models.EPAHealthAdvisory(*c.AirQuality.AQI)
+			}
+			if c.AirQuality.PM25 != nil {
+				smokeAdv = models.SmokeAdvisory(*c.AirQuality.PM25)
+			}
 			jaq := &jsonAirQuality{
-				AQI:        c.AirQuality.AQI,
-				Category:   c.AirQuality.Category,
-				UVIndex:    c.AirQuality.UVIndex,
-				UVCategory: c.AirQuality.UVCategory,
-				PM25:       c.AirQuality.PM25,
-				PM10:       c.AirQuality.PM10,
-				Ozone:      c.AirQuality.O3,
-				NO2:        c.AirQuality.NO2,
-				CO:         c.AirQuality.CO,
-				SO2:        c.AirQuality.SO2,
+				AQI:            c.AirQuality.AQI,
+				Category:       c.AirQuality.Category,
+				UVIndex:        c.AirQuality.UVIndex,
+				UVCategory:     c.AirQuality.UVCategory,
+				PM25:           c.AirQuality.PM25,
+				PM10:           c.AirQuality.PM10,
+				Ozone:          c.AirQuality.O3,
+				NO2:            c.AirQuality.NO2,
+				CO:             c.AirQuality.CO,
+				SO2:            c.AirQuality.SO2,
+				HealthAdvisory: healthAdv,
+				SmokeAdvisory:  smokeAdv,
 			}
 			jc.AirQuality = jaq
 			out.AirQuality = jaq

@@ -6,16 +6,17 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/mwirges/wx/internal/models"
 	"github.com/mwirges/wx/internal/output"
 )
 
 // Layout constants.
 const (
-	headerLines        = 3  // title + location/status line + separator
-	helpBarLines       = 1
-	conditionsBlockLines = 7  // 5 icon rows + 2 spacer/extra rows
-	maxAlertLines      = 3
-	maxForecastPeriods = 10 // 5 days × day+night
+	headerLines          = 3 // title + location/status line + separator
+	helpBarLines         = 1
+	conditionsBlockLines = 8 // 5 icon rows + 3 telemetry rows (sun, moon, air)
+	maxAlertLines        = 3
+	maxForecastPeriods   = 10 // 5 days × day+night
 )
 
 // Styles.
@@ -354,11 +355,46 @@ func (m MonitorModel) renderConditions(w int) []string {
 		}
 	}
 
+	// Air Quality bar indicator
+	if c.AirQuality != nil && c.AirQuality.AQI != nil {
+		aqi := *c.AirQuality.AQI
+		cat := c.AirQuality.Category
+		if cat == "" {
+			cat = models.AQICategory(aqi)
+		}
+		// Visual bar gauge: 10 segments representing 0 to 500
+		filled := aqi * 10 / 500
+		if filled < 1 && aqi > 0 {
+			filled = 1
+		}
+		if filled > 10 {
+			filled = 10
+		}
+		bar := output.AQIStyle(aqi).Render(strings.Repeat("■", filled)) + styleDesc.Render(strings.Repeat("□", 10-filled))
+		aqiStr := fmt.Sprintf("  %s  [%s] %s %s",
+			styleLabel.Render("Air:"),
+			bar,
+			output.AQIStyle(aqi).Render(fmt.Sprintf("%d", aqi)),
+			styleValue.Render(cat),
+		)
+		var extras []string
+		if c.AirQuality.PM25 != nil {
+			extras = append(extras, fmt.Sprintf("PM2.5: %.1f", *c.AirQuality.PM25))
+		}
+		if c.AirQuality.O3 != nil {
+			extras = append(extras, fmt.Sprintf("O3: %.0f", *c.AirQuality.O3))
+		}
+		if len(extras) > 0 {
+			aqiStr += "  " + styleDesc.Render("("+strings.Join(extras, " · ")+")")
+		}
+		out = append(out, truncateStr(aqiStr, w))
+	}
+
 	if len(out) > conditionsBlockLines {
 		out = out[:conditionsBlockLines]
 	}
 
-	// Pad to conditionsBlockLines (7)
+	// Pad to conditionsBlockLines (8)
 	return padLines(out, conditionsBlockLines, w)
 }
 

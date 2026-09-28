@@ -1,7 +1,7 @@
 # wx — Next Slice Handoff & Implementation Candidates
 
 Generated: 2026-09-27  
-Status: Items 1 & 2 delivered and verified (`make test && make vet` passing across all 18 packages, `make mac-dmg` verified). Ready for next slice.
+Status: Items 1, 2 & 3 delivered and verified (`make test && make vet` passing across all 18 packages, `make mac-dmg` verified). Ready for next slice.
 
 ---
 
@@ -22,16 +22,14 @@ Status: Items 1 & 2 delivered and verified (`make test && make vet` passing acro
 
 ---
 
-## Upcoming Candidates (In Priority Order)
-
-## 3. Air Quality Index (AQI) & Smoke Plume Console
-* **Goal**: Surface real-time air quality metrics alongside atmospheric telemetry.
-* **Deliverables**:
-  - Expose `wx aqi [location]` in the CLI using the pre-existing `internal/airquality` engine (EPA AirNow & Open-Meteo fallback).
-  - Add an AQI widget to the Mac App `SURFACE` / `TACTICAL` tabs (US AQI rating, PM2.5, PM10, Ozone, health advisories).
-  - Add AQI bar indicator to `wx monitor` TUI.
+### 3. Air Quality Index (AQI) & Smoke Plume Console — Completed
+* Exposes `wx aqi [location]` in CLI (aliases: `air`, `airquality`, `smoke`) with EPA AirNow category ratings, visual spectrum gauge, EPA health advisories, smoke plume detection, and full atmospheric chemistry (PM2.5, PM10, O3, NO2, CO, SO2, UV).
+* High-visibility Air Quality & Smoke Plume Console card added to macOS App (`SURFACE` and `TACTICAL` tabs) with interactive AQI meter, category badge, EPA health guidance, and particulate breakdown.
+* AQI bar indicator and real-time particulate telemetry integrated directly into `wx monitor` TUI.
 
 ---
+
+## Upcoming Candidates (In Priority Order)
 
 ## 4. Astro & Ephemeris HUD (Solar Arc & Lunar Cycle)
 * **Goal**: Offline, pure-calculation astronomy metrics (zero API calls needed).

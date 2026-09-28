@@ -10,6 +10,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/mwirges/wx/internal/airquality"
 	"github.com/mwirges/wx/internal/cache"
 	"github.com/mwirges/wx/internal/chase"
 	"github.com/mwirges/wx/internal/config"
@@ -481,7 +482,17 @@ func fetchWeatherCmd(cfg MonitorConfig, loc location.Location, hourly bool) tea.
 				}
 			}()
 
+			var aq *models.AirQuality
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				aq, _ = airquality.Fetch(ctx, loc.Lat, loc.Lon, cfg.Cache)
+			}()
+
 			wg.Wait()
+			if cond != nil && aq != nil {
+				cond.AirQuality = aq
+			}
 		} else {
 			condErr = fmt.Errorf("no weather provider available for location")
 		}

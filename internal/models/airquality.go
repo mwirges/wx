@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 // AirQuality represents atmospheric air quality and UV telemetry.
 // AQI follows the US EPA Air Quality Index scale (0-500).
 // UVIndex follows the WHO Global Solar UV Index scale (0-11+).
@@ -34,6 +36,38 @@ func AQICategory(aqi int) string {
 	}
 }
 
+// EPAHealthAdvisory returns the official US EPA health advisory statement for a given AQI.
+func EPAHealthAdvisory(aqi int) string {
+	switch {
+	case aqi <= 50:
+		return "Air quality is satisfactory, and air pollution poses little or no risk."
+	case aqi <= 100:
+		return "Air quality is acceptable; unusually sensitive individuals should consider limiting prolonged outdoor exertion."
+	case aqi <= 150:
+		return "Members of sensitive groups may experience health effects. The general public is less likely to be affected."
+	case aqi <= 200:
+		return "Some members of the general public may experience health effects; sensitive groups may experience more serious effects."
+	case aqi <= 300:
+		return "Health alert: The risk of health effects is increased for everyone. Limit outdoor activities."
+	default:
+		return "Health warning of emergency conditions: everyone is more likely to be affected. Avoid outdoor exertion."
+	}
+}
+
+// SmokeAdvisory returns a smoke plume warning when PM2.5 concentrations are elevated.
+func SmokeAdvisory(pm25 float64) string {
+	switch {
+	case pm25 >= 125.5:
+		return "Dense wildfire smoke plume detected. Severe particulate hazard; stay indoors with air filtration."
+	case pm25 >= 55.5:
+		return "Heavy particulate / smoke haze active. Avoid strenuous outdoor activities."
+	case pm25 >= 35.5:
+		return "Elevated PM2.5 smoke particulates present. Sensitive individuals should reduce outdoor exertion."
+	default:
+		return ""
+	}
+}
+
 // UVCategory returns the WHO category string for a given UV Index value.
 func UVCategory(uv float64) string {
 	switch {
@@ -49,3 +83,16 @@ func UVCategory(uv float64) string {
 		return "Extreme"
 	}
 }
+
+// AirQualityPayload encapsulates location context, air quality telemetry, and health recommendations.
+type AirQualityPayload struct {
+	Location       string      `json:"location,omitempty"`
+	Latitude       float64     `json:"latitude"`
+	Longitude      float64     `json:"longitude"`
+	FetchedAt      time.Time   `json:"fetched_at"`
+	AirQuality     *AirQuality `json:"air_quality"`
+	HealthAdvisory string      `json:"health_advisory,omitempty"`
+	SmokeAdvisory  string      `json:"smoke_advisory,omitempty"`
+	Source         string      `json:"source,omitempty"`
+}
+

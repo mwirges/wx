@@ -36,6 +36,24 @@ enum WxTheme {
         default: return textSecondary
         }
     }
+
+    static func aqiColor(_ aqi: Int?) -> Color {
+        guard let aqi = aqi else { return snwSilver }
+        switch aqi {
+        case ..<51:
+            return snwGreen
+        case 51...100:
+            return snwAmber
+        case 101...150:
+            return Color.orange
+        case 151...200:
+            return snwRed
+        case 201...300:
+            return Color.purple
+        default:
+            return Color(red: 0.5, green: 0.0, blue: 0.15)
+        }
+    }
 }
 
 /// Tactical corner reticle brackets framing console panels.

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mwirges/wx/internal/models"
 )
 
 // ── padToWidth ────────────────────────────────────────────────────────────────
@@ -191,3 +192,36 @@ func TestMin(t *testing.T) {
 		t.Error("min(7,2) should be 2")
 	}
 }
+
+func TestRenderConditions_WithAirQuality(t *testing.T) {
+	temp := 20.0
+	aqi := 45
+	pm25 := 8.5
+	m := New(MonitorConfig{Imperial: true}, testLoc())
+	m.conditions = &models.CurrentConditions{
+		TempC:         &temp,
+		ConditionCode: "clear-day",
+		Description:   "Clear",
+		AirQuality: &models.AirQuality{
+			AQI:      &aqi,
+			Category: "Good",
+			PM25:     &pm25,
+		},
+	}
+
+	lines := m.renderConditions(80)
+	joined := strings.Join(lines, "\n")
+	if !strings.Contains(joined, "Air:") {
+		t.Errorf("expected conditions to contain 'Air:', got:\n%s", joined)
+	}
+	if !strings.Contains(joined, "45") {
+		t.Errorf("expected conditions to contain AQI '45', got:\n%s", joined)
+	}
+	if !strings.Contains(joined, "Good") {
+		t.Errorf("expected conditions to contain 'Good', got:\n%s", joined)
+	}
+	if !strings.Contains(joined, "PM2.5: 8.5") {
+		t.Errorf("expected conditions to contain 'PM2.5: 8.5', got:\n%s", joined)
+	}
+}
+

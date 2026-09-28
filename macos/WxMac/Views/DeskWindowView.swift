@@ -90,6 +90,8 @@ struct DeskWindowView: View {
                                     NowBlockView(compact: false, popoverMetrics: false)
                                 }
 
+                                airQualityCard
+
                                 AlertsListView(popoverMode: false)
 
                                 tacticalSignalsCard
@@ -148,6 +150,8 @@ struct DeskWindowView: View {
                             SNWConsoleCard(title: "Atmospheric Telemetry", tag: "GRID.OBS") {
                                 NowBlockView(compact: false, popoverMetrics: false)
                             }
+
+                            airQualityCard
 
                             AlertsListView(popoverMode: false)
 
@@ -280,6 +284,13 @@ struct DeskWindowView: View {
                     }
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var airQualityCard: some View {
+        if let aq = store.payload?.conditions?.airQuality ?? store.payload?.airQuality {
+            AirQualityCardView(airQuality: aq)
         }
     }
 

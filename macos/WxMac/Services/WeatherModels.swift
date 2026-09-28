@@ -77,6 +77,8 @@ struct AirQualityDTO: Decodable, Sendable {
     var no2: Double?
     var co: Double?
     var so2: Double?
+    var healthAdvisory: String?
+    var smokeAdvisory: String?
 
     enum CodingKeys: String, CodingKey {
         case aqi, category, ozone, no2, co, so2
@@ -84,6 +86,29 @@ struct AirQualityDTO: Decodable, Sendable {
         case uvCategory = "uv_category"
         case pm25 = "pm2_5"
         case pm10 = "pm10"
+        case healthAdvisory = "health_advisory"
+        case smokeAdvisory = "smoke_advisory"
+    }
+
+    var resolvedAdvisory: String {
+        if let ha = healthAdvisory, !ha.isEmpty {
+            return ha
+        }
+        guard let aqi = aqi else { return "Air quality data is currently unavailable." }
+        switch aqi {
+        case ..<51:
+            return "Air quality is satisfactory, and air pollution poses little or no risk."
+        case 51...100:
+            return "Air quality is acceptable; sensitive individuals should consider limiting prolonged outdoor exertion."
+        case 101...150:
+            return "Members of sensitive groups may experience health effects. The general public is less likely to be affected."
+        case 151...200:
+            return "Some members of the general public may experience health effects; sensitive groups may experience more serious effects."
+        case 201...300:
+            return "Health alert: The risk of health effects is increased for everyone. Limit outdoor activities."
+        default:
+            return "Health warning of emergency conditions: everyone is more likely to be affected. Avoid outdoor exertion."
+        }
     }
 }
 
