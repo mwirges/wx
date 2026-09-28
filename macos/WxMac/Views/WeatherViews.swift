@@ -76,7 +76,7 @@ struct NowBlockView: View {
     @ViewBuilder
     private func metricsGrid(_ c: Conditions?) -> some View {
         let metric = store.units == "metric"
-        FlowMetrics {
+        FlowMetrics(isPopover: popoverMetrics) {
             if let h = c?.humidityPct {
                 MetricChip(label: "Humidity", value: String(format: "%.0f%%", h))
             }
@@ -182,10 +182,17 @@ struct MetricChip: View {
 }
 
 struct FlowMetrics<Content: View>: View {
+    var isPopover: Bool = false
     @ViewBuilder var content: Content
     var body: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 90), spacing: 6)], alignment: .leading, spacing: 6) {
-            content
+        if isPopover {
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 6), GridItem(.flexible(), spacing: 6), GridItem(.flexible(), spacing: 6)], alignment: .leading, spacing: 6) {
+                content
+            }
+        } else {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 90), spacing: 6)], alignment: .leading, spacing: 6) {
+                content
+            }
         }
     }
 }
@@ -461,111 +468,57 @@ struct ControlsBar: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                LocationBarView()
+            if compact {
+                // Popover / Compact 2-row layout to prevent horizontal overflow
+                LocationBarView(isHUD: true)
 
-                Picker("Units", selection: $store.units) {
-                    Text("°F").tag("imperial")
-                    Text("°C").tag("metric")
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .frame(width: 72)
-                .onChange(of: store.units) { _, _ in
-                    Task { await store.applyLocationAndUnits() }
-                }
+                HStack(spacing: 6) {
+                    Picker("Units", selection: $store.units) {
+                        Text("°F").tag("imperial")
+                        Text("°C").tag("metric")
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .frame(width: 64)
+                    .onChange(of: store.units) { _, _ in
+                        Task { await store.applyLocationAndUnits() }
+                    }
 
-                Menu {
-                    ForEach(MenuBarFormat.allCases) { fmt in
-                        Button {
-                            store.setMenuBarFormat(fmt)
-                        } label: {
-                            HStack {
-                                Text(fmt.displayName)
-                                if store.menuBarFormat == fmt {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 3) {
-                        Image(systemName: "menubar.dock.rectangle")
-                            .font(.system(size: 8.5))
-                        Text(store.menuBarFormat.rawValue.uppercased())
-                            .font(.system(size: 8, weight: .bold, design: .monospaced))
-                    }
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 5.5)
-                    .background(WxTheme.snwChassis.opacity(0.85), in: RoundedRectangle(cornerRadius: 5))
-                    .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 0.8))
-                    .foregroundStyle(WxTheme.snwSilver)
-                }
-                .menuStyle(.borderlessButton)
-                .fixedSize()
-                .help("Configure Menu Bar HUD Format (Compact, Standard, Tactical)")
+                    menuBarFormatMenu(compact: true)
 
-                Button {
-                    Task {
-                        await store.refresh()
-                        await store.refreshCPC()
-                        await store.refreshChase()
-                    }
-                } label: {
-                    if store.isLoading {
-                        ProgressView()
-                            .controlSize(.small)
-                            .frame(width: 14, height: 14)
-                    } else {
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(WxTheme.snwCyan)
+                    refreshButton
+
+                    Spacer(minLength: 4)
+
+                    if showOpenWindow {
+                        openRadarButton
+                        openDeskButton
                     }
                 }
-                .buttonStyle(.plain)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 5.5)
-                .background(WxTheme.snwChassis.opacity(0.85), in: RoundedRectangle(cornerRadius: 5))
-                .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 0.8))
-                .help("Refresh Sensor Telemetry (⌘R)")
-                .disabled(store.isLoading)
+            } else {
+                // Wide Desk window single-row layout
+                HStack(spacing: 6) {
+                    LocationBarView()
 
-                if showOpenWindow {
-                    Button {
-                        NotificationCenter.default.post(name: .wxOpenDeskRadar, object: nil)
-                    } label: {
-                        HStack(spacing: 3) {
-                            Image(systemName: "dot.radiowaves.left.and.right")
-                                .font(.system(size: 8.5))
-                            Text("RADAR")
-                                .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                        }
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 5.5)
-                        .background(WxTheme.snwChassis.opacity(0.85), in: RoundedRectangle(cornerRadius: 5))
-                        .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(WxTheme.snwCyan.opacity(0.4), lineWidth: 0.8))
-                        .foregroundStyle(WxTheme.snwCyan)
+                    Picker("Units", selection: $store.units) {
+                        Text("°F").tag("imperial")
+                        Text("°C").tag("metric")
                     }
-                    .buttonStyle(.plain)
-                    .help("Open Radar Tactical Array (⌘3)")
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .frame(width: 72)
+                    .onChange(of: store.units) { _, _ in
+                        Task { await store.applyLocationAndUnits() }
+                    }
 
-                    Button {
-                        NotificationCenter.default.post(name: .wxOpenDeskWindow, object: nil)
-                    } label: {
-                        HStack(spacing: 3) {
-                            Image(systemName: "macwindow")
-                                .font(.system(size: 8.5))
-                            Text("DESK")
-                                .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                        }
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 5.5)
-                        .background(WxTheme.snwChassis.opacity(0.85), in: RoundedRectangle(cornerRadius: 5))
-                        .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(WxTheme.snwCyan.opacity(0.4), lineWidth: 0.8))
-                        .foregroundStyle(WxTheme.snwCyan)
+                    menuBarFormatMenu(compact: false)
+
+                    refreshButton
+
+                    if showOpenWindow {
+                        openRadarButton
+                        openDeskButton
                     }
-                    .buttonStyle(.plain)
-                    .help("Open Tactical Console (⌘1)")
                 }
             }
 
@@ -585,5 +538,116 @@ struct ControlsBar: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+    }
+
+    @ViewBuilder
+    private func menuBarFormatMenu(compact: Bool) -> some View {
+        Menu {
+            Text("MENU BAR & HUD MODE")
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
+            Divider()
+            ForEach(MenuBarFormat.allCases) { fmt in
+                Button {
+                    store.setMenuBarFormat(fmt)
+                } label: {
+                    HStack {
+                        Text(fmt.displayName)
+                        if store.menuBarFormat == fmt {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 3.5) {
+                Image(systemName: "menubar.arrow.up.rectangle")
+                    .font(.system(size: 8.5))
+                    .foregroundStyle(WxTheme.snwCyan)
+                Text(compact ? "BAR:" : "MENU BAR:")
+                    .font(.system(size: 7.5, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(WxTheme.snwSilver.opacity(0.85))
+                Text(store.menuBarFormat.rawValue.uppercased())
+                    .font(.system(size: 8, weight: .bold, design: .monospaced))
+                    .foregroundStyle(WxTheme.snwCyan)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 6.5, weight: .bold))
+                    .foregroundStyle(WxTheme.snwSilver.opacity(0.6))
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 5)
+            .background(WxTheme.snwChassis.opacity(0.85), in: RoundedRectangle(cornerRadius: 5))
+            .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 0.8))
+            .foregroundStyle(WxTheme.snwSilver)
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .help("Configure macOS Menu Bar & HUD Popover Mode (Compact, Standard, Tactical)")
+    }
+
+    private var refreshButton: some View {
+        Button {
+            Task {
+                await store.refresh()
+                await store.refreshCPC()
+                await store.refreshChase()
+            }
+        } label: {
+            if store.isLoading {
+                ProgressView()
+                    .controlSize(.small)
+                    .frame(width: 14, height: 14)
+            } else {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(WxTheme.snwCyan)
+            }
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 5)
+        .background(WxTheme.snwChassis.opacity(0.85), in: RoundedRectangle(cornerRadius: 5))
+        .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 0.8))
+        .help("Refresh Sensor Telemetry (⌘R)")
+        .disabled(store.isLoading)
+    }
+
+    private var openRadarButton: some View {
+        Button {
+            NotificationCenter.default.post(name: .wxOpenDeskRadar, object: nil)
+        } label: {
+            HStack(spacing: 3) {
+                Image(systemName: "dot.radiowaves.left.and.right")
+                    .font(.system(size: 8.5))
+                Text("RADAR")
+                    .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 5)
+            .background(WxTheme.snwChassis.opacity(0.85), in: RoundedRectangle(cornerRadius: 5))
+            .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(WxTheme.snwCyan.opacity(0.4), lineWidth: 0.8))
+            .foregroundStyle(WxTheme.snwCyan)
+        }
+        .buttonStyle(.plain)
+        .help("Open Radar Tactical Array (⌘3)")
+    }
+
+    private var openDeskButton: some View {
+        Button {
+            NotificationCenter.default.post(name: .wxOpenDeskWindow, object: nil)
+        } label: {
+            HStack(spacing: 3) {
+                Image(systemName: "macwindow")
+                    .font(.system(size: 8.5))
+                Text("DESK")
+                    .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 5)
+            .background(WxTheme.snwChassis.opacity(0.85), in: RoundedRectangle(cornerRadius: 5))
+            .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(WxTheme.snwCyan.opacity(0.4), lineWidth: 0.8))
+            .foregroundStyle(WxTheme.snwCyan)
+        }
+        .buttonStyle(.plain)
+        .help("Open Tactical Console (⌘1)")
     }
 }

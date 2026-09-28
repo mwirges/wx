@@ -26,7 +26,18 @@ enum WxTheme {
     static let conditionYellow = snwGold
     static let border = snwCyan.opacity(0.35)
     static let corner: CGFloat = 8
-    static let popoverSize = CGSize(width: 420, height: 580)
+    static let popoverSize = CGSize(width: 380, height: 460)
+
+    static func popoverSize(for format: MenuBarFormat) -> CGSize {
+        switch format {
+        case .compact:
+            return CGSize(width: 350, height: 320)
+        case .standard:
+            return CGSize(width: 380, height: 460)
+        case .tactical:
+            return CGSize(width: 410, height: 540)
+        }
+    }
 
     static func severityColor(_ s: String?) -> Color {
         switch (s ?? "").lowercased() {
@@ -207,17 +218,19 @@ struct SNWMetricTile: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label.uppercased())
-                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                .font(.system(size: 7.5, weight: .bold, design: .monospaced))
                 .foregroundStyle(WxTheme.snwSilver)
                 .lineLimit(1)
             Text(value)
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
                 .foregroundStyle(WxTheme.text)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
                 .shadow(color: accent.opacity(0.3), radius: 2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 5)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 4.5)
         .background(
             RoundedRectangle(cornerRadius: 5, style: .continuous)
                 .fill(WxTheme.snwChassis.opacity(0.85))

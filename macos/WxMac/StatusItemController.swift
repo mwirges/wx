@@ -31,7 +31,7 @@ final class StatusItemController: NSObject {
 
         let pop = NSPopover()
         pop.behavior = .transient
-        pop.contentSize = WxTheme.popoverSize
+        pop.contentSize = WxTheme.popoverSize(for: store.menuBarFormat)
         pop.contentViewController = NSHostingController(rootView: PopoverView().environmentObject(store))
         popover = pop
 
@@ -43,6 +43,7 @@ final class StatusItemController: NSObject {
             Task { @MainActor in
                 self?.refreshPipState()
                 self?.refreshButton()
+                self?.updatePopoverSize()
             }
         }
         refreshPipState()
@@ -265,8 +266,17 @@ final class StatusItemController: NSObject {
         if popover.isShown {
             popover.performClose(sender)
         } else {
+            updatePopoverSize()
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             NSApp.activate()
+        }
+    }
+
+    private func updatePopoverSize() {
+        guard let popover else { return }
+        let target = WxTheme.popoverSize(for: store.menuBarFormat)
+        if popover.contentSize != target {
+            popover.contentSize = target
         }
     }
 
