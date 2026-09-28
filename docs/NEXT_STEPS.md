@@ -87,16 +87,25 @@ Status: All roadmap items 1 through 7 delivered and verified (`make test && make
 
 ---
 
-## Upcoming Candidates (In Priority Order)
-
-## 9. Atmospheric Sounding & Convective Instability (`wx sounding` / `wx cape`)
-* **Goal**: Ingest NOAA / SPC upper-air soundings for deep convective storm environment analysis.
-* **Deliverables**:
-  - Sounding telemetry: CAPE, CIN, 0–6km Bulk Shear, Lifted Index, PWAT.
-  - CLI: `wx sounding [location]` (aliases: `cape`, `instability`).
-  - Integration with `wx chase` and macOS `STORM CHASE` tab.
+### 9. Atmospheric Sounding & Convective Instability (`wx sounding` / `wx cape`) — **COMPLETED**
+* **CLI Subcommand**: `wx sounding [location]` (aliases: `cape`, `instability`, `skewt`)
+  - Curated ~75 NOAA NWS Radiosonde (RAOB) launch sites across CONUS/AK/HI/PR with spatial Haversine distance lookup.
+  - Multi-cycle SPC observation scraper (`YYMMDDHH_OBS`) parsing full NSHARP tabular soundings (`.txt`) and linking Skew-T thermodynamic diagrams (`.gif`).
+  - High-resolution fallback provider via Open-Meteo model soundings for international coordinates or offline stations with dynamic Cartesian vector shear calculations (0-1km and 0-6km bulk shear).
+  - Telemetry indices: SBCAPE, MLCAPE, MUCAPE, CIN, Lifted Index, Precipitable Water (PWAT), Freezing Level, DCAPE, 0-1km & 0-6km Bulk Shear, 0-1km & 0-3km Storm-Relative Helicity (SRH), Significant Tornado Parameter (STP), Supercell Composite Parameter (SCP), and 700-500hPa & 850-500hPa lapse rates.
+  - Convective severity classification: `SEVERE`, `ELEVATED`, `MODERATE`, `MARGINAL`, `STABLE / WEAK`.
+  - Mandatory pressure levels table (surface, 925, 850, 700, 500, 300, 250, 200 hPa) with relative humidity visual gradient bars and wind barbs.
+  - Full `--json` payload support.
+* **Storm Chase Integration**:
+  - `wx chase` clusters now resolve and display the nearest upper-air sounding station (`SoundingStation`).
+* **Mac App Integration**:
+  - Upper-Air Sounding & Convective Instability HUD card integrated into the `STORM CHASE` console.
+  - Displays station metadata, distance, convective risk badge, 8-KPI telemetry grid (SBCAPE, MLCAPE, CIN, LI, 0-6km Shear, 0-1km Shear, 0-1km SRH, PWAT), and direct action button to open NOAA SPC Skew-T diagram.
+  - Direct "LOAD SOUNDING" action on every storm cluster card to immediately inspect upper-air thermodynamic profile for that cell cluster.
 
 ---
+
+## Upcoming Candidates (In Priority Order)
 
 ## 10. NOAA National Hurricane Center (NHC) Tropical Tracker (`wx tropics` / `wx nhc`)
 * **Goal**: Real-time Atlantic & Eastern Pacific tropical cyclone monitoring.

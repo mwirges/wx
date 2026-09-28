@@ -498,6 +498,7 @@ struct StormClusterDTO: Decodable, Identifiable, Sendable {
     var primaryHazard: String
     var spcRisk: String?
     var mcdWatch: String?
+    var soundingStation: String?
     var cells: [AlertCellDTO]
 
     enum CodingKeys: String, CodingKey {
@@ -505,6 +506,7 @@ struct StormClusterDTO: Decodable, Identifiable, Sendable {
         case centerLat = "center_lat"
         case centerLon = "center_lon"
         case nearestRadar = "nearest_radar"
+        case soundingStation = "sounding_station"
         case totalAlerts = "total_alerts"
         case hazardsCount = "hazards_count"
         case primaryHazard = "primary_hazard"
@@ -923,4 +925,123 @@ struct ClimatePayloadDTO: Decodable, Sendable {
     var location: String?
     var climate: ClimateReportDTO?
 }
+
+struct SoundingLevelDTO: Decodable, Sendable, Identifiable {
+    var id: String { String(format: "%.0f", pressureHpa) }
+    var pressureHpa: Double
+    var heightM: Double?
+    var heightFt: Double?
+    var tempC: Double?
+    var tempF: Double?
+    var dewpointC: Double?
+    var dewpointF: Double?
+    var windDirDeg: Double?
+    var windSpeedKt: Double?
+    var windSpeedKph: Double?
+    var windSpeedMph: Double?
+    var rhPct: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case pressureHpa = "pressure_hpa"
+        case heightM = "height_m"
+        case heightFt = "height_ft"
+        case tempC = "temp_c"
+        case tempF = "temp_f"
+        case dewpointC = "dewpoint_c"
+        case dewpointF = "dewpoint_f"
+        case windDirDeg = "wind_dir_deg"
+        case windSpeedKt = "wind_speed_kt"
+        case windSpeedKph = "wind_speed_kph"
+        case windSpeedMph = "wind_speed_mph"
+        case rhPct = "rh_pct"
+    }
+}
+
+struct ConvectiveIndicesDTO: Decodable, Sendable {
+    var sbcapeJkg: Double?
+    var mlcapeJkg: Double?
+    var mucapeJkg: Double?
+    var sbcinJkg: Double?
+    var mlcinJkg: Double?
+    var mucinJkg: Double?
+    var sbliC: Double?
+    var mlliC: Double?
+    var muliC: Double?
+    var pwatIn: Double?
+    var pwatMm: Double?
+    var freezingLevelM: Double?
+    var freezingLevelFt: Double?
+    var dcapeJkg: Double?
+    var bulkShear01Kt: Double?
+    var bulkShear03Kt: Double?
+    var bulkShear06Kt: Double?
+    var srh01M2s2: Double?
+    var srh03M2s2: Double?
+    var stp: Double?
+    var scp: Double?
+    var ship: Double?
+    var lapseRate700_500: Double?
+    var lapseRate850_500: Double?
+    var instabilitySummary: String?
+    var shearSummary: String?
+    var convectiveRisk: String?
+
+    enum CodingKeys: String, CodingKey {
+        case sbcapeJkg = "sbcape_jkg"
+        case mlcapeJkg = "mlcape_jkg"
+        case mucapeJkg = "mucape_jkg"
+        case sbcinJkg = "sbcin_jkg"
+        case mlcinJkg = "mlcin_jkg"
+        case mucinJkg = "mucin_jkg"
+        case sbliC = "sbli_c"
+        case mlliC = "mlli_c"
+        case muliC = "muli_c"
+        case pwatIn = "pwat_in"
+        case pwatMm = "pwat_mm"
+        case freezingLevelM = "freezing_level_m"
+        case freezingLevelFt = "freezing_level_ft"
+        case dcapeJkg = "dcape_jkg"
+        case bulkShear01Kt = "bulk_shear_0_1km_kt"
+        case bulkShear03Kt = "bulk_shear_0_3km_kt"
+        case bulkShear06Kt = "bulk_shear_0_6km_kt"
+        case srh01M2s2 = "srh_0_1km_m2s2"
+        case srh03M2s2 = "srh_0_3km_m2s2"
+        case stp, scp, ship
+        case lapseRate700_500 = "lapse_rate_700_500_c_km"
+        case lapseRate850_500 = "lapse_rate_850_500_c_km"
+        case instabilitySummary = "instability_summary"
+        case shearSummary = "shear_summary"
+        case convectiveRisk = "convective_risk"
+    }
+}
+
+struct SoundingReportDTO: Decodable, Sendable {
+    var timestamp: String?
+    var location: String?
+    var stationId: String?
+    var stationName: String?
+    var distanceKm: Double?
+    var distanceMiles: Double?
+    var provider: String?
+    var skewtImageUrl: String?
+    var indices: ConvectiveIndicesDTO?
+    var levels: [SoundingLevelDTO]?
+
+    enum CodingKeys: String, CodingKey {
+        case timestamp, location
+        case stationId = "station_id"
+        case stationName = "station_name"
+        case distanceKm = "distance_km"
+        case distanceMiles = "distance_miles"
+        case provider
+        case skewtImageUrl = "skewt_image_url"
+        case indices, levels
+    }
+}
+
+struct SoundingPayloadDTO: Decodable, Sendable {
+    var location: String?
+    var sounding: SoundingReportDTO?
+}
+
 

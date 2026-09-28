@@ -19,6 +19,7 @@ enum WxTheme {
     static let accentSecondary = Color(red: 0x7B / 255, green: 0x8C / 255, blue: 0xFF / 255)
     static let text = Color(red: 0xF0 / 255, green: 0xF6 / 255, blue: 0xFF / 255)
     static let textSecondary = Color(red: 0x94 / 255, green: 0xA7 / 255, blue: 0xC5 / 255)
+    static let textTertiary = Color(red: 0x64 / 255, green: 0x74 / 255, blue: 0x8B / 255)
     static let warn = snwGold
     static let alert = snwRed
     static let conditionRed = snwRed

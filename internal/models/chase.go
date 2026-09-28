@@ -35,9 +35,10 @@ type StormCluster struct {
 	Score         int            `json:"score"`
 	HazardsCount  map[string]int `json:"hazards_count"`
 	PrimaryHazard string         `json:"primary_hazard"`
-	SPCRisk       string         `json:"spc_risk,omitempty"`
-	MCDWatch      string         `json:"mcd_watch,omitempty"`
-	Cells         []AlertCell    `json:"cells"`
+	SPCRisk         string         `json:"spc_risk,omitempty"`
+	MCDWatch        string         `json:"mcd_watch,omitempty"`
+	SoundingStation string         `json:"sounding_station,omitempty"`
+	Cells           []AlertCell    `json:"cells"`
 }
 
 // ChasePayload represents the complete nationwide active storm clusters for remote storm chasing.

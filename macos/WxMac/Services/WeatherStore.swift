@@ -85,6 +85,10 @@ final class WeatherStore: ObservableObject {
     @Published var isClimateLoading = false
     @Published var climateErrorMessage: String?
 
+    @Published var soundingPayload: SoundingPayloadDTO?
+    @Published var isSoundingLoading = false
+    @Published var soundingErrorMessage: String?
+
     @Published var favorites: [WxLocationEntry] = []
     @Published var recentLocations: [String] = []
     @Published var gridCards: [LocationGridCardData] = []
@@ -529,6 +533,29 @@ final class WeatherStore: ObservableObject {
             climatePayload = res
         } catch {
             climateErrorMessage = error.localizedDescription
+        }
+    }
+
+    func refreshSounding(station: String? = nil) async {
+        isSoundingLoading = true
+        soundingErrorMessage = nil
+        defer { isSoundingLoading = false }
+
+        guard backend.isAvailable else {
+            soundingErrorMessage = WxCLIError.binaryMissing.errorDescription
+            return
+        }
+
+        let loc = locationInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        do {
+            let res = try await backend.fetchSounding(
+                location: loc.isEmpty ? nil : loc,
+                station: station,
+                units: units
+            )
+            soundingPayload = res
+        } catch {
+            soundingErrorMessage = error.localizedDescription
         }
     }
 

@@ -92,7 +92,7 @@ func NewApp() *cli.App {
 			},
 		},
 		Action:   action,
-		Commands: []*cli.Command{configCommand(), locationsCommand(), radarCommand(), monitorCommand(), hourlyCommand(), historyCommand(), chaseCommand(), outlookCommand(), spcCommand(), aqiCommand(), astroCommand(), nowcastCommand(), climateCommand()},
+		Commands: []*cli.Command{configCommand(), locationsCommand(), radarCommand(), monitorCommand(), hourlyCommand(), historyCommand(), chaseCommand(), outlookCommand(), spcCommand(), aqiCommand(), astroCommand(), nowcastCommand(), climateCommand(), soundingCommand()},
 		ExitErrHandler: func(c *cli.Context, err error) {
 			if err != nil && err.Error() != "" {
 				fmt.Fprintf(os.Stderr, "error: %v\n", err)

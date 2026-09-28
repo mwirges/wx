@@ -16,6 +16,7 @@ import (
 	"github.com/mwirges/wx/internal/cache"
 	"github.com/mwirges/wx/internal/models"
 	"github.com/mwirges/wx/internal/radar"
+	"github.com/mwirges/wx/internal/sounding"
 	"github.com/mwirges/wx/internal/spc"
 )
 
@@ -472,19 +473,21 @@ func clusterAlerts(cells []models.AlertCell) []models.StormCluster {
 
 		primaryHazard := determinePrimaryHazard(hazardsCount)
 		name := nameCluster(states, primaryHazard, len(group))
+		stn, _ := sounding.FindClosestStation(centerLat, centerLon)
 
 		stormClusters = append(stormClusters, models.StormCluster{
-			ID:            idx + 1,
-			Name:          name,
-			States:        states,
-			CenterLat:     centerLat,
-			CenterLon:     centerLon,
-			NearestRadar:  nearestRadar,
-			TotalAlerts:   len(group),
-			Score:         totalScore,
-			HazardsCount:  hazardsCount,
-			PrimaryHazard: primaryHazard,
-			Cells:         group,
+			ID:              idx + 1,
+			Name:            name,
+			States:          states,
+			CenterLat:       centerLat,
+			CenterLon:       centerLon,
+			NearestRadar:    nearestRadar,
+			SoundingStation: stn.ID,
+			TotalAlerts:     len(group),
+			Score:           totalScore,
+			HazardsCount:    hazardsCount,
+			PrimaryHazard:   primaryHazard,
+			Cells:           group,
 		})
 	}
 

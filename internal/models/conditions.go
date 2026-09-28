@@ -47,6 +47,10 @@ type CurrentConditions struct {
 	// Climate contains NOAA 30-year normals, all-time records, and departure telemetry.
 	// Nil if unavailable.
 	Climate *ClimateReport
+
+	// Sounding contains upper-air atmospheric profile and convective stability (CAPE/CIN/Shear).
+	// Nil if unavailable.
+	Sounding *SoundingReport
 }
 
 // ComputeFeelsLike returns WindChillC if set, else HeatIndexC if set, otherwise nil.

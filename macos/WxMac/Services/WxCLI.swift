@@ -401,5 +401,41 @@ enum WxCLI {
             throw WxCLIError.decode(error.localizedDescription)
         }
     }
+
+    static func fetchSounding(
+        location: String?,
+        station: String? = nil,
+        units: String? = nil,
+        timeoutSeconds: TimeInterval = 25
+    ) throws -> SoundingPayloadDTO {
+        guard let binary = locateBinary() else { throw WxCLIError.binaryMissing }
+
+        var args = ["sounding", "--json"]
+        if let location, !location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            args += ["--location", location.trimmingCharacters(in: .whitespacesAndNewlines)]
+        }
+        if let station, !station.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            args += ["--station", station.trimmingCharacters(in: .whitespacesAndNewlines)]
+        }
+        if let units, !units.isEmpty {
+            args += ["--units", units]
+        }
+
+        let res = try runProcess(binary: binary, args: args, timeoutSeconds: timeoutSeconds)
+        if res.timedOut { throw WxCLIError.timeout }
+
+        if res.exitCode != 0 && res.stdout.isEmpty {
+            throw WxCLIError.failed(status: res.exitCode, stderr: res.stderr)
+        }
+
+        do {
+            return try JSONDecoder().decode(SoundingPayloadDTO.self, from: res.stdout)
+        } catch let e as WxCLIError {
+            throw e
+        } catch {
+            throw WxCLIError.decode(error.localizedDescription)
+        }
+    }
 }
+
 

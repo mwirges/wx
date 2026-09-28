@@ -12,6 +12,7 @@ protocol WeatherBackend: Sendable {
     func fetchHistory(location: String?, days: Int, units: String?) async throws -> HistoryPayloadDTO
     func fetchNowcast(location: String?, units: String?) async throws -> NowcastPayloadDTO
     func fetchClimate(location: String?, units: String?) async throws -> ClimatePayloadDTO
+    func fetchSounding(location: String?, station: String?, units: String?) async throws -> SoundingPayloadDTO
     func persistConfig(location: String?, units: String?) async throws
     var isAvailable: Bool { get }
 }
@@ -23,6 +24,10 @@ extension WeatherBackend {
 
     func fetchHistory(location: String?, days: Int = 14, units: String? = nil) async throws -> HistoryPayloadDTO {
         try await fetchHistory(location: location, days: days, units: units)
+    }
+
+    func fetchSounding(location: String? = nil, station: String? = nil, units: String? = nil) async throws -> SoundingPayloadDTO {
+        try await fetchSounding(location: location, station: station, units: units)
     }
 }
 
@@ -75,6 +80,12 @@ struct WxCLIBackend: WeatherBackend {
     func fetchClimate(location: String?, units: String?) async throws -> ClimatePayloadDTO {
         try await Task.detached(priority: .userInitiated) {
             try WxCLI.fetchClimate(location: location, units: units)
+        }.value
+    }
+
+    func fetchSounding(location: String?, station: String?, units: String?) async throws -> SoundingPayloadDTO {
+        try await Task.detached(priority: .userInitiated) {
+            try WxCLI.fetchSounding(location: location, station: station, units: units)
         }.value
     }
 
