@@ -63,3 +63,25 @@ func TestStationsWithinRadius(t *testing.T) {
 		t.Errorf("StationsWithinRadius(300km) = %d stations, want >= 5", len(regionalStations))
 	}
 }
+
+func TestStationsInBBox(t *testing.T) {
+	// Small BBox around KIWX (North Webster: 41.3589, -85.7006)
+	localBox := BBox{MinLat: 41.0, MinLon: -86.0, MaxLat: 41.6, MaxLon: -85.4}
+	localStations := StationsInBBox(localBox)
+	if len(localStations) != 1 || localStations[0].ID != "KIWX" {
+		t.Errorf("StationsInBBox(localBox) = %v, want [KIWX]", localStations)
+	}
+
+	// Midwestern regional BBox (covers IN, IL, OH, MI, WI)
+	midwestBox := BBox{MinLat: 39.0, MinLon: -89.0, MaxLat: 43.5, MaxLon: -82.5}
+	midwestStations := StationsInBBox(midwestBox)
+	if len(midwestStations) < 5 {
+		t.Errorf("StationsInBBox(midwestBox) returned %d stations, want >= 5", len(midwestStations))
+	}
+
+	// Empty BBox
+	emptyBox := BBox{MinLat: 0, MinLon: 0, MaxLat: 0, MaxLon: 0}
+	if stations := StationsInBBox(emptyBox); len(stations) != 0 {
+		t.Errorf("StationsInBBox(emptyBox) = %v, want empty", stations)
+	}
+}

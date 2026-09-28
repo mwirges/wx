@@ -176,6 +176,17 @@ func StationsWithinRadius(lat, lon, radiusKM float64) []Station {
 	return matched
 }
 
+// StationsInBBox returns all NEXRAD stations located within geographic bounding box bb.
+func StationsInBBox(bb BBox) []Station {
+	var matched []Station
+	for _, s := range nexradStations {
+		if s.Lat >= bb.MinLat && s.Lat <= bb.MaxLat && s.Lon >= bb.MinLon && s.Lon <= bb.MaxLon {
+			matched = append(matched, s)
+		}
+	}
+	return matched
+}
+
 // haversine returns the great-circle distance in km between two points.
 func haversine(lat1, lon1, lat2, lon2 float64) float64 {
 	const R = 6371.0 // Earth radius in km

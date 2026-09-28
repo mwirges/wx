@@ -243,6 +243,7 @@ struct RadarPayload: Decodable, Sendable {
     var bbox: RadarBBox?
     var center: RadarCenter?
     var frames: [RadarFrame]
+    var stations: [String]?
 
     enum CodingKeys: String, CodingKey {
         case product
@@ -257,6 +258,7 @@ struct RadarPayload: Decodable, Sendable {
         case bbox
         case center
         case frames
+        case stations
     }
 
     init(from decoder: Decoder) throws {
@@ -273,6 +275,7 @@ struct RadarPayload: Decodable, Sendable {
         bbox = try c.decodeIfPresent(RadarBBox.self, forKey: .bbox)
         center = try c.decodeIfPresent(RadarCenter.self, forKey: .center)
         frames = try c.decodeIfPresent([RadarFrame].self, forKey: .frames) ?? []
+        stations = try c.decodeIfPresent([String].self, forKey: .stations)
     }
 }
 

@@ -414,6 +414,14 @@ final class WeatherStore: ObservableObject {
         }
     }
 
+    func setRadarRadius(_ radius: Double) {
+        guard selectedRadarRadius != radius else { return }
+        selectedRadarRadius = radius
+        Task {
+            await refreshRadar()
+        }
+    }
+
     func refreshHistory() async {
         isHistoryLoading = true
         historyErrorMessage = nil

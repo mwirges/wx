@@ -365,12 +365,16 @@ func runRadarJSON(
 			}
 		}
 		latest := frames[len(frames)-1]
+		var stations []string
 		if latest.BBox != nil {
 			bbox = &radar.JSONBBox{
 				MinLat: latest.BBox.MinLat,
 				MinLon: latest.BBox.MinLon,
 				MaxLat: latest.BBox.MaxLat,
 				MaxLon: latest.BBox.MaxLon,
+			}
+			for _, st := range radar.StationsInBBox(*latest.BBox) {
+				stations = append(stations, st.ID)
 			}
 		}
 		latestB64 := jsonFrames[len(jsonFrames)-1].ImageBase64
@@ -384,6 +388,7 @@ func runRadarJSON(
 			RadiusKM:     opts.RadiusKM,
 			Raw:          opts.Raw,
 			IsComposite:  latest.IsComposite,
+			Stations:     stations,
 			BBox:         bbox,
 			Center:       center,
 			Frames:       jsonFrames,
@@ -403,12 +408,16 @@ func runRadarJSON(
 	if err != nil {
 		return fmt.Errorf("encode frame: %w", err)
 	}
+	var stations []string
 	if frame.BBox != nil {
 		bbox = &radar.JSONBBox{
 			MinLat: frame.BBox.MinLat,
 			MinLon: frame.BBox.MinLon,
 			MaxLat: frame.BBox.MaxLat,
 			MaxLon: frame.BBox.MaxLon,
+		}
+		for _, st := range radar.StationsInBBox(*frame.BBox) {
+			stations = append(stations, st.ID)
 		}
 	}
 	out := radar.JSONRadarOutput{
@@ -421,6 +430,7 @@ func runRadarJSON(
 		RadiusKM:     opts.RadiusKM,
 		Raw:          opts.Raw,
 		IsComposite:  frame.IsComposite,
+		Stations:     stations,
 		BBox:         bbox,
 		Center:       center,
 		Frames: []radar.JSONFrame{

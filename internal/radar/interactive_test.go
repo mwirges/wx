@@ -159,9 +159,13 @@ func TestNextRadius(t *testing.T) {
 	if got := nextRadius(50, -1); got != 50 {
 		t.Errorf("nextRadius(50, -1) = %v, want 50", got)
 	}
-	// At maximum, stay
-	if got := nextRadius(500, 1); got != 500 {
-		t.Errorf("nextRadius(500, 1) = %v, want 500", got)
+	// Zoom out from 500 → 800
+	if got := nextRadius(500, 1); got != 800 {
+		t.Errorf("nextRadius(500, 1) = %v, want 800", got)
+	}
+	// At maximum (2000), stay
+	if got := nextRadius(2000, 1); got != 2000 {
+		t.Errorf("nextRadius(2000, 1) = %v, want 2000", got)
 	}
 }
 

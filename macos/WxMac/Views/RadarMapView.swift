@@ -51,6 +51,7 @@ struct RadarMapView: NSViewRepresentable {
     let payload: RadarPayload
     let image: NSImage
     let recenterID: Int
+    var onVisibleRadiusChanged: ((Double) -> Void)? = nil
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -146,6 +147,12 @@ struct RadarMapView: NSViewRepresentable {
                 let region = MKCoordinateRegion(center: centerCoord, span: span)
                 mapView.setRegion(region, animated: !forceCenter)
             }
+        }
+
+        func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
+            let latDelta = mapView.region.span.latitudeDelta
+            let visibleRadiusKm = (latDelta * 111.0) / 2.0
+            parent.onVisibleRadiusChanged?(visibleRadiusKm)
         }
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {

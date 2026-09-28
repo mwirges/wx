@@ -36,6 +36,7 @@ type JSONRadarOutput struct {
 	RadiusKM     float64     `json:"radius_km"`
 	Raw          bool        `json:"raw,omitempty"`
 	IsComposite  bool        `json:"is_composite,omitempty"`
+	Stations     []string    `json:"stations,omitempty"`
 	BBox         *JSONBBox   `json:"bbox,omitempty"`
 	Center       *JSONCenter `json:"center,omitempty"`
 	Frames       []JSONFrame `json:"frames,omitempty"`

@@ -73,10 +73,24 @@ func writeHeader(w io.Writer, locName string, frame *Frame, opts RenderOptions) 
 
 	label := ProductLabel(frame.Product)
 	if frame.IsComposite {
-		if opts.TermWidth >= 85 {
-			label += " (Multi-Radar Composite)"
-		} else if opts.TermWidth >= 65 {
-			label += " (Composite)"
+		var stationCount int
+		if frame.BBox != nil {
+			stationCount = len(StationsInBBox(*frame.BBox))
+		}
+		if stationCount > 1 {
+			if opts.TermWidth >= 95 {
+				label += fmt.Sprintf(" (Multi-Radar Mosaic · %d Sites)", stationCount)
+			} else if opts.TermWidth >= 75 {
+				label += fmt.Sprintf(" (Mosaic · %d Sites)", stationCount)
+			} else if opts.TermWidth >= 65 {
+				label += " (Mosaic)"
+			}
+		} else {
+			if opts.TermWidth >= 85 {
+				label += " (Multi-Radar Composite)"
+			} else if opts.TermWidth >= 65 {
+				label += " (Composite)"
+			}
 		}
 	}
 	prodBadge := "● " + label

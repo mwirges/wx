@@ -22,7 +22,7 @@ type tickMsg struct{}
 
 // ── Radius presets (km) ──────────────────────────────────────────────────────
 
-var radiusPresets = []float64{50, 100, 150, 200, 300, 500}
+var radiusPresets = []float64{50, 100, 150, 200, 300, 500, 800, 1200, 2000}
 
 func nextRadius(cur float64, delta int) float64 {
 	// Find closest preset, then step by delta.
@@ -172,7 +172,12 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.frames = nil
 			m.frame = nil
 			m.loading = true
-			m.status = fmt.Sprintf("Zooming in (%.0f km)…", m.radius)
+			if m.radius > 200 {
+				sites := len(StationsWithinRadius(m.cfg.Loc.Lat, m.cfg.Loc.Lon, m.radius))
+				m.status = fmt.Sprintf("Zooming in (%.0f km — Mosaic · %d Sites)…", m.radius, sites)
+			} else {
+				m.status = fmt.Sprintf("Zooming in (%.0f km)…", m.radius)
+			}
 			if m.loopMode {
 				return m, m.fetchLoop()
 			}
@@ -184,10 +189,70 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.frame = nil
 			m.loading = true
 			if m.radius > 200 {
-				m.status = fmt.Sprintf("Zooming out (%.0f km — Multi-Radar Composite)…", m.radius)
+				sites := len(StationsWithinRadius(m.cfg.Loc.Lat, m.cfg.Loc.Lon, m.radius))
+				m.status = fmt.Sprintf("Zooming out (%.0f km — Multi-Radar Mosaic · %d Sites)…", m.radius, sites)
 			} else {
 				m.status = fmt.Sprintf("Zooming out (%.0f km)…", m.radius)
 			}
+			if m.loopMode {
+				return m, m.fetchLoop()
+			}
+			return m, m.fetchCurrent()
+
+		case "1":
+			m.radius = 150
+			m.frames = nil
+			m.frame = nil
+			m.loading = true
+			m.status = "Local Scan (150 km — Single Site)…"
+			if m.loopMode {
+				return m, m.fetchLoop()
+			}
+			return m, m.fetchCurrent()
+
+		case "2":
+			m.radius = 250
+			m.frames = nil
+			m.frame = nil
+			m.loading = true
+			sites := len(StationsWithinRadius(m.cfg.Loc.Lat, m.cfg.Loc.Lon, m.radius))
+			m.status = fmt.Sprintf("Metro Scan (250 km — Near-Field Composite · %d Sites)…", sites)
+			if m.loopMode {
+				return m, m.fetchLoop()
+			}
+			return m, m.fetchCurrent()
+
+		case "3":
+			m.radius = 500
+			m.frames = nil
+			m.frame = nil
+			m.loading = true
+			sites := len(StationsWithinRadius(m.cfg.Loc.Lat, m.cfg.Loc.Lon, m.radius))
+			m.status = fmt.Sprintf("Regional Mosaic (500 km — Multi-Radar Mosaic · %d Sites)…", sites)
+			if m.loopMode {
+				return m, m.fetchLoop()
+			}
+			return m, m.fetchCurrent()
+
+		case "4":
+			m.radius = 1000
+			m.frames = nil
+			m.frame = nil
+			m.loading = true
+			sites := len(StationsWithinRadius(m.cfg.Loc.Lat, m.cfg.Loc.Lon, m.radius))
+			m.status = fmt.Sprintf("Synoptic Sector (1000 km — Multi-State Sector Mosaic · %d Sites)…", sites)
+			if m.loopMode {
+				return m, m.fetchLoop()
+			}
+			return m, m.fetchCurrent()
+
+		case "5":
+			m.radius = 2000
+			m.frames = nil
+			m.frame = nil
+			m.loading = true
+			sites := len(StationsWithinRadius(m.cfg.Loc.Lat, m.cfg.Loc.Lon, m.radius))
+			m.status = fmt.Sprintf("CONUS National Mosaic (2000 km — Seamless CONUS Mosaic · %d Sites)…", sites)
 			if m.loopMode {
 				return m, m.fetchLoop()
 			}
@@ -360,10 +425,16 @@ func (m InteractiveModel) helpBar() string {
 	// Radius
 	radLabel := fmt.Sprintf("%.0fkm", m.radius)
 	if m.radius > 200 {
-		radLabel = fmt.Sprintf("%.0fkm (mosaic)", m.radius)
+		sites := len(StationsWithinRadius(m.cfg.Loc.Lat, m.cfg.Loc.Lon, m.radius))
+		if sites > 1 {
+			radLabel = fmt.Sprintf("%.0fkm (mosaic · %d sites)", m.radius, sites)
+		} else {
+			radLabel = fmt.Sprintf("%.0fkm (mosaic)", m.radius)
+		}
 	}
 	radStr := key.Render("+/-") + dim.Render(":") + val.Render(radLabel)
 	parts = append(parts, radStr)
+	parts = append(parts, key.Render("1-5")+dim.Render(":scale"))
 
 	// Loop status
 	loopLabel := "off"

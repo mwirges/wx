@@ -60,10 +60,68 @@ struct RadarProductMenu: View {
     }
 }
 
+struct RadarCoverageOption: Identifiable {
+    let id: Double
+    let label: String
+    let fullName: String
+    let hint: String
+}
+
+private let radarCoverages: [RadarCoverageOption] = [
+    RadarCoverageOption(id: 150, label: "Local", fullName: "Local (150 km)", hint: "Single-station high-resolution NEXRAD scan"),
+    RadarCoverageOption(id: 250, label: "Metro", fullName: "Metro (250 km)", hint: "Near-field dual-pol composite"),
+    RadarCoverageOption(id: 500, label: "Regional", fullName: "Regional (500 km)", hint: "Multi-radar composite mosaic (MRMS)"),
+    RadarCoverageOption(id: 1000, label: "Synoptic", fullName: "Synoptic (1000 km)", hint: "Multi-state sector mosaic"),
+    RadarCoverageOption(id: 2000, label: "CONUS", fullName: "CONUS (2000 km)", hint: "Seamless continental US national mosaic"),
+]
+
+struct RadarCoverageMenu: View {
+    @EnvironmentObject var store: WeatherStore
+    var isHUD: Bool = false
+
+    private var selectedOption: RadarCoverageOption {
+        radarCoverages.min(by: { abs($0.id - store.selectedRadarRadius) < abs($1.id - store.selectedRadarRadius) }) ?? radarCoverages[1]
+    }
+
+    var body: some View {
+        Menu {
+            Picker("Coverage Scale", selection: $store.selectedRadarRadius) {
+                ForEach(radarCoverages) { cov in
+                    Text("\(cov.fullName.uppercased())  —  \(cov.hint)").tag(cov.id)
+                }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: store.selectedRadarRadius > 200 ? "circle.grid.cross.fill" : "circle.circle")
+                    .font(.system(size: 9.5, weight: .bold))
+                    .foregroundStyle(store.selectedRadarRadius > 200 ? WxTheme.snwGreen : WxTheme.snwCyan)
+                Text("SCALE // \(selectedOption.label.uppercased())")
+                    .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                    .foregroundStyle(WxTheme.text)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 7.5, weight: .bold))
+                    .foregroundStyle(WxTheme.snwCyan.opacity(0.8))
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(isHUD ? WxTheme.snwChassis.opacity(0.92) : WxTheme.snwPanel, in: RoundedRectangle(cornerRadius: 5))
+            .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(WxTheme.border.opacity(0.45), lineWidth: 0.8))
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .onChange(of: store.selectedRadarRadius) { _, newRadius in
+            store.setRadarRadius(newRadius)
+        }
+    }
+}
+
 struct RadarPanelView: View {
     @EnvironmentObject var store: WeatherStore
     var fullScreen: Bool = false
     @State private var recenterID: Int = 0
+    @State private var suggestedExpandRadius: Double? = nil
 
     private var formattedValidTime: String? {
         let iso: String
@@ -108,8 +166,10 @@ struct RadarPanelView: View {
         ZStack(alignment: .top) {
             // 1. Edge-to-edge interactive MapKit radar view
             if let img = store.radarImage, let payload = store.radarPayload, payload.bbox != nil, payload.center != nil {
-                RadarMapView(payload: payload, image: img, recenterID: recenterID)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                RadarMapView(payload: payload, image: img, recenterID: recenterID) { visibleKm in
+                    handleVisibleRadiusChanged(visibleKm)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let img = store.radarImage {
                 Image(nsImage: img)
                     .resizable()
@@ -173,6 +233,9 @@ struct RadarPanelView: View {
                     // Product Selector Menu
                     RadarProductMenu(isHUD: true)
 
+                    // Coverage Scale Menu
+                    RadarCoverageMenu(isHUD: true)
+
                     // Recenter button
                     Button {
                         recenterID += 1
@@ -217,14 +280,26 @@ struct RadarPanelView: View {
 
                     // Live badge / Multi-radar composite indicator
                     let isComp = (store.radarPayload?.isComposite ?? false) || store.selectedRadarRadius > 200
+                    let stationList = store.radarPayload?.stations ?? []
                     HStack(spacing: 5) {
                         Circle()
                             .fill(WxTheme.snwGreen)
                             .frame(width: 5, height: 5)
                             .shadow(color: WxTheme.snwGreen.opacity(0.8), radius: 3)
-                        Text(isComp ? "NOAA MRMS // COMPOSITE MOSAIC" : "NOAA MRMS 1KM // LIVE")
-                            .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                            .foregroundStyle(isComp ? WxTheme.snwCyan : WxTheme.text)
+                        if isComp && stationList.count > 1 {
+                            Text("NOAA MRMS // MOSAIC (\(stationList.count) SITES)")
+                                .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                                .foregroundStyle(WxTheme.snwCyan)
+                                .help("Contributing NEXRAD radars: " + stationList.joined(separator: ", "))
+                        } else if isComp {
+                            Text("NOAA MRMS // COMPOSITE MOSAIC")
+                                .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                                .foregroundStyle(WxTheme.snwCyan)
+                        } else {
+                            Text("NOAA MRMS 1KM // LIVE")
+                                .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                                .foregroundStyle(WxTheme.text)
+                        }
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
@@ -233,6 +308,35 @@ struct RadarPanelView: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.top, 10)
+
+                // Optional floating expand prompt when map is zoomed out
+                if let expandRad = suggestedExpandRadius, expandRad > store.selectedRadarRadius {
+                    Button {
+                        store.setRadarRadius(expandRad)
+                        withAnimation { suggestedExpandRadius = nil }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.up.left.and.arrow.down.right.circle.fill")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(WxTheme.snwGreen)
+                            Text("MAP EXPANDED // SWITCH TO \(String(format: "%.0f", expandRad)) KM MOSAIC")
+                                .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                                .foregroundStyle(WxTheme.text)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 7.5, weight: .bold))
+                                .foregroundStyle(WxTheme.snwGreen)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(WxTheme.snwChassis.opacity(0.95))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(WxTheme.snwGreen.opacity(0.7), lineWidth: 1))
+                        .shadow(color: Color.black.opacity(0.5), radius: 5)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 6)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
 
                 Spacer()
 
@@ -262,7 +366,17 @@ struct RadarPanelView: View {
 
                         let isCompFooter = (store.radarPayload?.isComposite ?? false) || store.selectedRadarRadius > 200
                         let radKm = String(format: "%.0f", store.radarPayload?.radiusKm ?? store.selectedRadarRadius)
-                        Text(isCompFooter ? "NOAA MRMS MULTI-RADAR COMPOSITE MOSAIC · \(radKm) KM RADIUS · WGS84 VECTOR OVERLAY" : "NOAA MRMS SENSOR ARRAY · \(radKm) KM SCAN RADIUS · WGS84 VECTOR OVERLAY")
+                        let stationList = store.radarPayload?.stations ?? []
+                        let footerText: String = {
+                            if isCompFooter && stationList.count > 1 {
+                                return "NOAA MRMS MULTI-RADAR COMPOSITE MOSAIC · \(radKm) KM RADIUS · \(stationList.count) SITES · WGS84 VECTOR OVERLAY"
+                            } else if isCompFooter {
+                                return "NOAA MRMS MULTI-RADAR COMPOSITE MOSAIC · \(radKm) KM RADIUS · WGS84 VECTOR OVERLAY"
+                            } else {
+                                return "NOAA MRMS SENSOR ARRAY · \(radKm) KM SCAN RADIUS · WGS84 VECTOR OVERLAY"
+                            }
+                        }()
+                        Text(footerText)
                             .font(.system(size: 8, weight: .medium, design: .monospaced))
                             .foregroundStyle(WxTheme.snwSilver.opacity(0.7))
                     }
@@ -311,6 +425,7 @@ struct RadarPanelView: View {
             // Product selector bar
             HStack(spacing: 8) {
                 RadarProductMenu(isHUD: false)
+                RadarCoverageMenu(isHUD: false)
 
                 if let sel = radarProducts.first(where: { $0.id == store.selectedRadarProduct }) {
                     Text("// \(sel.hint.uppercased())")
@@ -352,8 +467,10 @@ struct RadarPanelView: View {
 
                 if let img = store.radarImage, let payload = store.radarPayload, payload.bbox != nil, payload.center != nil {
                     ZStack(alignment: .top) {
-                        RadarMapView(payload: payload, image: img, recenterID: recenterID)
-                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        RadarMapView(payload: payload, image: img, recenterID: recenterID) { visibleKm in
+                            handleVisibleRadiusChanged(visibleKm)
+                        }
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 
                         // Floating tactical HUD controls
                         HStack {
@@ -377,14 +494,26 @@ struct RadarPanelView: View {
                             Spacer()
 
                             let isComp = (store.radarPayload?.isComposite ?? false) || store.selectedRadarRadius > 200
+                            let stationList = store.radarPayload?.stations ?? []
                             HStack(spacing: 5) {
                                 Circle()
                                     .fill(WxTheme.snwGreen)
                                     .frame(width: 5, height: 5)
                                     .shadow(color: WxTheme.snwGreen.opacity(0.8), radius: 3)
-                                Text(isComp ? "NOAA MRMS // COMPOSITE" : "NOAA MRMS 1KM // LIVE")
-                                    .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                                    .foregroundStyle(isComp ? WxTheme.snwCyan : WxTheme.text)
+                                if isComp && stationList.count > 1 {
+                                    Text("NOAA MRMS // MOSAIC (\(stationList.count))")
+                                        .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                                        .foregroundStyle(WxTheme.snwCyan)
+                                        .help("Contributing NEXRAD radars: " + stationList.joined(separator: ", "))
+                                } else if isComp {
+                                    Text("NOAA MRMS // COMPOSITE")
+                                        .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                                        .foregroundStyle(WxTheme.snwCyan)
+                                } else {
+                                    Text("NOAA MRMS 1KM // LIVE")
+                                        .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                                        .foregroundStyle(WxTheme.text)
+                                }
                             }
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
@@ -392,6 +521,31 @@ struct RadarPanelView: View {
                             .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwCyan.opacity(0.4), lineWidth: 0.8))
                         }
                         .padding(10)
+
+                        if let expandRad = suggestedExpandRadius, expandRad > store.selectedRadarRadius {
+                            Button {
+                                store.setRadarRadius(expandRad)
+                                withAnimation { suggestedExpandRadius = nil }
+                            } label: {
+                                HStack(spacing: 5) {
+                                    Image(systemName: "arrow.up.left.and.arrow.down.right.circle.fill")
+                                        .font(.system(size: 9, weight: .bold))
+                                        .foregroundStyle(WxTheme.snwGreen)
+                                    Text("MAP EXPANDED // EXPAND TO \(String(format: "%.0f", expandRad)) KM")
+                                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                                        .foregroundStyle(WxTheme.text)
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(WxTheme.snwChassis.opacity(0.95))
+                                .clipShape(RoundedRectangle(cornerRadius: 5))
+                                .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(WxTheme.snwGreen.opacity(0.7), lineWidth: 0.8))
+                                .shadow(color: Color.black.opacity(0.5), radius: 4)
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.top, 38)
+                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                        }
 
                         if store.isRadarLoading {
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -614,6 +768,33 @@ struct RadarPanelView: View {
                             .strokeBorder(WxTheme.border.opacity(0.25), lineWidth: 0.8)
                     )
             )
+        }
+    }
+
+    private func handleVisibleRadiusChanged(_ visibleKm: Double) {
+        let currentKm = store.selectedRadarRadius
+        if visibleKm > currentKm * 1.55 {
+            let suggested: Double
+            if visibleKm > 1400 {
+                suggested = 2000
+            } else if visibleKm > 700 {
+                suggested = 1000
+            } else if visibleKm > 350 {
+                suggested = 500
+            } else {
+                suggested = 250
+            }
+            if suggested > currentKm {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    suggestedExpandRadius = suggested
+                }
+                return
+            }
+        }
+        if suggestedExpandRadius != nil {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                suggestedExpandRadius = nil
+            }
         }
     }
 }
