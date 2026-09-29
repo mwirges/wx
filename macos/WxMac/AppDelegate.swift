@@ -286,7 +286,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     @objc private func showAbout(_ sender: Any?) {
         let alert = NSAlert()
         alert.messageText = "wx — Advanced Meteorological Console"
-        alert.informativeText = "High-Resolution MRMS Doppler Radar & Surface Telemetry\nNational Weather Service (NWS) & NOAA MRMS Array"
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.1.0"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        alert.informativeText = "Version \(version) (Build \(build))\n\nHigh-Resolution MRMS Doppler Radar & Surface Telemetry\nNational Weather Service (NWS) & NOAA MRMS Array"
         alert.alertStyle = .informational
         if let icon = NSApp.applicationIconImage {
             alert.icon = icon

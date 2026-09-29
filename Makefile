@@ -14,9 +14,9 @@ BUILD_DIR := build
 GOOS   ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
 
-# Embed version from git tag if available, otherwise "dev".
-VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
-LDFLAGS := -ldflags "-X main.version=$(VERSION)"
+# Embed version: check VERSION file first, then git tag, otherwise fallback.
+VERSION := $(strip $(shell cat VERSION 2>/dev/null || git describe --tags --always --dirty 2>/dev/null || echo 1.1.0))
+LDFLAGS := -ldflags "-X github.com/mwirges/wx/cmd.Version=$(VERSION)"
 
 # Cross-compilation targets: OS/ARCH pairs.
 PLATFORMS := \
@@ -119,5 +119,32 @@ mac-notarize:
 ## notarize: Alias for mac-notarize
 .PHONY: notarize
 notarize: mac-notarize
+
+# ── Release Pipeline ──────────────────────────────────────────────────────────
+
+## release: Build, test, package DMG, commit, tag, and publish GitHub release (Usage: make release [VERSION=X.Y.Z])
+.PHONY: release
+release:
+	@./scripts/release.sh $(if $(VERSION),--version $(VERSION),--current)
+
+## release-patch: Bump patch version and release
+.PHONY: release-patch
+release-patch:
+	@./scripts/release.sh --patch
+
+## release-minor: Bump minor version and release
+.PHONY: release-minor
+release-minor:
+	@./scripts/release.sh --minor
+
+## release-major: Bump major version and release
+.PHONY: release-major
+release-major:
+	@./scripts/release.sh --major
+
+## bump: Synchronize and bump version metadata across all project files (Usage: make bump [VERSION=X.Y.Z])
+.PHONY: bump
+bump:
+	@./scripts/bump-version.sh $(if $(VERSION),--version $(VERSION),--minor)
 
 

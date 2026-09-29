@@ -29,7 +29,7 @@ func NewApp() *cli.App {
 	app := &cli.App{
 		Name:    "wx",
 		Usage:   "current weather conditions and forecasts",
-		Version: "1.0.0",
+		Version: Version,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:    "location",

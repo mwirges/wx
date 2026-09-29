@@ -32,12 +32,12 @@ Colorized terminal weather output with ASCII weather art, sun/moon astronomical 
 
 Install the native macOS SwiftUI app via disk image:
 
-1. Download `wx.dmg` or build it locally with:
+1. Download **[`wx-1.1.0.dmg`](https://github.com/mwirges/wx/releases/download/v1.1.0/wx-1.1.0.dmg)** or latest **[`wx.dmg`](https://github.com/mwirges/wx/releases/latest/download/wx.dmg)** from the [Releases](https://github.com/mwirges/wx/releases) page, or build locally with:
    ```bash
    make dmg
    # (or: make mac-dmg)
    ```
-2. Open `build/wx.dmg` and drag **`wx.app`** into **`/Applications`**.
+2. Open `wx.dmg` (or downloaded DMG) and drag **`wx.app`** into **`/Applications`**.
 
 > **Note:** The `wx.app` bundle includes both the native macOS menu bar HUD / Command Console and the embedded `wx-cli` binary inside `wx.app/Contents/MacOS/wx-cli`.
 
@@ -474,13 +474,17 @@ Use `--no-cache` to bypass the local cache for a fresh fetch.
 ## Development
 
 ```bash
-make build        # build CLI for current platform (build/wx)
-make test         # run Go test suite
-make test-verbose # verbose test output
-make vet          # run go vet
-make build-all    # cross-compile CLI for darwin/linux/windows
-make mac-build    # build macOS SwiftUI app (macos/build/Build/Products/Debug/wx.app)
-make mac-run      # build and launch macOS app
-make mac-dmg      # package release macOS app into build/wx.dmg (alias: make dmg)
-make clean        # remove build/
+make build          # build CLI for current platform (build/wx)
+make test           # run Go test suite
+make test-verbose   # verbose test output
+make vet            # run go vet
+make build-all      # cross-compile CLI for darwin/linux/windows
+make mac-build      # build macOS SwiftUI app (macos/build/Build/Products/Debug/wx.app)
+make mac-run        # build and launch macOS app
+make mac-dmg        # package release macOS app into build/wx.dmg (alias: make dmg)
+make release        # build, test, package, tag, and publish GitHub release (or make release VERSION=X.Y.Z)
+make release-patch  # bump patch version and release
+make release-minor  # bump minor version and release
+make bump           # synchronize version metadata across all files without releasing
+make clean          # remove build/
 ```
