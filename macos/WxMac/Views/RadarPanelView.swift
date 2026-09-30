@@ -120,6 +120,7 @@ struct RadarCoverageMenu: View {
 struct RadarPanelView: View {
     @EnvironmentObject var store: WeatherStore
     var fullScreen: Bool = false
+    var flexibleHeight: Bool = false
     @State private var recenterID: Int = 0
     @State private var suggestedExpandRadius: Double? = nil
 
@@ -622,7 +623,8 @@ struct RadarPanelView: View {
                 }
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 380)
+            .frame(height: flexibleHeight ? nil : 380)
+            .frame(maxHeight: flexibleHeight ? .infinity : 380)
             .overlay(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 1)
@@ -630,7 +632,8 @@ struct RadarPanelView: View {
             .overlay(SNWCornerBrackets(color: WxTheme.snwCyan.opacity(0.8), length: 12, thickness: 1.5))
 
             // Radar Transport Playback Bar
-            RadarTransportBar(compact: true)
+            RadarTransportBar(compact: !flexibleHeight)
+                .frame(maxWidth: .infinity)
 
             // Metadata footer & legend
             VStack(alignment: .leading, spacing: 6) {
@@ -659,7 +662,10 @@ struct RadarPanelView: View {
                     .font(.system(size: 8, weight: .medium, design: .monospaced))
                     .foregroundStyle(WxTheme.snwSilver.opacity(0.7))
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(maxWidth: .infinity)
+        .frame(maxHeight: flexibleHeight ? .infinity : nil)
     }
 
     // ── Shared Scale Bar Component ──────────────────────────────────────────────────

@@ -77,7 +77,7 @@ struct DeskWindowView: View {
                 let isWide = geo.size.width >= 760
                 if store.selectedDeskTab == .dual && isWide {
                     // Wide Dual-Pane Command Console
-                    let leftWidth = max(380, min(440, geo.size.width * 0.44))
+                    let leftWidth = max(380, min(480, geo.size.width * 0.40))
                     HStack(alignment: .top, spacing: 14) {
                         // Left Pane: Controls, Surface Conditions (Atmospheric Telemetry), Alerts, Signals, Synoptic Forecast
                         ScrollView {
@@ -108,21 +108,22 @@ struct DeskWindowView: View {
                             .padding(.leading, 14)
                             .padding(.trailing, 2)
                         }
-                        .frame(width: leftWidth)
+                        .frame(width: leftWidth, height: geo.size.height)
 
-                        // Right Pane: Live Doppler Radar Array
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 12) {
-                                SNWConsoleCard(title: "Doppler Radar Array", tag: "NOAA.MRMS") {
-                                    RadarPanelView(fullScreen: false)
-                                }
+                        // Right Pane: Live Doppler Radar Array (Expands to fill full right-hand space)
+                        VStack(alignment: .leading, spacing: 0) {
+                            SNWConsoleCard(title: "Doppler Radar Array", tag: "NOAA.MRMS") {
+                                RadarPanelView(fullScreen: false, flexibleHeight: true)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                             }
-                            .padding(.vertical, 12)
-                            .padding(.leading, 2)
-                            .padding(.trailing, 14)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
-                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .padding(.leading, 2)
+                        .padding(.trailing, 14)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
+                    .frame(width: geo.size.width, height: geo.size.height)
                 } else if store.selectedDeskTab == .radar {
                     // Full Screen Edge-to-Edge Doppler Radar Array
                     RadarPanelView(fullScreen: true)
