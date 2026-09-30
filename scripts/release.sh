@@ -9,16 +9,22 @@ cd "${ROOT_DIR}"
 DRY_RUN=false
 SKIP_TESTS=false
 ALLOW_DIRTY=false
+NOTARIZE="${NOTARIZE:-true}"
 BUMP_ARGS=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run)
       DRY_RUN=true
+      NOTARIZE=false
       shift
       ;;
     --skip-tests)
       SKIP_TESTS=true
+      shift
+      ;;
+    --skip-notarize|--no-notarize)
+      NOTARIZE=false
       shift
       ;;
     --allow-dirty)
@@ -104,16 +110,29 @@ fi
 
 # 4. Build macOS DMG Installer
 echo "==> Building macOS release DMG..."
-make dmg
+if [[ "$NOTARIZE" == "true" ]]; then
+  echo "==> Apple Notarization enabled (NOTARIZE=1)..."
+  NOTARIZE=1 make dmg
+else
+  echo "==> Note: Notarization skipped."
+  make dmg
+fi
 
 if [[ ! -f "build/wx.dmg" ]]; then
   echo "error: build/wx.dmg was not generated." >&2
   exit 1
 fi
 
-# Create versioned copy of DMG
+# Create versioned copy of DMG (inherits stapled ticket from wx.dmg)
 VERSIONED_DMG="build/wx-${TARGET_VERSION}.dmg"
 cp -f "build/wx.dmg" "${VERSIONED_DMG}"
+
+if [[ "$NOTARIZE" == "true" ]]; then
+  echo "==> Verifying Gatekeeper approval on packaged DMGs..."
+  spctl -a -vvv -t install "build/wx.dmg"
+  spctl -a -vvv -t install "${VERSIONED_DMG}"
+fi
+
 echo "==> Packaged artifacts:"
 ls -lh "build/wx.dmg" "${VERSIONED_DMG}"
 
