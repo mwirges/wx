@@ -53,13 +53,15 @@ final class WeatherStore: ObservableObject {
     @Published var radarImage: NSImage?
     @Published var radarFrames: [DecodedRadarFrame] = []
     @Published var activeFrameIndex: Int = 0
-    @Published var isLoopPlaying: Bool = true
+    @Published var isLoopPlaying: Bool = false
     @Published var loopStepMs: Int = 380
     @Published var loopDwellMs: Int = 1100
     @Published var isRadarLoading = false
     @Published var radarErrorMessage: String?
     @Published var selectedRadarProduct: String = "composite-reflectivity"
     @Published var selectedRadarRadius: Double = 200
+    @Published var currentRadarBBox: RadarBBox? = nil
+    @Published var lastRadarRefreshed: Date? = nil
 
     @Published var cpcPayload: CPCPayloadDTO?
     @Published var isCPCLoading = false
@@ -108,6 +110,8 @@ final class WeatherStore: ObservableObject {
     private let backend: WeatherBackend
     private var refreshTask: Task<Void, Never>?
     private let refreshInterval: TimeInterval = 5 * 60
+    private var radarRefreshTask: Task<Void, Never>?
+    private let radarRefreshInterval: TimeInterval = 2 * 60 // 2 minutes independent fast auto-refresh
 
     init(backend: WeatherBackend = WxCLIBackend()) {
         self.backend = backend
@@ -170,6 +174,7 @@ final class WeatherStore: ObservableObject {
         let clean = loc.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty else { return }
         locationInput = clean
+        currentRadarBBox = nil
         WxConfig.addRecent(location: clean)
         reloadConfig()
         Task {
@@ -222,11 +227,30 @@ final class WeatherStore: ObservableObject {
                 }
             }
         }
+
+        radarRefreshTask?.cancel()
+        let radarInterval = radarRefreshInterval
+        radarRefreshTask = Task { [weak self] in
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(nanoseconds: UInt64(radarInterval * 1_000_000_000))
+                } catch {
+                    return
+                }
+                guard !Task.isCancelled else { return }
+                guard let self = self else { return }
+                if self.deskWindowOpen || self.selectedDeskTab == .dual || self.selectedDeskTab == .radar || self.radarPayload != nil {
+                    await self.refreshRadar()
+                }
+            }
+        }
     }
 
     func stop() {
         refreshTask?.cancel()
         refreshTask = nil
+        radarRefreshTask?.cancel()
+        radarRefreshTask = nil
         stopLoopTimer()
     }
 
@@ -325,7 +349,7 @@ final class WeatherStore: ObservableObject {
         seekFrame(to: radarFrames.count - 1)
     }
 
-    func refreshRadar() async {
+    func refreshRadar(bbox: RadarBBox? = nil) async {
         isRadarLoading = true
         radarErrorMessage = nil
         defer { isRadarLoading = false }
@@ -335,17 +359,21 @@ final class WeatherStore: ObservableObject {
             return
         }
 
+        let targetBBox = bbox ?? currentRadarBBox
         let loc = locationInput.trimmingCharacters(in: .whitespacesAndNewlines)
         do {
             let res = try await backend.fetchRadar(
                 location: loc.isEmpty ? nil : loc,
                 product: selectedRadarProduct,
-                radiusKm: selectedRadarRadius,
+                radiusKm: (targetBBox == nil && selectedRadarRadius > 0) ? selectedRadarRadius : nil,
+                bbox: targetBBox,
                 raw: true,
                 loop: true,
                 frames: 8
             )
             radarPayload = res
+            currentRadarBBox = res.bbox ?? targetBBox
+            lastRadarRefreshed = Date()
 
             var decoded: [DecodedRadarFrame] = []
             if !res.frames.isEmpty {
@@ -491,6 +519,7 @@ final class WeatherStore: ObservableObject {
     func setRadarRadius(_ radius: Double) {
         guard selectedRadarRadius != radius else { return }
         selectedRadarRadius = radius
+        currentRadarBBox = nil
         Task {
             await refreshRadar()
         }

@@ -5,7 +5,7 @@ import Foundation
 /// Later: c-shared / GTK host must expose the same JSON contract — not a second NWS client.
 protocol WeatherBackend: Sendable {
     func fetch(location: String?, units: String?) async throws -> WxPayload
-    func fetchRadar(location: String?, product: String?, radiusKm: Double?, raw: Bool, loop: Bool, frames: Int) async throws -> RadarPayload
+    func fetchRadar(location: String?, product: String?, radiusKm: Double?, bbox: RadarBBox?, raw: Bool, loop: Bool, frames: Int) async throws -> RadarPayload
     func fetchCPC(location: String?) async throws -> CPCPayloadDTO
     func fetchSPC(location: String?) async throws -> SPCPayloadDTO
     func fetchChase() async throws -> ChasePayloadDTO
@@ -19,8 +19,8 @@ protocol WeatherBackend: Sendable {
 }
 
 extension WeatherBackend {
-    func fetchRadar(location: String?, product: String?, radiusKm: Double?, raw: Bool = true, loop: Bool = true, frames: Int = 8) async throws -> RadarPayload {
-        try await fetchRadar(location: location, product: product, radiusKm: radiusKm, raw: raw, loop: loop, frames: frames)
+    func fetchRadar(location: String?, product: String?, radiusKm: Double?, bbox: RadarBBox? = nil, raw: Bool = true, loop: Bool = true, frames: Int = 8) async throws -> RadarPayload {
+        try await fetchRadar(location: location, product: product, radiusKm: radiusKm, bbox: bbox, raw: raw, loop: loop, frames: frames)
     }
 
     func fetchHistory(location: String?, days: Int = 14, units: String? = nil) async throws -> HistoryPayloadDTO {
@@ -46,9 +46,9 @@ struct WxCLIBackend: WeatherBackend {
         }.value
     }
 
-    func fetchRadar(location: String?, product: String?, radiusKm: Double?, raw: Bool = true, loop: Bool = true, frames: Int = 8) async throws -> RadarPayload {
+    func fetchRadar(location: String?, product: String?, radiusKm: Double?, bbox: RadarBBox? = nil, raw: Bool = true, loop: Bool = true, frames: Int = 8) async throws -> RadarPayload {
         try await Task.detached(priority: .userInitiated) {
-            try WxCLI.fetchRadar(location: location, product: product, radiusKm: radiusKm, raw: raw, loop: loop, frames: frames)
+            try WxCLI.fetchRadar(location: location, product: product, radiusKm: radiusKm, bbox: bbox, raw: raw, loop: loop, frames: frames)
         }.value
     }
 

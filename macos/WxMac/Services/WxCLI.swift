@@ -188,6 +188,7 @@ enum WxCLI {
         location: String?,
         product: String? = nil,
         radiusKm: Double? = nil,
+        bbox: RadarBBox? = nil,
         raw: Bool = true,
         loop: Bool = true,
         frames: Int = 8,
@@ -202,13 +203,16 @@ enum WxCLI {
         if loop {
             args += ["--loop", "--frames", String(max(2, frames))]
         }
+        if let bbox = bbox {
+            args += ["--bbox", String(format: "%.4f,%.4f,%.4f,%.4f", bbox.minLat, bbox.minLon, bbox.maxLat, bbox.maxLon)]
+        }
         if let location, !location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             args += ["--location", location.trimmingCharacters(in: .whitespacesAndNewlines)]
         }
         if let product, !product.isEmpty {
             args += ["--product", product]
         }
-        if let radius = radiusKm, radius > 0 {
+        if bbox == nil, let radius = radiusKm, radius > 0 {
             args += ["--radius", String(format: "%.0f", radius)]
         }
 

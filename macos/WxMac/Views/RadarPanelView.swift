@@ -68,6 +68,7 @@ struct RadarCoverageOption: Identifiable {
 }
 
 private let radarCoverages: [RadarCoverageOption] = [
+    RadarCoverageOption(id: 0, label: "Auto", fullName: "Auto (Viewport)", hint: "Dynamically fit to map window & zoom"),
     RadarCoverageOption(id: 150, label: "Local", fullName: "Local (150 km)", hint: "Single-station high-resolution NEXRAD scan"),
     RadarCoverageOption(id: 250, label: "Metro", fullName: "Metro (250 km)", hint: "Near-field dual-pol composite"),
     RadarCoverageOption(id: 500, label: "Regional", fullName: "Regional (500 km)", hint: "Multi-radar composite mosaic (MRMS)"),
@@ -80,7 +81,10 @@ struct RadarCoverageMenu: View {
     var isHUD: Bool = false
 
     private var selectedOption: RadarCoverageOption {
-        radarCoverages.min(by: { abs($0.id - store.selectedRadarRadius) < abs($1.id - store.selectedRadarRadius) }) ?? radarCoverages[1]
+        if store.currentRadarBBox != nil || store.selectedRadarRadius == 0 {
+            return radarCoverages[0]
+        }
+        return radarCoverages.filter { $0.id > 0 }.min(by: { abs($0.id - store.selectedRadarRadius) < abs($1.id - store.selectedRadarRadius) }) ?? radarCoverages[0]
     }
 
     var body: some View {
@@ -93,9 +97,9 @@ struct RadarCoverageMenu: View {
             .pickerStyle(.inline)
         } label: {
             HStack(spacing: 5) {
-                Image(systemName: store.selectedRadarRadius > 200 ? "circle.grid.cross.fill" : "circle.circle")
+                Image(systemName: (store.currentRadarBBox != nil || store.selectedRadarRadius > 200) ? "circle.grid.cross.fill" : "circle.circle")
                     .font(.system(size: 9.5, weight: .bold))
-                    .foregroundStyle(store.selectedRadarRadius > 200 ? WxTheme.snwGreen : WxTheme.snwCyan)
+                    .foregroundStyle((store.currentRadarBBox != nil || store.selectedRadarRadius > 200) ? WxTheme.snwGreen : WxTheme.snwCyan)
                 Text("SCALE // \(selectedOption.label.uppercased())")
                     .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                     .foregroundStyle(WxTheme.text)
@@ -167,9 +171,11 @@ struct RadarPanelView: View {
         ZStack(alignment: .top) {
             // 1. Edge-to-edge interactive MapKit radar view
             if let img = store.radarImage, let payload = store.radarPayload, payload.bbox != nil, payload.center != nil {
-                RadarMapView(payload: payload, image: img, recenterID: recenterID) { visibleKm in
+                RadarMapView(payload: payload, image: img, recenterID: recenterID, onVisibleRadiusChanged: { visibleKm in
                     handleVisibleRadiusChanged(visibleKm)
-                }
+                }, onBBoxNeedsUpdate: { newBBox in
+                    Task { await store.refreshRadar(bbox: newBBox) }
+                })
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let img = store.radarImage {
                 Image(nsImage: img)
@@ -255,7 +261,7 @@ struct RadarPanelView: View {
                     }
                     .buttonStyle(.plain)
 
-                    // Scan button
+                    // Refresh button
                     Button {
                         Task { await store.refreshRadar() }
                     } label: {
@@ -265,7 +271,7 @@ struct RadarPanelView: View {
                             } else {
                                 Image(systemName: "arrow.triangle.2.circlepath")
                             }
-                            Text("SCAN")
+                            Text(store.isRadarLoading ? "REFRESHING…" : "REFRESH")
                         }
                         .font(.system(size: 8.5, weight: .bold, design: .monospaced))
                         .foregroundStyle(WxTheme.snwCyan)
@@ -276,11 +282,32 @@ struct RadarPanelView: View {
                     }
                     .buttonStyle(.plain)
                     .disabled(store.isRadarLoading)
+                    .help("Refresh NOAA MRMS radar telemetry now")
 
                     Spacer()
 
+                    // Retrieved timestamp readout
+                    if let refreshed = store.lastRadarRefreshed {
+                        TimelineView(.periodic(from: .now, by: 5.0)) { timeline in
+                            let seconds = max(0, Int(timeline.date.timeIntervalSince(refreshed)))
+                            let relText = seconds < 10 ? "JUST NOW" : (seconds < 60 ? "\(seconds)s AGO" : "\(seconds/60)m AGO")
+                            HStack(spacing: 4) {
+                                Image(systemName: "clock.arrow.circlepath")
+                                    .font(.system(size: 8))
+                                    .foregroundStyle(WxTheme.snwCyan)
+                                Text("FETCHED // \(refreshed.formatted(date: .omitted, time: .standard)) (\(relText))")
+                                    .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(WxTheme.snwSilver)
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(WxTheme.snwChassis.opacity(0.92), in: RoundedRectangle(cornerRadius: 5))
+                            .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(WxTheme.border.opacity(0.45), lineWidth: 0.8))
+                        }
+                    }
+
                     // Live badge / Multi-radar composite indicator
-                    let isComp = (store.radarPayload?.isComposite ?? false) || store.selectedRadarRadius > 200
+                    let isComp = (store.radarPayload?.isComposite ?? false) || store.selectedRadarRadius > 200 || store.currentRadarBBox != nil
                     let stationList = store.radarPayload?.stations ?? []
                     HStack(spacing: 5) {
                         Circle()
@@ -357,9 +384,14 @@ struct RadarPanelView: View {
                             }
                             Spacer()
                             if let vt = formattedValidTime {
-                                Text("VALID // \(vt)")
+                                Text("OBSERVED // \(vt)")
+                                    .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(WxTheme.snwCyan)
+                            }
+                            if let refreshed = store.lastRadarRefreshed {
+                                Text("· RETRIEVED // \(refreshed.formatted(date: .omitted, time: .standard))")
                                     .font(.system(size: 8.5, design: .monospaced))
-                                    .foregroundStyle(WxTheme.snwSilver.opacity(0.8))
+                                    .foregroundStyle(WxTheme.snwSilver.opacity(0.85))
                             }
                         }
 
@@ -436,7 +468,16 @@ struct RadarPanelView: View {
                         .truncationMode(.tail)
                 }
 
-                Spacer(minLength: 4)
+                if let refreshed = store.lastRadarRefreshed {
+                    TimelineView(.periodic(from: .now, by: 5.0)) { timeline in
+                        let seconds = max(0, Int(timeline.date.timeIntervalSince(refreshed)))
+                        let relText = seconds < 10 ? "JUST NOW" : (seconds < 60 ? "\(seconds)s AGO" : "\(seconds/60)m AGO")
+                        Text("// FETCHED \(refreshed.formatted(date: .omitted, time: .standard)) (\(relText))")
+                            .font(.system(size: 8, weight: .bold, design: .monospaced))
+                            .foregroundStyle(WxTheme.snwSilver.opacity(0.85))
+                            .lineLimit(1)
+                    }
+                }
 
                 Button {
                     Task { await store.refreshRadar() }
@@ -448,7 +489,7 @@ struct RadarPanelView: View {
                         } else {
                             Image(systemName: "arrow.triangle.2.circlepath")
                         }
-                        Text("SCAN ARRAY")
+                        Text(store.isRadarLoading ? "REFRESHING…" : "REFRESH")
                     }
                     .font(.system(size: 8.5, weight: .bold, design: .monospaced))
                     .foregroundStyle(WxTheme.snwCyan)
@@ -459,6 +500,7 @@ struct RadarPanelView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(store.isRadarLoading)
+                .help("Refresh NOAA MRMS radar telemetry now")
             }
 
             // Radar Map Display Area
@@ -468,9 +510,11 @@ struct RadarPanelView: View {
 
                 if let img = store.radarImage, let payload = store.radarPayload, payload.bbox != nil, payload.center != nil {
                     ZStack(alignment: .top) {
-                        RadarMapView(payload: payload, image: img, recenterID: recenterID) { visibleKm in
+                        RadarMapView(payload: payload, image: img, recenterID: recenterID, onVisibleRadiusChanged: { visibleKm in
                             handleVisibleRadiusChanged(visibleKm)
-                        }
+                        }, onBBoxNeedsUpdate: { newBBox in
+                            Task { await store.refreshRadar(bbox: newBBox) }
+                        })
                         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 
                         // Floating tactical HUD controls
@@ -956,6 +1000,27 @@ struct RadarTransportBar: View {
                     )
                 }
                 .buttonStyle(.plain)
+
+                // Quick Refresh Button
+                Button {
+                    Task { await store.refreshRadar() }
+                } label: {
+                    HStack(spacing: 3) {
+                        if store.isRadarLoading {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.system(size: compact ? 8 : 9, weight: .bold))
+                        }
+                    }
+                    .foregroundStyle(WxTheme.snwCyan)
+                    .padding(compact ? 4 : 5)
+                    .background(WxTheme.snwPanel, in: RoundedRectangle(cornerRadius: 4))
+                    .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwCyan.opacity(0.4), lineWidth: 0.8))
+                }
+                .buttonStyle(.plain)
+                .disabled(store.isRadarLoading)
+                .help("Refresh NOAA MRMS radar telemetry now")
             }
 
             // Speed toggle (only in full HUD)

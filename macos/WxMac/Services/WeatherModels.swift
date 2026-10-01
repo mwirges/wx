@@ -317,7 +317,7 @@ struct RadarFrame: Decodable, Sendable {
     }
 }
 
-struct RadarBBox: Decodable, Sendable {
+struct RadarBBox: Decodable, Sendable, Equatable {
     var minLat: Double
     var minLon: Double
     var maxLat: Double

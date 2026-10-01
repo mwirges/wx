@@ -13,6 +13,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -81,10 +82,52 @@ func isWideRadius(radiusKM float64) bool {
 	return radiusKM > SingleStationMaxRadiusKM
 }
 
+// computeDimensions calculates proportional width and height (up to 1600px)
+// based on the geographic aspect ratio of the bounding box to avoid image distortion.
+func computeDimensions(bb radarBBox) (int, int) {
+	dLat := bb.MaxLat - bb.MinLat
+	dLon := bb.MaxLon - bb.MinLon
+	if dLat <= 0 || dLon <= 0 {
+		return 1600, 1600
+	}
+	midLat := (bb.MinLat + bb.MaxLat) / 2.0
+	cosLat := math.Cos(midLat * math.Pi / 180.0)
+	if cosLat <= 0.1 {
+		cosLat = 1.0
+	}
+	aspect := (dLon * cosLat) / dLat
+	if aspect <= 0 {
+		return 1600, 1600
+	}
+	if aspect >= 1.0 {
+		w := 1600
+		h := int(float64(w) / aspect)
+		if h < 400 {
+			h = 400
+		}
+		if h > 1600 {
+			h = 1600
+		}
+		return w, h
+	}
+	h := 1600
+	w := int(float64(h) * aspect)
+	if w < 400 {
+		w = 400
+	}
+	if w > 1600 {
+		w = 1600
+	}
+	return w, h
+}
+
 // isMultiRadarComposite returns true if the frame composites data from multiple radars
 // (either because it is a national mosaic product, or because the view is zoomed out
-// wide enough to require compositing multiple stations).
-func isMultiRadarComposite(p radar.Product, radiusKM float64) bool {
+// wide enough to require compositing multiple stations, or has an explicit bounding box).
+func isMultiRadarComposite(p radar.Product, radiusKM float64, hasBBox bool) bool {
+	if hasBBox {
+		return true
+	}
 	if p == radar.ProductCompositeReflectivity || isWMSCompositeProduct(p) {
 		return true
 	}
@@ -263,14 +306,29 @@ func (p *RadarProvider) CurrentFrame(ctx context.Context, loc location.Location,
 		return nil, fmt.Errorf("nws radar: unsupported product %q", opts.Product)
 	}
 
-	bb := boundingBox(loc.Lat, loc.Lon, opts.RadiusKM)
+	var bb radarBBox
+	if opts.BBox != nil {
+		bb = radarBBox{
+			MinLat: opts.BBox.MinLat,
+			MinLon: opts.BBox.MinLon,
+			MaxLat: opts.BBox.MaxLat,
+			MaxLon: opts.BBox.MaxLon,
+		}
+	} else {
+		bb = boundingBox(loc.Lat, loc.Lon, opts.RadiusKM)
+	}
 
 	if opts.Raw {
 		layer, ok := nwsWMSLayers[opts.Product]
 		if !ok {
 			return nil, fmt.Errorf("nws radar: product %q does not support raw mode (use composite-reflectivity, base-reflectivity, echo-tops, or precip-type)", opts.Product)
 		}
-		rawKey := fmt.Sprintf("nws:radar:raw:v3:%s:%.4f,%.4f:%.0f", opts.Product, loc.Lat, loc.Lon, opts.RadiusKM)
+		var rawKey string
+		if opts.BBox != nil {
+			rawKey = fmt.Sprintf("nws:radar:raw:v4:%s:bbox:%.4f,%.4f,%.4f,%.4f", opts.Product, bb.MinLat, bb.MinLon, bb.MaxLat, bb.MaxLon)
+		} else {
+			rawKey = fmt.Sprintf("nws:radar:raw:v3:%s:%.4f,%.4f:%.0f", opts.Product, loc.Lat, loc.Lon, opts.RadiusKM)
+		}
 		if f := p.imgGet(rawKey); f != nil {
 			return f, nil
 		}
@@ -294,7 +352,12 @@ func (p *RadarProvider) CurrentFrame(ctx context.Context, loc location.Location,
 		return f, nil
 	}
 
-	key := fmt.Sprintf("nws:radar:cur:v4:%s:%.4f,%.4f:%.0f", opts.Product, loc.Lat, loc.Lon, opts.RadiusKM)
+	var key string
+	if opts.BBox != nil {
+		key = fmt.Sprintf("nws:radar:cur:v5:%s:bbox:%.4f,%.4f,%.4f,%.4f", opts.Product, bb.MinLat, bb.MinLon, bb.MaxLat, bb.MaxLon)
+	} else {
+		key = fmt.Sprintf("nws:radar:cur:v4:%s:%.4f,%.4f:%.0f", opts.Product, loc.Lat, loc.Lon, opts.RadiusKM)
+	}
 
 	// L1: in-process (avoids re-decoding PNG within the same invocation)
 	if f := p.imgGet(key); f != nil {
@@ -308,10 +371,11 @@ func (p *RadarProvider) CurrentFrame(ctx context.Context, loc location.Location,
 
 	now := time.Now().UTC().Truncate(radarFrameInterval)
 
+	w, h := computeDimensions(bb)
 	params := url.Values{}
 	p.addRadarLayers(params, loc, opts)
-	params.Set("width", "1600")
-	params.Set("height", "1600")
+	params.Set("width", strconv.Itoa(w))
+	params.Set("height", strconv.Itoa(h))
 	params.Set("bbox", fmt.Sprintf("%.6f,%.6f,%.6f,%.6f",
 		bb.MinLon, bb.MinLat, bb.MaxLon, bb.MaxLat))
 	params.Set("fmt", "png")
@@ -337,7 +401,7 @@ func (p *RadarProvider) CurrentFrame(ctx context.Context, loc location.Location,
 		ValidTime:   now,
 		Product:     opts.Product,
 		BBox:        &radar.BBox{MinLat: bb.MinLat, MinLon: bb.MinLon, MaxLat: bb.MaxLat, MaxLon: bb.MaxLon},
-		IsComposite: isMultiRadarComposite(opts.Product, opts.RadiusKM),
+		IsComposite: isMultiRadarComposite(opts.Product, opts.RadiusKM, opts.BBox != nil),
 	}
 	p.diskSet(c, key, f, currentFrameTTL)
 	p.imgSet(key, f, currentFrameTTL)
@@ -353,11 +417,11 @@ func (p *RadarProvider) addRadarLayers(params url.Values, loc location.Location,
 	if isWMSCompositeProduct(opts.Product) {
 		// Radar data comes from NWS WMS; radmap provides only the base map
 		// and geographic overlays. No radar layer added here.
-	} else if isWideRadius(opts.RadiusKM) && (opts.Product == radar.ProductBaseReflectivity || opts.Product == radar.ProductCompositeReflectivity) {
-		// Beyond 200 km, single-station coverage drops off. Composite multiple radars
+	} else if (opts.BBox != nil || isWideRadius(opts.RadiusKM)) && (opts.Product == radar.ProductBaseReflectivity || opts.Product == radar.ProductCompositeReflectivity) {
+		// Beyond 200 km or custom bbox, single-station coverage drops off. Composite multiple radars
 		// using the national mosaic layer.
 		params.Add("layers[]", "n0q")
-	} else if radar.IsStationProduct(opts.Product) {
+	} else if opts.BBox == nil && radar.IsStationProduct(opts.Product) {
 		// Single-station RIDGE mode — IEM uses 3-letter station codes.
 		station := radar.NearestStation(loc.Lat, loc.Lon)
 		params.Add("layers[]", "ridge")
@@ -389,7 +453,17 @@ func (p *RadarProvider) RecentFrames(ctx context.Context, loc location.Location,
 		if !ok {
 			return nil, fmt.Errorf("nws radar: product %q does not support raw mode for loop", opts.Product)
 		}
-		bb := boundingBox(loc.Lat, loc.Lon, opts.RadiusKM)
+		var bb radarBBox
+		if opts.BBox != nil {
+			bb = radarBBox{
+				MinLat: opts.BBox.MinLat,
+				MinLon: opts.BBox.MinLon,
+				MaxLat: opts.BBox.MaxLat,
+				MaxLon: opts.BBox.MaxLon,
+			}
+		} else {
+			bb = boundingBox(loc.Lat, loc.Lon, opts.RadiusKM)
+		}
 		now := time.Now().UTC().Truncate(radarFrameInterval)
 
 		type result struct {
@@ -407,9 +481,15 @@ func (p *RadarProvider) RecentFrames(ctx context.Context, loc location.Location,
 				sem <- struct{}{}
 				defer func() { <-sem }()
 				timeStr := ts.Format(time.RFC3339)
-				key := fmt.Sprintf("nws:radar:raw:wms:v1:%s:%.4f,%.4f:%.0f:%s",
-					opts.Product, (bb.MinLat+bb.MaxLat)/2, (bb.MinLon+bb.MaxLon)/2,
-					opts.RadiusKM, timeStr)
+				var key string
+				if opts.BBox != nil {
+					key = fmt.Sprintf("nws:radar:raw:wms:v2:%s:bbox:%.4f,%.4f,%.4f,%.4f:%s",
+						opts.Product, bb.MinLat, bb.MinLon, bb.MaxLat, bb.MaxLon, timeStr)
+				} else {
+					key = fmt.Sprintf("nws:radar:raw:wms:v1:%s:%.4f,%.4f:%.0f:%s",
+						opts.Product, (bb.MinLat+bb.MaxLat)/2, (bb.MinLon+bb.MaxLon)/2,
+						opts.RadiusKM, timeStr)
+				}
 				if f := p.imgGet(key); f != nil {
 					results[idx] = result{f, nil}
 					return
@@ -450,7 +530,17 @@ func (p *RadarProvider) RecentFrames(ctx context.Context, loc location.Location,
 		return frames, nil
 	}
 
-	bb := boundingBox(loc.Lat, loc.Lon, opts.RadiusKM)
+	var bb radarBBox
+	if opts.BBox != nil {
+		bb = radarBBox{
+			MinLat: opts.BBox.MinLat,
+			MinLon: opts.BBox.MinLon,
+			MaxLat: opts.BBox.MaxLat,
+			MaxLon: opts.BBox.MaxLon,
+		}
+	} else {
+		bb = boundingBox(loc.Lat, loc.Lon, opts.RadiusKM)
+	}
 	now := time.Now().UTC().Truncate(radarFrameInterval)
 
 	type result struct {
@@ -489,6 +579,7 @@ func (p *RadarProvider) RecentFrames(ctx context.Context, loc location.Location,
 // ── WMS fetch (current frame) ─────────────────────────────────────────────────
 
 func (p *RadarProvider) fetchWMSFrame(ctx context.Context, layer string, bb radarBBox, timeStr string) (image.Image, time.Time, error) {
+	w, h := computeDimensions(bb)
 	params := url.Values{
 		"SERVICE":     {"WMS"},
 		"VERSION":     {"1.3.0"},
@@ -498,8 +589,8 @@ func (p *RadarProvider) fetchWMSFrame(ctx context.Context, layer string, bb rada
 		"LAYERS":      {layer},
 		"CRS":         {"EPSG:4326"},
 		"STYLES":      {""},
-		"WIDTH":       {"1600"},
-		"HEIGHT":      {"1600"},
+		"WIDTH":       {strconv.Itoa(w)},
+		"HEIGHT":      {strconv.Itoa(h)},
 		// WMS 1.3.0 + EPSG:4326: axis order is lat,lon (south,west,north,east).
 		"BBOX": {fmt.Sprintf("%.6f,%.6f,%.6f,%.6f",
 			bb.MinLat, bb.MinLon, bb.MaxLat, bb.MaxLon)},
@@ -526,9 +617,15 @@ func (p *RadarProvider) fetchWMSFrame(ctx context.Context, layer string, bb rada
 // ── IEM fetch (historical loop frames) ───────────────────────────────────────
 
 func (p *RadarProvider) fetchIEMFrame(ctx context.Context, loc location.Location, bb radarBBox, opts radar.Options, ts time.Time, c *cache.Cache) (*radar.Frame, error) {
-	key := fmt.Sprintf("nws:radar:iem:v4:%s:%.4f,%.4f:%.0f:%s",
-		opts.Product, (bb.MinLat+bb.MaxLat)/2, (bb.MinLon+bb.MaxLon)/2,
-		opts.RadiusKM, ts.Format(time.RFC3339))
+	var key string
+	if opts.BBox != nil {
+		key = fmt.Sprintf("nws:radar:iem:v5:%s:bbox:%.4f,%.4f,%.4f,%.4f:%s",
+			opts.Product, bb.MinLat, bb.MinLon, bb.MaxLat, bb.MaxLon, ts.Format(time.RFC3339))
+	} else {
+		key = fmt.Sprintf("nws:radar:iem:v4:%s:%.4f,%.4f:%.0f:%s",
+			opts.Product, (bb.MinLat+bb.MaxLat)/2, (bb.MinLon+bb.MaxLon)/2,
+			opts.RadiusKM, ts.Format(time.RFC3339))
+	}
 
 	// L1: in-process
 	if f := p.imgGet(key); f != nil {
@@ -540,10 +637,11 @@ func (p *RadarProvider) fetchIEMFrame(ctx context.Context, loc location.Location
 		return f, nil
 	}
 
+	w, h := computeDimensions(bb)
 	params := url.Values{}
 	p.addRadarLayers(params, loc, opts)
-	params.Set("width", "1600")
-	params.Set("height", "1600")
+	params.Set("width", strconv.Itoa(w))
+	params.Set("height", strconv.Itoa(h))
 	params.Set("bbox", fmt.Sprintf("%.6f,%.6f,%.6f,%.6f", bb.MinLon, bb.MinLat, bb.MaxLon, bb.MaxLat))
 	params.Set("fmt", "png")
 	params.Set("ts", ts.UTC().Format("200601021504"))
@@ -568,7 +666,7 @@ func (p *RadarProvider) fetchIEMFrame(ctx context.Context, loc location.Location
 		ValidTime:   ts,
 		Product:     opts.Product,
 		BBox:        &radar.BBox{MinLat: bb.MinLat, MinLon: bb.MinLon, MaxLat: bb.MaxLat, MaxLon: bb.MaxLon},
-		IsComposite: isMultiRadarComposite(opts.Product, opts.RadiusKM),
+		IsComposite: isMultiRadarComposite(opts.Product, opts.RadiusKM, opts.BBox != nil),
 	}
 	p.diskSet(c, key, f, historicalFrameTTL)
 	p.imgSet(key, f, 0) // no L1 expiry for historical frames

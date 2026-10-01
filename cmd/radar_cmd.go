@@ -67,6 +67,10 @@ func radarCommand() *cli.Command {
 				Value: 200,
 				Usage: "km radius around the location center",
 			},
+			&cli.StringFlag{
+				Name:  "bbox",
+				Usage: "bounding box in 'minLat,minLon,maxLat,maxLon' format; overrides --radius",
+			},
 			&cli.BoolFlag{
 				Name:  "no-cache",
 				Usage: "bypass the local cache",
@@ -131,23 +135,58 @@ func radarAction(c *cli.Context) error {
 		}
 	}
 
+	var customBBox *radar.BBox
+	if bboxStr := c.String("bbox"); bboxStr != "" {
+		var minLat, minLon, maxLat, maxLon float64
+		n, err := fmt.Sscanf(bboxStr, "%f,%f,%f,%f", &minLat, &minLon, &maxLat, &maxLon)
+		if err != nil || n != 4 {
+			return fmt.Errorf("invalid --bbox %q: expected minLat,minLon,maxLat,maxLon", bboxStr)
+		}
+		if minLat >= maxLat || minLon >= maxLon {
+			return fmt.Errorf("invalid --bbox %q: min values must be less than max values", bboxStr)
+		}
+		customBBox = &radar.BBox{
+			MinLat: minLat,
+			MinLon: minLon,
+			MaxLat: maxLat,
+			MaxLon: maxLon,
+		}
+	}
+
 	locInput := c.String("location")
 	if locInput == "" && c.Args().Present() {
 		locInput = c.Args().First()
 	}
-	if locInput == "" {
-		locInput = cfg.DefaultLocation
-	}
-	resolvedInput := cfg.ResolveLocation(locInput)
-	loc, err := location.Resolve(ctx, resolvedInput, ch)
-	if err != nil {
-		return err
-	}
 
-	if loc.DisplayName != "" {
-		if cfg.AddRecent(loc.DisplayName) {
-			if cfgPath, pathErr := config.Path(); pathErr == nil {
-				_ = config.Save(cfgPath, cfg)
+	var (
+		loc           location.Location
+		resolvedInput string
+	)
+	if customBBox != nil && locInput == "" && c.String("station") == "" {
+		centerLat := (customBBox.MinLat + customBBox.MaxLat) / 2
+		centerLon := (customBBox.MinLon + customBBox.MaxLon) / 2
+		loc = location.Location{
+			Lat:         centerLat,
+			Lon:         centerLon,
+			CountryCode: "US",
+			DisplayName: fmt.Sprintf("%.2f, %.2f", centerLat, centerLon),
+		}
+	} else {
+		if locInput == "" {
+			locInput = cfg.DefaultLocation
+		}
+		resolvedInput = cfg.ResolveLocation(locInput)
+		var err error
+		loc, err = location.Resolve(ctx, resolvedInput, ch)
+		if err != nil {
+			return err
+		}
+
+		if loc.DisplayName != "" {
+			if cfg.AddRecent(loc.DisplayName) {
+				if cfgPath, pathErr := config.Path(); pathErr == nil {
+					_ = config.Save(cfgPath, cfg)
+				}
 			}
 		}
 	}
@@ -196,6 +235,7 @@ func radarAction(c *cli.Context) error {
 		Product:  product,
 		RadiusKM: radius,
 		Raw:      c.Bool("raw"),
+		BBox:     customBBox,
 	}
 
 	saveGifPath := c.String("save-gif")
@@ -390,6 +430,10 @@ func runRadarJSON(
 	center := &radar.JSONCenter{
 		Lat: loc.Lat,
 		Lon: loc.Lon,
+	}
+	if opts.BBox != nil {
+		center.Lat = (opts.BBox.MinLat + opts.BBox.MaxLat) / 2
+		center.Lon = (opts.BBox.MinLon + opts.BBox.MaxLon) / 2
 	}
 
 	if loop {
