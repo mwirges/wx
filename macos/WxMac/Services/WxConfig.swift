@@ -46,7 +46,11 @@ struct WxConfigFile: Codable, Sendable {
 
 enum WxConfig {
     static var configURL: URL {
-        FileManager.default.homeDirectoryForCurrentUser
+        if let override = ProcessInfo.processInfo.environment["WX_CONFIG"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines), !override.isEmpty {
+            return URL(fileURLWithPath: override)
+        }
+        return FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".config/wx/config.json")
     }
 

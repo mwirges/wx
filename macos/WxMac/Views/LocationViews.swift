@@ -18,6 +18,7 @@ struct LocationBarView: View {
 
             TextField(isHUD ? "Zip / City, ST" : "Zip or City, ST", text: $store.locationInput)
                 .textFieldStyle(.plain)
+                .accessibilityIdentifier("wx.location")
                 .font(.system(size: isHUD ? 11.5 : 12, weight: .medium, design: .monospaced))
                 .foregroundStyle(WxTheme.text)
                 .onSubmit {

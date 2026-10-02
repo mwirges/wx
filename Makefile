@@ -97,6 +97,11 @@ ext = $(if $(filter windows,$(1)),.exe,)
 mac-build:
 	$(MAKE) -C macos build
 
+## mac-ui-test: XCUITest the Mac app. Not part of `make test`.
+.PHONY: mac-ui-test
+mac-ui-test:
+	$(MAKE) -C macos ui-test
+
 ## mac-run: Build and open the macOS app
 .PHONY: mac-run
 mac-run:

@@ -7,7 +7,7 @@ DEST     := platform=macOS,arch=arm64
 
 .DEFAULT_GOAL := build
 
-.PHONY: project build run clean test-go build-cli embed-cli dmg
+.PHONY: project build run clean test-go build-cli embed-cli dmg ui-test
 
 ## build-cli: Ensure the Go CLI is built in repo root
 build-cli:
@@ -54,3 +54,8 @@ notarize:
 	@./scripts/notarize-dmg.sh "../build/wx.dmg"
 
 
+
+## ui-test: XCUITest the Mac app (not the Go suite)
+ui-test: build
+	xcodebuild -project WxMac.xcodeproj -scheme $(SCHEME) -configuration $(CONFIG) \
+	  -destination '$(DEST)' -derivedDataPath $(DERIVED) test

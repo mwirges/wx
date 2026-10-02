@@ -58,4 +58,34 @@ targets:
             codesign --force --sign - --timestamp=none "${DEST}" 2>/dev/null || true
           fi
     scheme:
-      testTargets: []
+      testTargets:
+        - WxMacUITests
+  WxMacUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - path: WxMacUITests
+        excludes:
+          - "Fixtures/**"
+    resources:
+      - path: WxMacUITests/Fixtures
+    dependencies:
+      - target: WxMac
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.mwirges.wx.uitests
+        SDKROOT: macosx
+        SUPPORTED_PLATFORMS: macosx
+        SUPPORTS_MACCATALYST: NO
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGNING_ALLOWED: "YES"
+        CODE_SIGNING_REQUIRED: "NO"
+    postBuildScripts:
+      - name: Copy wx-stub
+        basedOnDependencyAnalysis: false
+        script: |
+          DEST="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}"
+          mkdir -p "${DEST}"
+          cp -f "${SRCROOT}/WxMacUITests/Fixtures/wx-stub" "${DEST}/wx-stub"
+          chmod +x "${DEST}/wx-stub"
