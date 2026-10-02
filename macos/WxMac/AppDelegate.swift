@@ -3,7 +3,7 @@ import SwiftUI
 import UserNotifications
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNotificationCenterDelegate {
     let store = WeatherStore()
     private var statusController: StatusItemController?
     private var deskWindow: NSWindow?
@@ -21,12 +21,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             self?.installMainMenu()
         }
 
-        // Set up native severe weather notifications
+        // Set up native severe weather notifications. UI tests skip the system prompt.
         let center = UNUserNotificationCenter.current()
         center.delegate = self
-        center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-            if let error {
-                print("[UserNotifications] Authorization error: \(error.localizedDescription)")
+        if ProcessInfo.processInfo.environment["WX_UI_TEST"] != "1" {
+            center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+                if let error {
+                    print("[UserNotifications] Authorization error: \(error.localizedDescription)")
+                }
             }
         }
 
@@ -396,6 +398,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
     func showDeskWindow() {
         NSApp.setActivationPolicy(.regular)
+        store.deskWindowOpen = true
         if let deskWindow {
             deskWindow.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
@@ -417,6 +420,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         window.backgroundColor = .clear
         window.contentViewController = hosting
         window.setContentSize(NSSize(width: 940, height: 760))
+        window.delegate = self
         window.setFrameAutosaveName("wxDeskWindow")
         window.center()
         window.isReleasedWhenClosed = false
@@ -429,6 +433,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
                 Task { await store.refreshRadar() }
             }
         }
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow, window === deskWindow else { return }
+        store.deskWindowOpen = false
     }
 
     /// Env-gated (`WX_QA_POPOVER=1`) fixed 420×620 surface matching menu popover — for QA screenshots only.

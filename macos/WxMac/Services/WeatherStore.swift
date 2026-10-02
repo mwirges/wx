@@ -109,9 +109,9 @@ final class WeatherStore: ObservableObject {
 
     private let backend: WeatherBackend
     private var refreshTask: Task<Void, Never>?
-    private let refreshInterval: TimeInterval = 5 * 60
+    private let refreshInterval: TimeInterval
     private var radarRefreshTask: Task<Void, Never>?
-    private let radarRefreshInterval: TimeInterval = 2 * 60 // 2 minutes independent fast auto-refresh
+    private let radarRefreshInterval: TimeInterval
 
     init(backend: WeatherBackend = WxCLIBackend()) {
         self.backend = backend
@@ -126,6 +126,18 @@ final class WeatherStore: ObservableObject {
         }
         favorites = cfg.favorites ?? []
         recentLocations = cfg.recentLocations ?? []
+        refreshInterval = Self.secondsOverride("WX_REFRESH_SECONDS", fallback: 5 * 60)
+        radarRefreshInterval = Self.secondsOverride("WX_RADAR_REFRESH_SECONDS", fallback: 2 * 60)
+    }
+
+    /// Test-only. Unset, zero, or junk keeps the production interval.
+    private static func secondsOverride(_ name: String, fallback: TimeInterval) -> TimeInterval {
+        guard let raw = ProcessInfo.processInfo.environment[name]?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+              let value = TimeInterval(raw), value > 0 else {
+            return fallback
+        }
+        return value
     }
 
     func reloadConfig() {
@@ -239,7 +251,7 @@ final class WeatherStore: ObservableObject {
                 }
                 guard !Task.isCancelled else { return }
                 guard let self = self else { return }
-                if self.deskWindowOpen || self.selectedDeskTab == .dual || self.selectedDeskTab == .radar || self.radarPayload != nil {
+                if self.deskWindowOpen {
                     await self.refreshRadar()
                 }
             }

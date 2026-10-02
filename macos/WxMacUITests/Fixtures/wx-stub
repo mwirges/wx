@@ -1,0 +1,26 @@
+#!/bin/sh
+# Logs every invocation, then prints the smallest JSON the Mac app will decode.
+# No network. WX_STUB_LOG is an absolute path set by the UI test.
+if [ -n "${WX_STUB_LOG:-}" ]; then
+  {
+    printf '%s' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    for arg in "$@"; do
+      printf ' %s' "$arg"
+    done
+    printf '\n'
+  } >> "$WX_STUB_LOG"
+fi
+
+radar=0
+for arg in "$@"; do
+  case "$arg" in
+    *radar*) radar=1 ;;
+  esac
+done
+
+if [ "$radar" -eq 1 ]; then
+  printf '%s\n' '{"product":"composite-reflectivity","product_label":"Composite","location":"stub","valid_time":"2026-10-02T00:00:00Z","image_base64":"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==","frames":[]}'
+else
+  printf '%s\n' '{"alerts":[]}'
+fi
+exit 0
