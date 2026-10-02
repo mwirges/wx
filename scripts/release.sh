@@ -86,6 +86,13 @@ if [[ "$ALLOW_DIRTY" != "true" ]]; then
   fi
 fi
 
+# Capture changelog from previous tag
+PREV_TAG="$(git describe --tags --abbrev=0 2>/dev/null || echo '')"
+CHANGELOG=""
+if [[ -n "${PREV_TAG}" ]]; then
+  CHANGELOG="$(git log "${PREV_TAG}..HEAD" --no-merges --pretty=format:"- %s (%h)")"
+fi
+
 # 2. Bump version
 echo "==> Synchronizing version metadata..."
 VERSION_OUTPUT="$("${SCRIPT_DIR}/bump-version.sh" "${BUMP_ARGS[@]}")"
@@ -168,6 +175,9 @@ cat << EOF > "${RELEASE_NOTES_FILE}"
 ## wx ${TAG_NAME}
 
 A terminal weather suite and native macOS app for US (NWS/MRMS) and global (Open-Meteo) weather intelligence.
+
+### What's Changed
+${CHANGELOG:-No changes recorded.}
 
 ### Artifacts Included
 - **\`wx.dmg\`**: Universal drag-and-drop macOS disk image installer.
