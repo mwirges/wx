@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"image"
+	"math"
 	"os"
 	"os/signal"
 	"strings"
@@ -472,6 +473,13 @@ func runRadarJSON(
 				stations = append(stations, st.ID)
 			}
 		}
+		effectiveRadius := opts.RadiusKM
+		if latest.BBox != nil && opts.BBox != nil {
+			midLat := (latest.BBox.MinLat + latest.BBox.MaxLat) / 2.0
+			dLatKm := (latest.BBox.MaxLat - latest.BBox.MinLat) * 111.0 / 2.0
+			dLonKm := (latest.BBox.MaxLon - latest.BBox.MinLon) * 111.0 * math.Cos(midLat*math.Pi/180.0) / 2.0
+			effectiveRadius = math.Max(dLatKm, dLonKm)
+		}
 		latestB64 := jsonFrames[len(jsonFrames)-1].ImageBase64
 		out := radar.JSONRadarOutput{
 			Product:      string(opts.Product),
@@ -480,7 +488,7 @@ func runRadarJSON(
 			Station:      stationID,
 			ValidTime:    latest.ValidTime.UTC().Format(time.RFC3339),
 			ImageBase64:  latestB64,
-			RadiusKM:     opts.RadiusKM,
+			RadiusKM:     effectiveRadius,
 			Raw:          opts.Raw,
 			IsComposite:  latest.IsComposite,
 			Stations:     stations,
@@ -515,6 +523,13 @@ func runRadarJSON(
 			stations = append(stations, st.ID)
 		}
 	}
+	effectiveRadius := opts.RadiusKM
+	if frame.BBox != nil && opts.BBox != nil {
+		midLat := (frame.BBox.MinLat + frame.BBox.MaxLat) / 2.0
+		dLatKm := (frame.BBox.MaxLat - frame.BBox.MinLat) * 111.0 / 2.0
+		dLonKm := (frame.BBox.MaxLon - frame.BBox.MinLon) * 111.0 * math.Cos(midLat*math.Pi/180.0) / 2.0
+		effectiveRadius = math.Max(dLatKm, dLonKm)
+	}
 	out := radar.JSONRadarOutput{
 		Product:      string(opts.Product),
 		ProductLabel: radar.ProductLabel(opts.Product),
@@ -522,7 +537,7 @@ func runRadarJSON(
 		Station:      stationID,
 		ValidTime:    frame.ValidTime.UTC().Format(time.RFC3339),
 		ImageBase64:  b64,
-		RadiusKM:     opts.RadiusKM,
+		RadiusKM:     effectiveRadius,
 		Raw:          opts.Raw,
 		IsComposite:  frame.IsComposite,
 		Stations:     stations,

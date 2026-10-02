@@ -126,7 +126,6 @@ struct RadarPanelView: View {
     var fullScreen: Bool = false
     var flexibleHeight: Bool = false
     @State private var recenterID: Int = 0
-    @State private var suggestedExpandRadius: Double? = nil
 
     private var formattedValidTime: String? {
         let iso: String
@@ -337,35 +336,6 @@ struct RadarPanelView: View {
                 .padding(.horizontal, 14)
                 .padding(.top, 10)
 
-                // Optional floating expand prompt when map is zoomed out
-                if let expandRad = suggestedExpandRadius, expandRad > store.selectedRadarRadius {
-                    Button {
-                        store.setRadarRadius(expandRad)
-                        withAnimation { suggestedExpandRadius = nil }
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "arrow.up.left.and.arrow.down.right.circle.fill")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundStyle(WxTheme.snwGreen)
-                            Text("MAP EXPANDED // SWITCH TO \(String(format: "%.0f", expandRad)) KM MOSAIC")
-                                .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                                .foregroundStyle(WxTheme.text)
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 7.5, weight: .bold))
-                                .foregroundStyle(WxTheme.snwGreen)
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(WxTheme.snwChassis.opacity(0.95))
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(WxTheme.snwGreen.opacity(0.7), lineWidth: 1))
-                        .shadow(color: Color.black.opacity(0.5), radius: 5)
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.top, 6)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-                }
-
                 Spacer()
 
                 // 3. Floating Bottom HUD: Scale Bar & Metadata + Radar Transport Bar
@@ -566,31 +536,6 @@ struct RadarPanelView: View {
                             .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwCyan.opacity(0.4), lineWidth: 0.8))
                         }
                         .padding(10)
-
-                        if let expandRad = suggestedExpandRadius, expandRad > store.selectedRadarRadius {
-                            Button {
-                                store.setRadarRadius(expandRad)
-                                withAnimation { suggestedExpandRadius = nil }
-                            } label: {
-                                HStack(spacing: 5) {
-                                    Image(systemName: "arrow.up.left.and.arrow.down.right.circle.fill")
-                                        .font(.system(size: 9, weight: .bold))
-                                        .foregroundStyle(WxTheme.snwGreen)
-                                    Text("MAP EXPANDED // EXPAND TO \(String(format: "%.0f", expandRad)) KM")
-                                        .font(.system(size: 8, weight: .bold, design: .monospaced))
-                                        .foregroundStyle(WxTheme.text)
-                                }
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(WxTheme.snwChassis.opacity(0.95))
-                                .clipShape(RoundedRectangle(cornerRadius: 5))
-                                .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(WxTheme.snwGreen.opacity(0.7), lineWidth: 0.8))
-                                .shadow(color: Color.black.opacity(0.5), radius: 4)
-                            }
-                            .buttonStyle(.plain)
-                            .padding(.top, 38)
-                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                        }
 
                         if store.isRadarLoading {
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -822,30 +767,7 @@ struct RadarPanelView: View {
     }
 
     private func handleVisibleRadiusChanged(_ visibleKm: Double) {
-        let currentKm = store.selectedRadarRadius
-        if visibleKm > currentKm * 1.55 {
-            let suggested: Double
-            if visibleKm > 1400 {
-                suggested = 2000
-            } else if visibleKm > 700 {
-                suggested = 1000
-            } else if visibleKm > 350 {
-                suggested = 500
-            } else {
-                suggested = 250
-            }
-            if suggested > currentKm {
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    suggestedExpandRadius = suggested
-                }
-                return
-            }
-        }
-        if suggestedExpandRadius != nil {
-            withAnimation(.easeInOut(duration: 0.25)) {
-                suggestedExpandRadius = nil
-            }
-        }
+        // Viewport scale tracking is handled dynamically by map overlays
     }
 }
 

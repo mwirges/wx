@@ -46,7 +46,26 @@ final class RadarMapOverlayRenderer: MKOverlayRenderer {
     }
 }
 
+/// Custom MKMapView subclass that detects frame and live window resize events to trigger viewport updates.
+final class WxMapView: MKMapView {
+    var onViewportChanged: (() -> Void)?
+
+    override func viewDidEndLiveResize() {
+        super.viewDidEndLiveResize()
+        onViewportChanged?()
+    }
+
+    override func setFrameSize(_ newSize: NSSize) {
+        let oldSize = frame.size
+        super.setFrameSize(newSize)
+        if abs(newSize.width - oldSize.width) > 4 || abs(newSize.height - oldSize.height) > 4 {
+            onViewportChanged?()
+        }
+    }
+}
+
 /// High-resolution vector map view displaying transparent radar overlays with Apple Maps dark basemap.
+/// Automatically expands the radar composite overlay to cover 100% of the visible map viewport.
 struct RadarMapView: NSViewRepresentable {
     let payload: RadarPayload
     let image: NSImage
@@ -58,8 +77,8 @@ struct RadarMapView: NSViewRepresentable {
         Coordinator(self)
     }
 
-    func makeNSView(context: Context) -> MKMapView {
-        let mapView = MKMapView()
+    func makeNSView(context: Context) -> WxMapView {
+        let mapView = WxMapView()
         mapView.delegate = context.coordinator
         mapView.appearance = NSAppearance(named: .darkAqua)
 
@@ -74,11 +93,24 @@ struct RadarMapView: NSViewRepresentable {
         mapView.showsScale = false
         mapView.autoresizingMask = [.width, .height]
 
+        let coordinator = context.coordinator
+        mapView.onViewportChanged = { [weak coordinator, weak mapView] in
+            guard let coordinator = coordinator, let mv = mapView else { return }
+            coordinator.checkViewportCoverage(mv)
+        }
+
         context.coordinator.update(mapView: mapView, payload: payload, image: image, forceCenter: true)
+
+        // As soon as view is added and laid out, check viewport bounds
+        DispatchQueue.main.async { [weak coordinator, weak mapView] in
+            guard let mv = mapView, let coord = coordinator else { return }
+            coord.checkViewportCoverage(mv)
+        }
+
         return mapView
     }
 
-    func updateNSView(_ mapView: MKMapView, context: Context) {
+    func updateNSView(_ mapView: WxMapView, context: Context) {
         context.coordinator.parent = self
         let shouldForceCenter = context.coordinator.lastRecenterID != recenterID
         context.coordinator.lastRecenterID = recenterID
@@ -91,8 +123,8 @@ struct RadarMapView: NSViewRepresentable {
         var currentLocationAnnotation: MKPointAnnotation?
         var lastLocationKey: String = ""
         var lastRecenterID: Int = 0
-        private var debounceWorkItem: DispatchWorkItem?
-        private var isSettingRegion: Bool = false
+        var debounceWorkItem: DispatchWorkItem?
+        var isSettingRegion: Bool = false
 
         init(_ parent: RadarMapView) {
             self.parent = parent
@@ -144,61 +176,81 @@ struct RadarMapView: NSViewRepresentable {
             if forceCenter || locationChanged {
                 isSettingRegion = true
                 let centerCoord = CLLocationCoordinate2D(latitude: center.lat, longitude: center.lon)
+                let targetRadiusKm = max(100.0, payload.radiusKm ?? 250.0)
+                let latDelta = (targetRadiusKm * 2.0) / 111.0
                 let span = MKCoordinateSpan(
-                    latitudeDelta: (bbox.maxLat - bbox.minLat) * 1.05,
-                    longitudeDelta: (bbox.maxLon - bbox.minLon) * 1.05
+                    latitudeDelta: latDelta,
+                    longitudeDelta: latDelta
                 )
                 let region = MKCoordinateRegion(center: centerCoord, span: span)
                 mapView.setRegion(region, animated: !forceCenter)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
-                    self?.isSettingRegion = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self, weak mapView] in
+                    guard let self = self, let mv = mapView else { return }
+                    self.isSettingRegion = false
+                    self.checkViewportCoverage(mv)
                 }
+            } else {
+                checkViewportCoverage(mapView)
             }
         }
 
         func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
-            let latDelta = mapView.region.span.latitudeDelta
+            guard !isSettingRegion else { return }
+            checkViewportCoverage(mapView)
+        }
+
+        func checkViewportCoverage(_ mapView: MKMapView) {
+            guard !isSettingRegion else { return }
+            guard mapView.bounds.width > 30, mapView.bounds.height > 30 else { return }
+
+            let visibleRegion = mapView.convert(mapView.bounds, toRegionFrom: mapView)
+            guard visibleRegion.span.latitudeDelta > 0.001, visibleRegion.span.longitudeDelta > 0.001 else { return }
+
+            let latDelta = visibleRegion.span.latitudeDelta
             let visibleRadiusKm = (latDelta * 111.0) / 2.0
             parent.onVisibleRadiusChanged?(visibleRadiusKm)
 
-            guard !isSettingRegion else { return }
+            let visMinLat = visibleRegion.center.latitude - visibleRegion.span.latitudeDelta / 2.0
+            let visMaxLat = visibleRegion.center.latitude + visibleRegion.span.latitudeDelta / 2.0
+            let visMinLon = visibleRegion.center.longitude - visibleRegion.span.longitudeDelta / 2.0
+            let visMaxLon = visibleRegion.center.longitude + visibleRegion.span.longitudeDelta / 2.0
 
-            let center = mapView.region.center
-            let span = mapView.region.span
-            guard span.latitudeDelta > 0.001, span.longitudeDelta > 0.001 else { return }
+            if let overlay = currentOverlay {
+                // Buffer margin check: if visible map is completely enclosed within overlay bounds with safety margin, no update needed
+                let marginLat = visibleRegion.span.latitudeDelta * 0.02
+                let marginLon = visibleRegion.span.longitudeDelta * 0.02
+                let isUncovered = (visMinLat < overlay.bbox.minLat - marginLat) ||
+                                  (visMaxLat > overlay.bbox.maxLat + marginLat) ||
+                                  (visMinLon < overlay.bbox.minLon - marginLon) ||
+                                  (visMaxLon > overlay.bbox.maxLon + marginLon)
+                let isOverzoomed = (visibleRegion.span.latitudeDelta < (overlay.bbox.maxLat - overlay.bbox.minLat) * 0.35)
 
-            let visibleMinLat = center.latitude - span.latitudeDelta / 2.0
-            let visibleMaxLat = center.latitude + span.latitudeDelta / 2.0
-            let visibleMinLon = center.longitude - span.longitudeDelta / 2.0
-            let visibleMaxLon = center.longitude + span.longitudeDelta / 2.0
-
-            guard let overlay = currentOverlay else { return }
-
-            let marginLat = span.latitudeDelta * 0.05
-            let marginLon = span.longitudeDelta * 0.05
-            let isUncovered = (visibleMinLat < overlay.bbox.minLat - marginLat) ||
-                              (visibleMaxLat > overlay.bbox.maxLat + marginLat) ||
-                              (visibleMinLon < overlay.bbox.minLon - marginLon) ||
-                              (visibleMaxLon > overlay.bbox.maxLon + marginLon)
-            let isZoomedInSignificantly = (span.latitudeDelta < (overlay.bbox.maxLat - overlay.bbox.minLat) * 0.40)
-
-            if isUncovered || isZoomedInSignificantly {
-                debounceWorkItem?.cancel()
-                let item = DispatchWorkItem { [weak self] in
-                    guard let self = self else { return }
-                    let padLat = span.latitudeDelta * 0.15
-                    let padLon = span.longitudeDelta * 0.15
-                    let newBBox = RadarBBox(
-                        minLat: max(-85.0, visibleMinLat - padLat),
-                        minLon: max(-179.0, visibleMinLon - padLon),
-                        maxLat: min(85.0, visibleMaxLat + padLat),
-                        maxLon: min(179.0, visibleMaxLon + padLon)
-                    )
-                    self.parent.onBBoxNeedsUpdate?(newBBox)
+                if !isUncovered && !isOverzoomed {
+                    return
                 }
-                debounceWorkItem = item
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: item)
             }
+
+            debounceWorkItem?.cancel()
+            let item = DispatchWorkItem { [weak self, weak mapView] in
+                guard let self = self, let mv = mapView else { return }
+                guard mv.bounds.width > 30, mv.bounds.height > 30 else { return }
+                let curRegion = mv.convert(mv.bounds, toRegionFrom: mv)
+                guard curRegion.span.latitudeDelta > 0.001, curRegion.span.longitudeDelta > 0.001 else { return }
+
+                // Padded bounding box: 20% margin around all 4 edges so panning doesn't immediately uncover edge
+                let padLat = curRegion.span.latitudeDelta * 0.20
+                let padLon = curRegion.span.longitudeDelta * 0.20
+
+                let newBBox = RadarBBox(
+                    minLat: max(-85.0, curRegion.center.latitude - curRegion.span.latitudeDelta / 2.0 - padLat),
+                    minLon: max(-179.0, curRegion.center.longitude - curRegion.span.longitudeDelta / 2.0 - padLon),
+                    maxLat: min(85.0, curRegion.center.latitude + curRegion.span.latitudeDelta / 2.0 + padLat),
+                    maxLon: min(179.0, curRegion.center.longitude + curRegion.span.longitudeDelta / 2.0 + padLon)
+                )
+                self.parent.onBBoxNeedsUpdate?(newBBox)
+            }
+            debounceWorkItem = item
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: item)
         }
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
