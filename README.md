@@ -32,7 +32,7 @@ Colorized terminal weather output with ASCII weather art, sun/moon astronomical 
 
 Install the native macOS SwiftUI app via disk image:
 
-1. Download **[`wx-1.1.2.dmg`](https://github.com/mwirges/wx/releases/download/v1.1.2/wx-1.1.2.dmg)** or latest **[`wx.dmg`](https://github.com/mwirges/wx/releases/latest/download/wx.dmg)** from the [Releases](https://github.com/mwirges/wx/releases) page, or build locally with:
+1. Download **[`wx-1.1.3.dmg`](https://github.com/mwirges/wx/releases/download/v1.1.3/wx-1.1.3.dmg)** or latest **[`wx.dmg`](https://github.com/mwirges/wx/releases/latest/download/wx.dmg)** from the [Releases](https://github.com/mwirges/wx/releases) page, or build locally with:
    ```bash
    make dmg
    # (or: make mac-dmg)
