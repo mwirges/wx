@@ -96,6 +96,19 @@ final class RadarRefreshUITests: XCTestCase {
         app.terminate()
     }
 
+    func testDeskWindowUnloadsOnCloseAndReopens() throws {
+        let app = try launch(radarSeconds: "600", refreshSeconds: "600")
+        XCTAssertTrue(app.windows["wx"].waitForExistence(timeout: 5))
+
+        app.typeKey("w", modifierFlags: .command)
+        try waitUntil(timeout: 3) { !app.windows["wx"].exists }
+
+        app.menuBars.menuBarItems["File"].click()
+        app.menuItems["Open Desk Window"].click()
+        XCTAssertTrue(app.windows["wx"].waitForExistence(timeout: 5))
+        app.terminate()
+    }
+
     private func launch(radarSeconds: String, refreshSeconds: String) throws -> XCUIApplication {
         let stub = try stubBinary()
         let app = XCUIApplication()
