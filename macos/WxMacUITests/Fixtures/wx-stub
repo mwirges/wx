@@ -20,6 +20,8 @@ done
 
 if [ "$radar" -eq 1 ]; then
   printf '%s\n' '{"product":"composite-reflectivity","product_label":"Composite","location":"stub","valid_time":"2026-10-02T00:00:00Z","image_base64":"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==","frames":[]}'
+elif [ -n "${WX_STUB_ALERT:-}" ]; then
+  printf '%s\n' '{"alerts":[{"event":"Tornado Warning","severity":"Severe"}]}'
 else
   printf '%s\n' '{"alerts":[]}'
 fi
