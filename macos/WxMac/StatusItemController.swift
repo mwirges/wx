@@ -9,10 +9,6 @@ final class StatusItemController: NSObject {
     private let store: WeatherStore
     private var updateObserver: NSObjectProtocol?
 
-    // Ambient hazard alert pip pulse
-    private var pipTimer: Timer?
-    private var pipPulseOn: Bool = true
-
     init(store: WeatherStore) {
         self.store = store
         super.init()
@@ -41,18 +37,14 @@ final class StatusItemController: NSObject {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                self?.refreshPipState()
                 self?.refreshButton()
                 self?.updatePopoverSize()
             }
         }
-        refreshPipState()
         refreshButton()
     }
 
     func tearDown() {
-        pipTimer?.invalidate()
-        pipTimer = nil
         if let updateObserver {
             NotificationCenter.default.removeObserver(updateObserver)
         }
@@ -67,30 +59,12 @@ final class StatusItemController: NSObject {
 
     // ── Hazard Alert Pip ─────────────────────────────────────────────────────────
 
-    private func refreshPipState() {
-        let hasHazard = store.hasActiveWarning || store.hasActiveWatchOrAdvisory
-        if hasHazard {
-            if pipTimer == nil {
-                pipPulseOn = true
-                pipTimer = Timer.scheduledTimer(withTimeInterval: 0.8, repeats: true) { [weak self] _ in
-                    Task { @MainActor in
-                        self?.pipPulseOn.toggle()
-                        self?.refreshButton()
-                    }
-                }
-            }
-        } else {
-            pipTimer?.invalidate()
-            pipTimer = nil
-            pipPulseOn = true
-        }
-    }
-
+    /// Steady mark while a hazard is active. No timer.
     private var pipGlyph: String {
         if store.hasActiveWarning {
-            return pipPulseOn ? "🔴 " : "⭕ "
+            return "🔴 "
         } else if store.hasActiveWatchOrAdvisory {
-            return pipPulseOn ? "🟠 " : "○ "
+            return "🟠 "
         }
         return ""
     }

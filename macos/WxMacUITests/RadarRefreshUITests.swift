@@ -109,7 +109,27 @@ final class RadarRefreshUITests: XCTestCase {
         app.terminate()
     }
 
-    private func launch(radarSeconds: String, refreshSeconds: String) throws -> XCUIApplication {
+    func testSteadyPipWhileHazardAndNoneWhenClear() throws {
+        let alerted = try launch(radarSeconds: "600", refreshSeconds: "600", alert: true)
+        XCTAssertTrue(alerted.windows["wx"].waitForExistence(timeout: 5))
+        let first = try waitForStatus(alerted, timeout: 8) { $0.contains("🔴") }
+        Thread.sleep(forTimeInterval: 2)
+        let second = statusTitle(alerted)
+        XCTAssertTrue(first.contains("🔴") && second.contains("🔴"), "pip was not steady: \(first) then \(second)")
+        XCTAssertFalse(first.contains("⭕") || second.contains("⭕"), "pip blinked off")
+        alerted.terminate()
+
+        let clear = try launch(radarSeconds: "600", refreshSeconds: "600", alert: false)
+        XCTAssertTrue(clear.windows["wx"].waitForExistence(timeout: 5))
+        let quiet = try waitForStatus(clear, timeout: 8) { !$0.contains("🔴") && !$0.contains("🟠") && ($0.contains("--") || $0.contains("°")) }
+        Thread.sleep(forTimeInterval: 2)
+        let quietLater = statusTitle(clear)
+        XCTAssertFalse(quiet.contains("🔴") || quiet.contains("🟠") || quietLater.contains("🔴") || quietLater.contains("🟠"),
+                       "clear status showed a pip: \(quiet) then \(quietLater)")
+        clear.terminate()
+    }
+
+    private func launch(radarSeconds: String, refreshSeconds: String, alert: Bool = false) throws -> XCUIApplication {
         let stub = try stubBinary()
         let app = XCUIApplication()
         app.launchEnvironment = [
@@ -120,6 +140,9 @@ final class RadarRefreshUITests: XCTestCase {
             "WX_RADAR_REFRESH_SECONDS": radarSeconds,
             "WX_REFRESH_SECONDS": refreshSeconds,
         ]
+        if alert {
+            app.launchEnvironment["WX_STUB_ALERT"] = "warning"
+        }
         app.launch()
         return app
     }
@@ -175,6 +198,22 @@ final class RadarRefreshUITests: XCTestCase {
         }
         XCTAssertGreaterThanOrEqual(count, minimum, "stub log never reached \(minimum) radar calls:\n\(radarLines().joined(separator: "\n"))")
         return count
+    }
+
+    private func statusTitle(_ app: XCUIApplication) -> String {
+        let item = app.statusItems.firstMatch
+        return [item.title, item.label, item.value as? String ?? ""].joined(separator: " ")
+    }
+
+    private func waitForStatus(_ app: XCUIApplication, timeout: TimeInterval, _ condition: (String) -> Bool) throws -> String {
+        let deadline = Date().addingTimeInterval(timeout)
+        var title = statusTitle(app)
+        while !condition(title) && Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.2)
+            title = statusTitle(app)
+        }
+        XCTAssertTrue(condition(title), "status item never matched. title=\(title)")
+        return title
     }
 
     private func locationField(in app: XCUIApplication) -> XCUIElement {
