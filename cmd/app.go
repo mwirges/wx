@@ -52,9 +52,9 @@ func NewApp() *cli.App {
 				Usage:   "show hourly forecast (implies --forecast)",
 			},
 			&cli.IntFlag{
-				Name:    "hours",
-				Value:   24,
-				Usage:   "number of hours to show in hourly forecast",
+				Name:  "hours",
+				Value: 24,
+				Usage: "number of hours to show in hourly forecast",
 			},
 			&cli.BoolFlag{
 				Name:    "alerts",
@@ -189,15 +189,17 @@ func runWeather(c *cli.Context, opts weatherOpts) error {
 
 	fetchData := func(p provider.WeatherProvider) (*models.CurrentConditions, *models.Forecast, []models.Alert, error, error, error) {
 		var (
-			condRes  *models.CurrentConditions
-			fcRes    *models.Forecast
-			alRes    []models.Alert
-			aqRes    *models.AirQuality
-			ncRes    *models.Nowcast
-			cErr     error
-			fErr     error
-			aErr     error
-			fetchWg  sync.WaitGroup
+			condRes *models.CurrentConditions
+			fcRes   *models.Forecast
+			hRes    *models.Forecast
+			alRes   []models.Alert
+			aqRes   *models.AirQuality
+			ncRes   *models.Nowcast
+			cErr    error
+			fErr    error
+			hErr    error
+			aErr    error
+			fetchWg sync.WaitGroup
 		)
 
 		fetchWg.Add(1)
@@ -218,7 +220,19 @@ func runWeather(c *cli.Context, opts weatherOpts) error {
 			ncRes, _ = nowcast.Fetch(ctx, loc.Lat, loc.Lon, loc.DisplayName, ch)
 		}()
 
-		if opts.showForecast {
+		// --hourly alone still replaces periods. Both flags fetch day and hourly.
+		if c.Bool("forecast") && opts.showHourly {
+			fetchWg.Add(1)
+			go func() {
+				defer fetchWg.Done()
+				fcRes, fErr = p.Forecast(ctx, loc, false, ch)
+			}()
+			fetchWg.Add(1)
+			go func() {
+				defer fetchWg.Done()
+				hRes, hErr = p.Forecast(ctx, loc, true, ch)
+			}()
+		} else if opts.showForecast {
 			fetchWg.Add(1)
 			go func() {
 				defer fetchWg.Done()
@@ -235,6 +249,20 @@ func runWeather(c *cli.Context, opts weatherOpts) error {
 		}
 
 		fetchWg.Wait()
+		if fcRes != nil && hRes != nil {
+			limit := c.Int("hours")
+			if limit <= 0 {
+				limit = 24
+			}
+			periods := hRes.Periods
+			if len(periods) > limit {
+				periods = append([]models.Period(nil), periods[:limit]...)
+			}
+			fcRes.Hourly = periods
+		}
+		if hErr != nil && fErr == nil {
+			fErr = hErr
+		}
 		if condRes != nil {
 			if aqRes != nil {
 				condRes.AirQuality = aqRes

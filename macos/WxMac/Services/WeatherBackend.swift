@@ -4,7 +4,7 @@ import Foundation
 /// Today: `WxCLIBackend` shells out to Go `wx --json`.
 /// Later: c-shared / GTK host must expose the same JSON contract — not a second NWS client.
 protocol WeatherBackend: Sendable {
-    func fetch(location: String?, units: String?, priority: TaskPriority) async throws -> WxPayload
+    func fetch(location: String?, units: String?, priority: TaskPriority, hourly: Bool) async throws -> WxPayload
     func fetchRadar(location: String?, product: String?, radiusKm: Double?, bbox: RadarBBox?, raw: Bool, loop: Bool, frames: Int, priority: TaskPriority) async throws -> RadarPayload
     func fetchCPC(location: String?) async throws -> CPCPayloadDTO
     func fetchSPC(location: String?) async throws -> SPCPayloadDTO
@@ -20,7 +20,7 @@ protocol WeatherBackend: Sendable {
 
 extension WeatherBackend {
     func fetch(location: String?, units: String?) async throws -> WxPayload {
-        try await fetch(location: location, units: units, priority: .userInitiated)
+        try await fetch(location: location, units: units, priority: .userInitiated, hourly: false)
     }
 
     func fetchRadar(location: String?, product: String?, radiusKm: Double?, bbox: RadarBBox? = nil, raw: Bool = true, loop: Bool = true, frames: Int = 8) async throws -> RadarPayload {
@@ -44,9 +44,9 @@ extension WeatherBackend {
 struct WxCLIBackend: WeatherBackend {
     var isAvailable: Bool { WxCLI.locateBinary() != nil }
 
-    func fetch(location: String?, units: String?, priority: TaskPriority = .userInitiated) async throws -> WxPayload {
+    func fetch(location: String?, units: String?, priority: TaskPriority, hourly: Bool) async throws -> WxPayload {
         try await Task.detached(priority: priority) {
-            try WxCLI.fetch(location: location, units: units)
+            try WxCLI.fetch(location: location, units: units, hourly: hourly)
         }.value
     }
 

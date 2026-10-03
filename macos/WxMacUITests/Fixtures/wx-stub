@@ -12,14 +12,22 @@ if [ -n "${WX_STUB_LOG:-}" ]; then
 fi
 
 radar=0
+hourly=0
 for arg in "$@"; do
   case "$arg" in
     *radar*) radar=1 ;;
+    --hourly) hourly=1 ;;
   esac
 done
 
 if [ "$radar" -eq 1 ]; then
   printf '%s\n' '{"product":"composite-reflectivity","product_label":"Composite","location":"stub","valid_time":"2026-10-02T00:00:00Z","image_base64":"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==","frames":[]}'
+elif [ "$hourly" -eq 1 ]; then
+  alerts='[]'
+  if [ -n "${WX_STUB_ALERT:-}" ]; then
+    alerts='[{"event":"Tornado Warning","severity":"Severe"}]'
+  fi
+  printf '%s\n' "{\"alerts\":$alerts,\"forecast\":{\"generated_at\":\"2026-10-02T18:00:00Z\",\"periods\":[{\"name\":\"Tonight\",\"start_time\":\"2026-10-02T22:00:00-04:00\",\"is_daytime\":false,\"temperature_f\":55,\"temperature_c\":12.8}],\"hourly\":[{\"name\":\"3 PM\",\"start_time\":\"2026-10-02T15:00:00-04:00\",\"is_daytime\":true,\"temperature_f\":72,\"temperature_c\":22.2}]}}"
 elif [ -n "${WX_STUB_ALERT:-}" ]; then
   printf '%s\n' '{"alerts":[{"event":"Tornado Warning","severity":"Severe"}]}'
 else

@@ -129,6 +129,34 @@ final class RadarRefreshUITests: XCTestCase {
         clear.terminate()
     }
 
+    func testHourlyStripOnDeskAndPopover() throws {
+        let config = #"{"favorites":[{"name":"Fav","value":"FavTown"}]}"#
+        try config.write(to: configURL, atomically: true, encoding: .utf8)
+
+        let app = try launch(radarSeconds: "600", refreshSeconds: "600")
+        XCTAssertTrue(app.windows["wx"].waitForExistence(timeout: 5))
+
+        try waitUntil(timeout: 8) {
+            self.stubLines().contains { line in
+                line.contains("--json") && line.contains("--forecast") && line.contains("--alerts")
+                    && line.contains("--hourly") && line.contains("--hours") && !line.contains("FavTown")
+            } && self.stubLines().contains { $0.contains("FavTown") }
+        }
+        XCTAssertFalse(stubLines().contains { $0.contains("FavTown") && $0.contains("--hourly") },
+                       "favorites grid asked for hourly")
+
+        XCTAssertTrue(app.staticTexts["Tonight"].waitForExistence(timeout: 5))
+        XCTAssertTrue(waitForLabel(app, containing: "72°", timeout: 5), "desk did not show 72°")
+
+        app.typeKey("w", modifierFlags: .command)
+        try waitUntil(timeout: 3) { !app.windows["wx"].exists }
+
+        app.statusItems.firstMatch.click()
+        XCTAssertTrue(app.staticTexts["Tonight"].waitForExistence(timeout: 5))
+        XCTAssertTrue(waitForLabel(app, containing: "72°", timeout: 5), "popover did not show 72°")
+        app.terminate()
+    }
+
     private func launch(radarSeconds: String, refreshSeconds: String, alert: Bool = false) throws -> XCUIApplication {
         let stub = try stubBinary()
         let app = XCUIApplication()
@@ -214,6 +242,11 @@ final class RadarRefreshUITests: XCTestCase {
         }
         XCTAssertTrue(condition(title), "status item never matched. title=\(title)")
         return title
+    }
+
+    private func waitForLabel(_ app: XCUIApplication, containing text: String, timeout: TimeInterval) -> Bool {
+        let el = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", text)).firstMatch
+        return el.waitForExistence(timeout: timeout)
     }
 
     private func locationField(in app: XCUIApplication) -> XCUIElement {
