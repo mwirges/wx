@@ -69,6 +69,33 @@ final class RadarRefreshUITests: XCTestCase {
         app.terminate()
     }
 
+    func testClosedDeskKeepsMenuBarRefreshAndSkipsDeskFetches() throws {
+        let config = #"{"favorites":[{"name":"Fav","value":"FavTown"}]}"#
+        try config.write(to: configURL, atomically: true, encoding: .utf8)
+
+        let app = try launch(radarSeconds: "600", refreshSeconds: "8")
+        XCTAssertTrue(app.windows["wx"].waitForExistence(timeout: 5))
+        try waitUntil(timeout: 8) {
+            self.lineCount(containing: "outlook") >= 1
+                && self.lineCount(containing: "chase") >= 1
+                && self.lineCount(containing: "FavTown") >= 1
+                && self.menuBarFetches() >= 1
+        }
+
+        let outlook = lineCount(containing: "outlook")
+        let chase = lineCount(containing: "chase")
+        let favorite = lineCount(containing: "FavTown")
+        let menu = menuBarFetches()
+
+        app.typeKey("w", modifierFlags: .command)
+        try waitUntil(timeout: 12) { self.menuBarFetches() > menu }
+
+        XCTAssertEqual(lineCount(containing: "outlook"), outlook, "outlook fetched after the desk closed")
+        XCTAssertEqual(lineCount(containing: "chase"), chase, "chase fetched after the desk closed")
+        XCTAssertEqual(lineCount(containing: "FavTown"), favorite, "favorites grid fetched after the desk closed")
+        app.terminate()
+    }
+
     private func launch(radarSeconds: String, refreshSeconds: String) throws -> XCUIApplication {
         let stub = try stubBinary()
         let app = XCUIApplication()
@@ -101,6 +128,30 @@ final class RadarRefreshUITests: XCTestCase {
     }
 
     private func radarCount() -> Int { radarLines().count }
+
+    private func stubLines() -> [String] {
+        guard let text = try? String(contentsOf: logURL, encoding: .utf8) else { return [] }
+        return text.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
+    }
+
+    private func lineCount(containing needle: String) -> Int {
+        stubLines().filter { $0.contains(needle) }.count
+    }
+
+    /// Menu-bar fetch is `--json --forecast --alerts` with no favorite location.
+    private func menuBarFetches() -> Int {
+        stubLines().filter {
+            $0.contains("--json") && $0.contains("--forecast") && $0.contains("--alerts") && !$0.contains("FavTown")
+        }.count
+    }
+
+    private func waitUntil(timeout: TimeInterval, _ condition: () -> Bool) throws {
+        let deadline = Date().addingTimeInterval(timeout)
+        while !condition() && Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.2)
+        }
+        XCTAssertTrue(condition(), "timed out. stub log:\n\(stubLines().joined(separator: "\n"))")
+    }
 
     private func waitRadarCount(atLeast minimum: Int, timeout: TimeInterval) throws -> Int {
         let deadline = Date().addingTimeInterval(timeout)
