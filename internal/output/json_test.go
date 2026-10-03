@@ -273,6 +273,51 @@ func TestRenderJSON_ForecastWithQuantitative(t *testing.T) {
 	}
 }
 
+func TestRenderJSON_ForecastAndHourlyCapped(t *testing.T) {
+	data := RenderData{
+		Forecast: &models.Forecast{
+			GeneratedAt: time.Date(2026, 10, 2, 18, 0, 0, 0, time.UTC),
+			Periods: []models.Period{
+				{Name: "Tonight", StartTime: time.Date(2026, 10, 2, 22, 0, 0, 0, time.UTC), TempC: 12.8},
+				{Name: "Friday", StartTime: time.Date(2026, 10, 3, 12, 0, 0, 0, time.UTC), IsDaytime: true, TempC: 20},
+			},
+			Hourly: []models.Period{
+				{Name: "3 PM", StartTime: time.Date(2026, 10, 2, 19, 0, 0, 0, time.UTC), IsDaytime: true, TempC: 22.2},
+				{Name: "4 PM", StartTime: time.Date(2026, 10, 2, 20, 0, 0, 0, time.UTC), IsDaytime: true, TempC: 21},
+				{Name: "5 PM", StartTime: time.Date(2026, 10, 2, 21, 0, 0, 0, time.UTC), IsDaytime: true, TempC: 19},
+			},
+		},
+	}
+	out := captureStdout(t, func() {
+		renderJSON(data, RenderOptions{Units: "imperial", HourlyLimit: 2})
+	})
+	var result struct {
+		Forecast struct {
+			Periods []struct {
+				Name string `json:"name"`
+			} `json:"periods"`
+			Hourly []struct {
+				Name string `json:"name"`
+			} `json:"hourly"`
+		} `json:"forecast"`
+	}
+	if err := json.Unmarshal(out, &result); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(result.Forecast.Periods) != 2 {
+		t.Fatalf("periods = %d, want 2 (day list is not capped)", len(result.Forecast.Periods))
+	}
+	if result.Forecast.Periods[0].Name != "Tonight" {
+		t.Errorf("periods[0] = %q, want Tonight", result.Forecast.Periods[0].Name)
+	}
+	if len(result.Forecast.Hourly) != 2 {
+		t.Fatalf("hourly = %d, want 2", len(result.Forecast.Hourly))
+	}
+	if result.Forecast.Hourly[0].Name != "3 PM" || result.Forecast.Hourly[1].Name != "4 PM" {
+		t.Errorf("hourly = %+v, want 3 PM then 4 PM", result.Forecast.Hourly)
+	}
+}
+
 func TestRenderJSON_Astronomy(t *testing.T) {
 	sr := time.Date(2026, 9, 26, 11, 31, 0, 0, time.UTC)
 	ss := time.Date(2026, 9, 26, 23, 32, 0, 0, time.UTC)
@@ -467,5 +512,3 @@ func TestRenderJSON_AirQuality(t *testing.T) {
 		t.Fatalf("expected top-level air_quality with aqi 42")
 	}
 }
-
-

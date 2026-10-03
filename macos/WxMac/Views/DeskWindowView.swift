@@ -100,6 +100,8 @@ struct DeskWindowView: View {
 
                                 tacticalSignalsCard
 
+                                HourlyStripView()
+
                                 SNWConsoleCard(title: "Synoptic Forecast Log", tag: "NOAA.NWS") {
                                     PeriodsListView(limit: nil, compactRows: false)
                                 }
@@ -169,6 +171,8 @@ struct DeskWindowView: View {
                             AlertsListView(popoverMode: false)
 
                             tacticalSignalsCard
+
+                            HourlyStripView()
 
                             SNWConsoleCard(title: "Synoptic Forecast Log", tag: "NOAA.NWS") {
                                 PeriodsListView(limit: nil, compactRows: false)

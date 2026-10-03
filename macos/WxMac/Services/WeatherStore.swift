@@ -732,7 +732,8 @@ final class WeatherStore: ObservableObject {
             let result = try await backend.fetch(
                 location: loc.isEmpty ? nil : loc,
                 units: units,
-                priority: priority
+                priority: priority,
+                hourly: true
             )
             payload = result
             lastRefreshed = Date()

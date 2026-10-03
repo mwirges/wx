@@ -148,10 +148,13 @@ enum WxCLI {
         )
     }
 
-    static func fetch(location: String?, units: String?, timeoutSeconds: TimeInterval = 35) throws -> WxPayload {
+    static func fetch(location: String?, units: String?, timeoutSeconds: TimeInterval = 35, hourly: Bool = false) throws -> WxPayload {
         guard let binary = locateBinary() else { throw WxCLIError.binaryMissing }
 
         var args = ["--json", "--forecast", "--alerts"]
+        if hourly {
+            args += ["--hourly", "--hours", "24"]
+        }
         if let location, !location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             args += ["--location", location.trimmingCharacters(in: .whitespacesAndNewlines)]
         }

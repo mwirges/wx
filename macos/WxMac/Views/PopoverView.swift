@@ -173,6 +173,8 @@ struct PopoverView: View {
                 .padding(.horizontal, 10)
 
                 // 3 Compact Forecast Rows
+                HourlyStripView()
+                    .padding(.horizontal, 10)
                 PeriodsListView(limit: 3, compactRows: true)
                     .padding(.horizontal, 10)
             }
@@ -303,6 +305,7 @@ struct PopoverView: View {
                     }
 
                     SNWConsoleCard(title: "Synoptic Forecast Log", tag: "NOAA.NWS") {
+                        HourlyStripView()
                         PeriodsListView(limit: periodLimit, compactRows: true)
                     }
                 }
@@ -516,6 +519,7 @@ struct PopoverView: View {
                     }
 
                     SNWConsoleCard(title: "Synoptic Forecast Log", tag: "NOAA.NWS") {
+                        HourlyStripView()
                         PeriodsListView(limit: periodLimit, compactRows: true)
                     }
                 }

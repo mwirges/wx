@@ -331,14 +331,7 @@ struct PeriodsListView: View {
     }
 
     private func periodSymbol(_ p: Period) -> String {
-        if let dt = p.isDaytime {
-            return dt ? "sun.max.fill" : "moon.stars.fill"
-        }
-        let lower = p.name.lowercased()
-        if lower.contains("night") || lower.contains("tonight") {
-            return "moon.stars.fill"
-        }
-        return "sun.max.fill"
+        wxPeriodSymbol(p)
     }
 
     private func windSummary(_ p: Period) -> String? {
@@ -649,5 +642,85 @@ struct ControlsBar: View {
         }
         .buttonStyle(.plain)
         .help("Open Tactical Console (⌘1)")
+    }
+}
+
+func wxPeriodSymbol(_ p: Period) -> String {
+    if let dt = p.isDaytime {
+        return dt ? "sun.max.fill" : "moon.stars.fill"
+    }
+    let lower = p.name.lowercased()
+    if lower.contains("night") || lower.contains("tonight") {
+        return "moon.stars.fill"
+    }
+    return "sun.max.fill"
+}
+
+/// One horizontal hour row. Draws nothing when hourly data is missing.
+struct HourlyStripView: View {
+    @EnvironmentObject var store: WeatherStore
+
+    var body: some View {
+        let hours = store.payload?.forecast?.hourly ?? []
+        if hours.isEmpty {
+            EmptyView()
+        } else {
+            Group {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(hours) { p in
+                            hourCell(p)
+                        }
+                    }
+                    .padding(.horizontal, 2)
+                }
+                .frame(height: 56)
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("wx.hourly.strip")
+            .accessibilityLabel(hours.map { "\(hourLabel($0)) \(tempText($0))" }.joined(separator: ", "))
+        }
+    }
+
+    private func hourCell(_ p: Period) -> some View {
+        let hour = hourLabel(p)
+        let temp = tempText(p)
+        return VStack(spacing: 1) {
+            Text(hour)
+                .font(.system(size: 9, weight: .medium, design: .monospaced))
+                .foregroundStyle(WxTheme.textSecondary)
+            Image(systemName: wxPeriodSymbol(p))
+                .font(.system(size: 11))
+                .foregroundStyle(p.isDaytime == false ? WxTheme.snwSilver : WxTheme.snwGold)
+            Text(temp)
+                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                .foregroundStyle(WxTheme.snwCyan)
+            if let pop = p.probabilityOfPrecipitation, pop > 0 {
+                Text(String(format: "%.0f%%", pop))
+                    .font(.system(size: 8, weight: .bold, design: .monospaced))
+                    .foregroundStyle(WxTheme.snwCyan)
+            }
+        }
+        .frame(minWidth: 44)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(hour) \(temp)")
+    }
+
+    private func hourLabel(_ p: Period) -> String {
+        guard let raw = p.startTime else { return p.name }
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime]
+        guard let date = iso.date(from: raw) else { return p.name }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        formatter.dateFormat = "h a"
+        return formatter.string(from: date)
+    }
+
+    private func tempText(_ p: Period) -> String {
+        if store.units == "metric", let t = p.temperatureC { return String(format: "%.0f°", t) }
+        if let t = p.temperatureF { return String(format: "%.0f°", t) }
+        return "—"
     }
 }

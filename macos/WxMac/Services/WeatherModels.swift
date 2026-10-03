@@ -215,16 +215,19 @@ struct Conditions: Decodable, Sendable {
 struct Forecast: Decodable, Sendable {
     var generatedAt: String?
     var periods: [Period]
+    var hourly: [Period]?
 
     enum CodingKeys: String, CodingKey {
         case generatedAt = "generated_at"
         case periods
+        case hourly
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         generatedAt = try c.decodeIfPresent(String.self, forKey: .generatedAt)
         periods = try c.decodeIfPresent([Period].self, forKey: .periods) ?? []
+        hourly = try c.decodeIfPresent([Period].self, forKey: .hourly)
     }
 }
 

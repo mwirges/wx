@@ -6,6 +6,9 @@ import "time"
 type Forecast struct {
 	GeneratedAt time.Time
 	Periods     []Period
+	// Hourly is set only when --forecast and --hourly are both set.
+	// --hourly alone keeps using Periods and leaves this nil.
+	Hourly []Period
 }
 
 // Period represents one forecast period (e.g. "Tonight", "Monday", "Monday Night").

@@ -231,15 +231,41 @@ func renderPretty(data RenderData, opts RenderOptions) error {
 	}
 
 	// ── Forecast ───────────────────────────────────────────────────
-	if data.Forecast != nil && len(data.Forecast.Periods) > 0 {
+	if data.Forecast != nil && (len(data.Forecast.Periods) > 0 || len(data.Forecast.Hourly) > 0) {
+		// Both flags: day list, then the hourly table from Forecast.Hourly.
+		// --hourly alone keeps the table sourced from Periods.
+		combined := opts.ShowHourly && len(data.Forecast.Hourly) > 0
+		if !opts.ShowHourly || combined {
+			if len(data.Forecast.Periods) > 0 {
+				fmt.Println(styleForecastHeader.Render("Forecast"))
+				fmt.Println(styleLabel.Render(strings.Repeat("─", 60)))
+
+				for _, p := range data.Forecast.Periods {
+					tempStr := FormatTemp(p.TempC, imperial)
+					var tempStyled string
+					if p.IsDaytime {
+						tempStyled = styleForecastHigh.Render("High " + tempStr)
+					} else {
+						tempStyled = styleForecastLow.Render("Low  " + tempStr)
+					}
+					desc := styleForecastDesc.Render(p.ShortDesc)
+					fmt.Printf("  %s %s   %s\n", styleForecastName.Render(p.Name), tempStyled, desc)
+				}
+				fmt.Println()
+			}
+		}
 		if opts.ShowHourly {
+			source := data.Forecast.Periods
+			if combined {
+				source = data.Forecast.Hourly
+			}
 			limit := opts.HourlyLimit
 			if limit <= 0 {
 				limit = 24
 			}
 			headerTitle := fmt.Sprintf("Hourly Forecast (Next %d Hours)", limit)
-			if len(data.Forecast.Periods) < limit {
-				limit = len(data.Forecast.Periods)
+			if len(source) < limit {
+				limit = len(source)
 				headerTitle = fmt.Sprintf("Hourly Forecast (%d Hours)", limit)
 			}
 			fmt.Println(styleForecastHeader.Render(headerTitle))
@@ -254,7 +280,7 @@ func renderPretty(data RenderData, opts RenderOptions) error {
 			fmt.Printf("  %s %s  %s  %s  %s  %s\n", colTime, colTemp, colPrecip, colHum, colWind, colDesc)
 			fmt.Println(styleLabel.Render(strings.Repeat("─", 75)))
 
-			for _, p := range data.Forecast.Periods[:limit] {
+			for _, p := range source[:limit] {
 				timeStyled := styleForecastName.Width(12).Render(p.Name)
 				tempStr := FormatTemp(p.TempC, imperial)
 				tempStyled := TempStyle(p.TempC, imperial).Width(7).Render(tempStr)
@@ -279,22 +305,6 @@ func renderPretty(data RenderData, opts RenderOptions) error {
 
 				desc := styleForecastDesc.Render(p.ShortDesc)
 				fmt.Printf("  %s %s  %s  %s  %s  %s\n", timeStyled, tempStyled, precipStyled, humidStyled, windStyled, desc)
-			}
-			fmt.Println()
-		} else {
-			fmt.Println(styleForecastHeader.Render("Forecast"))
-			fmt.Println(styleLabel.Render(strings.Repeat("─", 60)))
-
-			for _, p := range data.Forecast.Periods {
-				tempStr := FormatTemp(p.TempC, imperial)
-				var tempStyled string
-				if p.IsDaytime {
-					tempStyled = styleForecastHigh.Render("High " + tempStr)
-				} else {
-					tempStyled = styleForecastLow.Render("Low  " + tempStr)
-				}
-				desc := styleForecastDesc.Render(p.ShortDesc)
-				fmt.Printf("  %s %s   %s\n", styleForecastName.Render(p.Name), tempStyled, desc)
 			}
 			fmt.Println()
 		}
@@ -459,4 +469,3 @@ func UVStyle(uv float64) lipgloss.Style {
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("129")).Bold(true)
 	}
 }
-

@@ -77,14 +77,14 @@ func TestTempStyle_Thresholds(t *testing.T) {
 		imperial bool
 		want     lipgloss.Style
 	}{
-		{-10, true, styleTempCold},  // <32°F
-		{10, true, styleTempMild},   // ~50°F
-		{22, true, styleTempWarm},   // ~72°F
-		{35, true, styleTempHot},    // ~95°F
-		{-5, false, styleTempCold},  // <0°C
-		{10, false, styleTempMild},  // 0–18°C
-		{25, false, styleTempWarm},  // 18–29°C
-		{35, false, styleTempHot},   // >29°C
+		{-10, true, styleTempCold}, // <32°F
+		{10, true, styleTempMild},  // ~50°F
+		{22, true, styleTempWarm},  // ~72°F
+		{35, true, styleTempHot},   // ~95°F
+		{-5, false, styleTempCold}, // <0°C
+		{10, false, styleTempMild}, // 0–18°C
+		{25, false, styleTempWarm}, // 18–29°C
+		{35, false, styleTempHot},  // >29°C
 	}
 
 	for _, tc := range cases {
@@ -541,5 +541,35 @@ func TestRenderPretty_AirQuality(t *testing.T) {
 	}
 }
 
-
-
+func TestRenderPretty_ForecastThenHourly(t *testing.T) {
+	data := RenderData{
+		Forecast: &models.Forecast{
+			Periods: []models.Period{
+				{Name: "Tonight", TempC: 12, ShortDesc: "Clear"},
+			},
+			Hourly: []models.Period{
+				{Name: "3 PM", TempC: 22, ShortDesc: "Sunny"},
+				{Name: "4 PM", TempC: 21, ShortDesc: "Sunny"},
+				{Name: "5 PM", TempC: 19, ShortDesc: "Sunny"},
+			},
+		},
+	}
+	out := captureStdout(t, func() {
+		if err := renderPretty(data, RenderOptions{Units: "imperial", ShowHourly: true, HourlyLimit: 2}); err != nil {
+			t.Fatalf("render: %v", err)
+		}
+	})
+	text := string(out)
+	day := strings.Index(text, "Tonight")
+	table := strings.Index(text, "Hourly Forecast")
+	hour := strings.Index(text, "3 PM")
+	if day < 0 || table < 0 || hour < 0 {
+		t.Fatalf("missing day list or hourly table:\n%s", text)
+	}
+	if !(day < table && table < hour) {
+		t.Fatalf("want day list then hourly table, got day=%d table=%d hour=%d", day, table, hour)
+	}
+	if strings.Contains(text, "5 PM") {
+		t.Fatalf("hourly table was not capped:\n%s", text)
+	}
+}
