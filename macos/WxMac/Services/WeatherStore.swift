@@ -212,11 +212,7 @@ final class WeatherStore: ObservableObject {
     func start() {
         Task {
             await refresh()
-            await refreshCPC()
-            await refreshChase()
-            if !favorites.isEmpty {
-                await refreshGrid()
-            }
+            await refreshDeskExtras()
             if selectedDeskTab == .dual || selectedDeskTab == .radar {
                 await refreshRadar()
             }
@@ -232,11 +228,7 @@ final class WeatherStore: ObservableObject {
                 }
                 guard !Task.isCancelled else { return }
                 await self?.refresh()
-                await self?.refreshCPC()
-                await self?.refreshChase()
-                if let favs = self?.favorites, !favs.isEmpty {
-                    await self?.refreshGrid()
-                }
+                await self?.refreshDeskExtras()
             }
         }
 
@@ -255,6 +247,16 @@ final class WeatherStore: ObservableObject {
                     await self.refreshRadar()
                 }
             }
+        }
+    }
+
+    /// Outlook, chase, and the favorites grid are desk-only. The menu-bar refresh stays on its timer.
+    private func refreshDeskExtras() async {
+        guard deskWindowOpen else { return }
+        await refreshCPC()
+        await refreshChase()
+        if !favorites.isEmpty {
+            await refreshGrid()
         }
     }
 

@@ -438,6 +438,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     func windowWillClose(_ notification: Notification) {
         guard let window = notification.object as? NSWindow, window === deskWindow else { return }
         store.deskWindowOpen = false
+        store.isLoopPlaying = false
+        store.stopLoopTimer()
     }
 
     /// Env-gated (`WX_QA_POPOVER=1`) fixed 420×620 surface matching menu popover — for QA screenshots only.
