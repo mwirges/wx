@@ -423,9 +423,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         window.delegate = self
         window.setFrameAutosaveName("wxDeskWindow")
         window.center()
-        window.isReleasedWhenClosed = false
+        window.isReleasedWhenClosed = true
         window.makeKeyAndOrderFront(nil)
         deskWindow = window
+        // isReleasedWhenClosed sends an extra -release on close. Without this
+        // retain the window frees while deskWindow still points at it.
+        _ = Unmanaged.passRetained(window)
         NSApp.activate(ignoringOtherApps: true)
 
         if store.selectedDeskTab == .dual || store.selectedDeskTab == .radar {
@@ -440,6 +443,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         store.deskWindowOpen = false
         store.isLoopPlaying = false
         store.stopLoopTimer()
+        deskWindow = nil
     }
 
     /// Env-gated (`WX_QA_POPOVER=1`) fixed 420×620 surface matching menu popover — for QA screenshots only.
