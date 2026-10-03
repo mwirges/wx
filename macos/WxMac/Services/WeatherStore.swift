@@ -219,7 +219,7 @@ final class WeatherStore: ObservableObject {
         }
         refreshTask?.cancel()
         let interval = refreshInterval
-        refreshTask = Task { [weak self] in
+        refreshTask = Task(priority: .utility) { [weak self] in
             while !Task.isCancelled {
                 do {
                     try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
@@ -227,14 +227,14 @@ final class WeatherStore: ObservableObject {
                     return
                 }
                 guard !Task.isCancelled else { return }
-                await self?.refresh()
+                await self?.refresh(priority: .utility)
                 await self?.refreshDeskExtras()
             }
         }
 
         radarRefreshTask?.cancel()
         let radarInterval = radarRefreshInterval
-        radarRefreshTask = Task { [weak self] in
+        radarRefreshTask = Task(priority: .utility) { [weak self] in
             while !Task.isCancelled {
                 do {
                     try await Task.sleep(nanoseconds: UInt64(radarInterval * 1_000_000_000))
@@ -244,7 +244,7 @@ final class WeatherStore: ObservableObject {
                 guard !Task.isCancelled else { return }
                 guard let self = self else { return }
                 if self.deskWindowOpen {
-                    await self.refreshRadar()
+                    await self.refreshRadar(priority: .utility)
                 }
             }
         }
@@ -363,7 +363,7 @@ final class WeatherStore: ObservableObject {
         seekFrame(to: radarFrames.count - 1)
     }
 
-    func refreshRadar(bbox: RadarBBox? = nil) async {
+    func refreshRadar(bbox: RadarBBox? = nil, priority: TaskPriority = .userInitiated) async {
         isRadarLoading = true
         radarErrorMessage = nil
         defer { isRadarLoading = false }
@@ -383,7 +383,8 @@ final class WeatherStore: ObservableObject {
                 bbox: targetBBox,
                 raw: true,
                 loop: true,
-                frames: 8
+                frames: 8,
+                priority: priority
             )
             radarPayload = res
             currentRadarBBox = res.bbox ?? targetBBox
@@ -715,7 +716,7 @@ final class WeatherStore: ObservableObject {
         gridCards[idx].isLoading = false
     }
 
-    func refresh() async {
+    func refresh(priority: TaskPriority = .userInitiated) async {
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
@@ -730,7 +731,8 @@ final class WeatherStore: ObservableObject {
         do {
             let result = try await backend.fetch(
                 location: loc.isEmpty ? nil : loc,
-                units: units
+                units: units,
+                priority: priority
             )
             payload = result
             lastRefreshed = Date()
