@@ -4,8 +4,8 @@ import Foundation
 /// Today: `WxCLIBackend` shells out to Go `wx --json`.
 /// Later: c-shared / GTK host must expose the same JSON contract — not a second NWS client.
 protocol WeatherBackend: Sendable {
-    func fetch(location: String?, units: String?) async throws -> WxPayload
-    func fetchRadar(location: String?, product: String?, radiusKm: Double?, bbox: RadarBBox?, raw: Bool, loop: Bool, frames: Int) async throws -> RadarPayload
+    func fetch(location: String?, units: String?, priority: TaskPriority) async throws -> WxPayload
+    func fetchRadar(location: String?, product: String?, radiusKm: Double?, bbox: RadarBBox?, raw: Bool, loop: Bool, frames: Int, priority: TaskPriority) async throws -> RadarPayload
     func fetchCPC(location: String?) async throws -> CPCPayloadDTO
     func fetchSPC(location: String?) async throws -> SPCPayloadDTO
     func fetchChase() async throws -> ChasePayloadDTO
@@ -19,8 +19,12 @@ protocol WeatherBackend: Sendable {
 }
 
 extension WeatherBackend {
+    func fetch(location: String?, units: String?) async throws -> WxPayload {
+        try await fetch(location: location, units: units, priority: .userInitiated)
+    }
+
     func fetchRadar(location: String?, product: String?, radiusKm: Double?, bbox: RadarBBox? = nil, raw: Bool = true, loop: Bool = true, frames: Int = 8) async throws -> RadarPayload {
-        try await fetchRadar(location: location, product: product, radiusKm: radiusKm, bbox: bbox, raw: raw, loop: loop, frames: frames)
+        try await fetchRadar(location: location, product: product, radiusKm: radiusKm, bbox: bbox, raw: raw, loop: loop, frames: frames, priority: .userInitiated)
     }
 
     func fetchHistory(location: String?, days: Int = 14, units: String? = nil) async throws -> HistoryPayloadDTO {
@@ -40,14 +44,14 @@ extension WeatherBackend {
 struct WxCLIBackend: WeatherBackend {
     var isAvailable: Bool { WxCLI.locateBinary() != nil }
 
-    func fetch(location: String?, units: String?) async throws -> WxPayload {
-        try await Task.detached(priority: .userInitiated) {
+    func fetch(location: String?, units: String?, priority: TaskPriority = .userInitiated) async throws -> WxPayload {
+        try await Task.detached(priority: priority) {
             try WxCLI.fetch(location: location, units: units)
         }.value
     }
 
-    func fetchRadar(location: String?, product: String?, radiusKm: Double?, bbox: RadarBBox? = nil, raw: Bool = true, loop: Bool = true, frames: Int = 8) async throws -> RadarPayload {
-        try await Task.detached(priority: .userInitiated) {
+    func fetchRadar(location: String?, product: String?, radiusKm: Double?, bbox: RadarBBox? = nil, raw: Bool = true, loop: Bool = true, frames: Int = 8, priority: TaskPriority = .userInitiated) async throws -> RadarPayload {
+        try await Task.detached(priority: priority) {
             try WxCLI.fetchRadar(location: location, product: product, radiusKm: radiusKm, bbox: bbox, raw: raw, loop: loop, frames: frames)
         }.value
     }
