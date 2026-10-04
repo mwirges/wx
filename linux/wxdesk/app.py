@@ -47,16 +47,21 @@ class WxApp(Adw.Application):
         if self.open_on_start:
             self.show_desk()
             self.store.refresh_desk_extras()
-            if self.store.tab in RADAR_TABS:
-                self.store.refresh_radar()
 
     def show_desk(self) -> DeskWindow:
         if self.window is not None:
             self.store.open_desk()
             self.window.present()
-            return self.window
-        self.window = DeskWindow(self, self.store, on_closed=self._forget_window)
-        self.window.present()
+        else:
+            self.window = DeskWindow(self, self.store, on_closed=self._forget_window)
+            self.window.present()
+        if (
+            self.store.desk_open
+            and self.store.tab in RADAR_TABS
+            and not self.store.radar_frames
+            and not self.store.radar_loading
+        ):
+            self.store.refresh_radar()
         return self.window
 
     def _forget_window(self) -> None:

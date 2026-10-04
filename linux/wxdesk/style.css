@@ -38,5 +38,9 @@ window.wx-desk, .wx-desk {
   font-family: monospace;
   font-weight: 700;
 }
+.wx-mode-on {
+  background: alpha(#38e1ff, 0.22);
+  color: #38e1ff;
+}
 headerbar { background: #0a1222; }
 entry, dropdown, button { border-radius: 6px; }

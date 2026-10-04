@@ -52,7 +52,7 @@ class WeatherStore:
         self.favorites: list[dict] = []
         self.recents: list[str] = []
         self.grid_cards: list[dict] = []
-        self.tab = "weather"
+        self.tab = "dual"
         self.desk_open = False
         self.radar_product = "composite-reflectivity"
         self.radar_radius = 200.0
@@ -365,6 +365,7 @@ class WeatherStore:
     def chase_to_radar(self, lat: float, lon: float) -> None:
         self.radar_radius = 250
         self.tab = "radar"
+        self._emit("tab")
         self.select_location(f"{lat:.4f},{lon:.4f}")
 
     def nowcast(self) -> dict | None:

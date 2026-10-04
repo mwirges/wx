@@ -6,7 +6,9 @@
 
 **Boundary:** `WxCLI` runs the `wx` binary (`WX_BINARY`, then `build/wx`, then `PATH`). Views bind `WeatherStore`.
 
-**Surfaces:** a StatusNotifier tray item and a desk window. Both read the store.
+**Surfaces:** a StatusNotifier tray item and a desk window. Both read the store. The desk has the daily surface, a dual pane (radar beside telemetry, stacked when narrower than 760 px), radar, CPC outlooks, storm chase, climate, tropics, and the favorites grid.
+
+**Radar picture:** the CLI returns a PNG. The desk displays those bytes. Save PNG and Save GIF call `wx radar --save` and `wx radar --save-gif`. The shell does not composite frames.
 
 **Desk close:** matches the Mac window (#35, #36, #37). Closing releases the window, stops the radar subprocess and the loop, and skips outlook, chase, and the favorites grid. The menu-bar refresh keeps running. The next Open Desk builds a new window.
 
