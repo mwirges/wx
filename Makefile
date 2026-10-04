@@ -47,10 +47,11 @@ test:
 test-verbose:
 	go test ./... -v -count=1
 
-## vet: Run go vet
+## vet: Run go vet, including the Linux desk module
 .PHONY: vet
 vet:
 	go vet ./...
+	$(MAKE) -C linux vet
 
 ## build-all: Cross-compile for all supported platforms → build/wx-{os}-{arch}[.exe]
 .PHONY: build-all
@@ -97,17 +98,17 @@ ext = $(if $(filter windows,$(1)),.exe,)
 mac-build:
 	$(MAKE) -C macos build
 
-## linux-desk: Build the CLI and syntax-check the GTK desk
+## linux-desk: Build the CLI and the Fyne desk binary
 .PHONY: linux-desk
 linux-desk:
 	$(MAKE) -C linux desk
 
-## linux-test: Test the GTK desk shell. Not part of `make test`.
+## linux-test: Test the Fyne desk shell. Not part of `make test`.
 .PHONY: linux-test
 linux-test:
 	$(MAKE) -C linux test
 
-## linux-run: Build and launch the GTK desk
+## linux-run: Build and launch the Fyne desk
 .PHONY: linux-run
 linux-run:
 	$(MAKE) -C linux run
