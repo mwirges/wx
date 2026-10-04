@@ -1,0 +1,8 @@
+#!/bin/sh
+# Launch the GTK desk. The weather binary is the repo build, unless WX_BINARY is set.
+ROOT=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+export PYTHONPATH="$ROOT/linux${PYTHONPATH:+:$PYTHONPATH}"
+if [ -z "${WX_BINARY:-}" ] && [ -x "$ROOT/build/wx" ]; then
+  export WX_BINARY="$ROOT/build/wx"
+fi
+exec python3 -m wxdesk "$@"

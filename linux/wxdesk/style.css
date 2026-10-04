@@ -1,0 +1,42 @@
+window.wx-desk, .wx-desk {
+  background: #060a14;
+  color: #f0f6ff;
+}
+.wx-label { color: #f0f6ff; }
+.wx-kicker {
+  color: #38e1ff;
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 11px;
+}
+.wx-tag {
+  color: #94a7c5;
+  font-family: monospace;
+  font-size: 10px;
+}
+.wx-muted { color: #94a7c5; font-size: 12px; }
+.wx-temp {
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 34px;
+}
+.wx-card {
+  background: alpha(#0e1a2d, 0.94);
+  border: 1px solid alpha(#38e1ff, 0.35);
+  border-radius: 8px;
+  padding: 10px;
+}
+.wx-alert { color: #ff3b56; font-weight: 700; }
+.wx-watch { color: #ff9f0a; font-weight: 700; }
+.wx-ok { color: #30d158; font-weight: 700; }
+.wx-hour {
+  min-width: 52px;
+  padding: 4px;
+}
+.wx-hour-temp {
+  color: #38e1ff;
+  font-family: monospace;
+  font-weight: 700;
+}
+headerbar { background: #0a1222; }
+entry, dropdown, button { border-radius: 6px; }

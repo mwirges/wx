@@ -97,6 +97,21 @@ ext = $(if $(filter windows,$(1)),.exe,)
 mac-build:
 	$(MAKE) -C macos build
 
+## linux-desk: Build the CLI and syntax-check the GTK desk
+.PHONY: linux-desk
+linux-desk:
+	$(MAKE) -C linux desk
+
+## linux-test: Test the GTK desk shell. Not part of `make test`.
+.PHONY: linux-test
+linux-test:
+	$(MAKE) -C linux test
+
+## linux-run: Build and launch the GTK desk
+.PHONY: linux-run
+linux-run:
+	$(MAKE) -C linux run
+
 ## mac-ui-test: XCUITest the Mac app. Not part of `make test`.
 .PHONY: mac-ui-test
 mac-ui-test:
