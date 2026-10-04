@@ -208,19 +208,20 @@ func fillDays(body *fyne.Container, st *store.Store) {
 		if period == nil {
 			continue
 		}
-		lineBox := container.NewHBox(
-			line(present.AsString(period["name"]), "kicker"),
-			line(present.PeriodTemp(period, st.Units), "hour"),
-		)
+		name := line(present.AsString(period["name"]), "kicker")
+		name.Wrapping = fyne.TextWrapOff
+		temp := line(present.PeriodTemp(period, st.Units), "hour")
+		temp.Wrapping = fyne.TextWrapOff
+		row := container.NewVBox(container.NewHBox(name, temp))
 		short := present.AsString(period["short_description"])
 		detail := short
 		if pop := popText(period["probability_of_precipitation"]); pop != "" {
 			detail = strings.TrimSpace(short + "  " + pop)
 		}
 		if detail != "" {
-			lineBox.Add(line(detail, "muted"))
+			row.Add(line(detail, "muted"))
 		}
-		body.Add(lineBox)
+		body.Add(row)
 	}
 	body.Refresh()
 }

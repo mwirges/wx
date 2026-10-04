@@ -18,7 +18,12 @@ type DualPane struct {
 // NewDualPane builds a horizontal split. ApplyWidth flips it under 760 px.
 func NewDualPane(telemetry, radar fyne.CanvasObject) *DualPane {
 	d := &DualPane{Telemetry: telemetry, Radar: radar, horizontal: true}
-	d.split = container.NewHSplit(container.NewScroll(telemetry), radar)
+	// Clip each side. Fyne does not clip a split child, so a wide label paints
+	// across the divider into the other pane.
+	d.split = container.NewHSplit(
+		container.NewClip(container.NewVScroll(telemetry)),
+		container.NewClip(radar),
+	)
 	d.split.Offset = 0.42
 	d.ExtendBaseWidget(d)
 	return d

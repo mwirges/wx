@@ -82,10 +82,14 @@ func (s *Section) CreateRenderer() fyne.WidgetRenderer {
 }
 
 func card(title, tag string, body *fyne.Container) *fyne.Container {
-	header := container.NewBorder(nil, nil,
-		line(strings.ToUpper(title), "kicker"),
-		line(tag, "tag"),
-	)
+	// The title takes the leftover width and truncates. A wrapping label in the
+	// left slot reports a tiny minimum width and then paints across the radar.
+	titleLine := line(strings.ToUpper(title), "kicker")
+	titleLine.Wrapping = fyne.TextWrapOff
+	titleLine.Truncation = fyne.TextTruncateEllipsis
+	tagLine := line(tag, "tag")
+	tagLine.Wrapping = fyne.TextWrapOff
+	header := container.NewBorder(nil, nil, nil, tagLine, titleLine)
 	inner := container.NewVBox(header, body)
 	bg := canvas.NewRectangle(color.NRGBA{R: 0x0E, G: 0x1A, B: 0x2D, A: 0xF0})
 	return container.NewStack(bg, container.NewPadded(inner))

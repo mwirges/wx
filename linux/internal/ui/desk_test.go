@@ -1,14 +1,21 @@
 package ui
 
 import (
+	"bytes"
 	"encoding/base64"
+	"image"
+	"image/color"
+	"image/png"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/driver/software"
 	"fyne.io/fyne/v2/test"
+	"fyne.io/fyne/v2/widget"
 
 	"github.com/mwirges/wx/linux/internal/fixture"
 	"github.com/mwirges/wx/linux/internal/store"
@@ -175,6 +182,22 @@ func TestRadarDisplaysCLIPNGAndExportCallsTheCLI(t *testing.T) {
 	}
 	if panel.Frame.Text != "LIVE" || panel.Note.Text != "" {
 		t.Fatalf("frame %q note %q", panel.Frame.Text, panel.Note.Text)
+	}
+	matted, ok := panel.Picture.Image.(*image.NRGBA)
+	if !ok || matted.Bounds().Dx() != 1 || matted.NRGBAAt(0, 0).A != 255 {
+		t.Fatalf("picture %#v", panel.Picture.Image)
+	}
+	clear := image.NewNRGBA(image.Rect(0, 0, 2, 1))
+	clear.SetNRGBA(1, 0, color.NRGBA{R: 255, A: 255})
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, clear); err != nil {
+		t.Fatal(err)
+	}
+	st.RadarFrames = []store.Frame{{PNG: buf.Bytes(), Label: "LIVE"}}
+	panel.Refresh(st)
+	shown, ok := panel.Picture.Image.(*image.NRGBA)
+	if !ok || shown.NRGBAAt(0, 0).A != 255 || shown.NRGBAAt(1, 0).R != 255 {
+		t.Fatalf("transparent frame stayed blank: %#v", panel.Picture.Image)
 	}
 	st.RadarFrames = []store.Frame{{PNG: []byte("hello"), Label: "LIVE"}}
 	panel.Refresh(st)
@@ -425,6 +448,134 @@ sys.exit(0)
 	if shell.Store.DeskOpen || shell.Store.LoopPlaying {
 		t.Fatal("close did not stop the desk")
 	}
+}
+
+func TestCityFieldStaysBelowTheTitleAndRadarFillsItsPane(t *testing.T) {
+	application := testApp()
+	defer application.Quit()
+	st := store.New(&fixture.Fake{}, nil, true)
+	st.Payload = fixture.Payload
+	st.RadarFrames = []store.Frame{{PNG: solidPNG(t, 40, 30, color.NRGBA{R: 255, G: 32, B: 32, A: 255}), Label: "LIVE", Live: true}}
+	desk := NewDesk(application, st, nil)
+	defer desk.Window.Close()
+
+	canvas := software.NewCanvas()
+	canvas.SetPadded(false)
+	canvas.SetContent(desk.Window.Content())
+	canvas.Resize(fyne.NewSize(980, 760))
+
+	content := canvas.Content()
+	title := findRich(content, "ATMOSPHERIC TELEMETRY CONSOLE")
+	if title == nil {
+		t.Fatal("missing title")
+	}
+	titleAt, ok := originOf(content, title)
+	locAt, locOK := originOf(content, desk.Location)
+	if !ok || !locOK {
+		t.Fatal("missing title or city field")
+	}
+	if locAt.Y < titleAt.Y+title.Size().Height-1 {
+		t.Fatalf("city field overlaps the title: city %v title %v h %.1f", locAt, titleAt, title.Size().Height)
+	}
+	picture := desk.RadarPanels[0].Picture
+	if picture.Size().Height < 360 {
+		t.Fatalf("radar picture is a short strip: %v", picture.Size())
+	}
+	picAt, ok := originOf(content, picture)
+	if !ok {
+		t.Fatal("missing picture")
+	}
+	img := canvas.Capture().(*image.NRGBA)
+	red := 0
+	bleed := 0
+	for y := int(picAt.Y); y < int(picAt.Y+picture.Size().Height); y++ {
+		for x := int(picAt.X); x < int(picAt.X+picture.Size().Width); x++ {
+			if !image.Pt(x, y).In(img.Bounds()) {
+				continue
+			}
+			c := img.NRGBAAt(x, y)
+			if c.R > 200 && c.G < 80 && c.B < 80 {
+				red++
+			}
+			if x < int(picAt.X)+12 && c.G > 180 && c.B > 180 && c.R < 120 {
+				bleed++
+			}
+		}
+	}
+	if red < 80000 {
+		t.Fatalf("radar pane stayed blank: %d red pixels, picture %v at %v", red, picture.Size(), picAt)
+	}
+	if bleed > 20 {
+		t.Fatalf("left column cuts into the radar: %d pixels", bleed)
+	}
+}
+
+func solidPNG(t *testing.T, w, h int, c color.NRGBA) []byte {
+	t.Helper()
+	img := image.NewNRGBA(image.Rect(0, 0, w, h))
+	drawFill(img, c)
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
+func drawFill(img *image.NRGBA, c color.NRGBA) {
+	for y := 0; y < img.Bounds().Dy(); y++ {
+		for x := 0; x < img.Bounds().Dx(); x++ {
+			img.SetNRGBA(x, y, c)
+		}
+	}
+}
+
+func findRich(root fyne.CanvasObject, text string) *widget.RichText {
+	var found *widget.RichText
+	walk(root, func(c fyne.CanvasObject) {
+		if found != nil {
+			return
+		}
+		if rt, ok := c.(*widget.RichText); ok && rt.String() == text {
+			found = rt
+		}
+	})
+	return found
+}
+
+func originOf(root, target fyne.CanvasObject) (fyne.Position, bool) {
+	var found fyne.Position
+	var ok bool
+	var visit func(fyne.CanvasObject, fyne.Position)
+	visit = func(o fyne.CanvasObject, at fyne.Position) {
+		if o == nil || ok {
+			return
+		}
+		at = at.Add(o.Position())
+		if o == target {
+			found = at
+			ok = true
+			return
+		}
+		switch w := o.(type) {
+		case *fyne.Container:
+			for _, child := range w.Objects {
+				visit(child, at)
+			}
+		case *Section:
+			visit(w.Obj, at)
+		case *container.Scroll:
+			visit(w.Content, at)
+		case *container.Clip:
+			visit(w.Content, at)
+		case *container.Split:
+			visit(w.Leading, at)
+			visit(w.Trailing, at)
+		case *DualPane:
+			visit(w.split, at)
+		}
+	}
+	visit(root, fyne.NewPos(0, 0))
+	return found, ok
 }
 
 func contains(text, needle string) bool {

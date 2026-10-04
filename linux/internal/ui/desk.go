@@ -177,7 +177,10 @@ func (d *Desk) build() {
 
 	refresh := widget.NewButton("Refresh", func() { d.store.Refresh() })
 	controls := container.NewHBox(d.Format, d.Units, refresh)
-	header := container.NewBorder(nil, nil, line("ATMOSPHERIC TELEMETRY CONSOLE", "kicker"), controls, d.Location)
+	title := line("ATMOSPHERIC TELEMETRY CONSOLE", "kicker")
+	title.Wrapping = fyne.TextWrapOff
+	title.Truncation = fyne.TextTruncateEllipsis
+	header := container.NewVBox(title, container.NewBorder(nil, nil, nil, controls, d.Location))
 
 	d.Status = widget.NewLabel("")
 	d.Status.Wrapping = fyne.TextWrapWord

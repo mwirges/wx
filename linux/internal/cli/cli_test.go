@@ -3,6 +3,7 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -67,6 +68,32 @@ func TestDecodeWeatherJSONFromStub(t *testing.T) {
 	cond, _ := payload["conditions"].(map[string]any)
 	if cond["temperature_f"] != 72.0 && cond["temperature_f"] != float64(72) {
 		t.Fatalf("temp %#v", cond["temperature_f"])
+	}
+}
+
+func TestFetchRadarAsksForTheMappedPicture(t *testing.T) {
+	dir := t.TempDir()
+	binary := filepath.Join(dir, "wx")
+	argvPath := filepath.Join(dir, "argv")
+	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"" + argvPath + "\"\nprintf '%s\\n' '{\"frames\":[]}'\n"
+	if err := os.WriteFile(binary, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := New(binary).FetchRadar("Fort Wayne, IN", "composite-reflectivity", 200, "", 6); err != nil {
+		t.Fatal(err)
+	}
+	argv, err := os.ReadFile(argvPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(argv)
+	if strings.Contains(text, "--raw") {
+		t.Fatalf("desk asked for a transparent frame: %s", text)
+	}
+	for _, want := range []string{"radar", "--json", "--loop", "composite-reflectivity"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("argv %s missing %s", text, want)
+		}
 	}
 }
 

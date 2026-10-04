@@ -87,13 +87,14 @@ func (c *WxCLI) FetchWeather(location, units string, hourly bool) (map[string]an
 	return decode(out, errText, code, true)
 }
 
-// FetchRadar runs wx radar --json --raw --loop. The picture is in the JSON.
+// FetchRadar runs wx radar --json --loop. Raw frames are transparent and the
+// desk has no map under them, so the CLI returns the composited picture.
 func (c *WxCLI) FetchRadar(location, product string, radius float64, bbox string, frames int) (map[string]any, error) {
 	c.CancelRadar()
 	c.lock()
 	epoch := c.epoch
 	c.unlock()
-	out, errText, code, err := c.run(RadarArgs(location, product, radius, bbox, true, true, frames), radarTimeout, true, &epoch)
+	out, errText, code, err := c.run(RadarArgs(location, product, radius, bbox, false, true, frames), radarTimeout, true, &epoch)
 	if err != nil {
 		return nil, err
 	}
@@ -360,7 +361,8 @@ func WeatherArgs(location, units string, hourly bool) []string {
 	return args
 }
 
-// RadarArgs builds wx radar --json. raw and loop default on for the desk.
+// RadarArgs builds wx radar --json. The desk leaves raw off; pass raw only
+// when another surface draws a map under the image.
 func RadarArgs(location, product string, radius float64, bbox string, raw, loop bool, frames int) []string {
 	args := []string{"radar", "--json"}
 	if raw {

@@ -22,6 +22,8 @@ func walk(o fyne.CanvasObject, fn func(fyne.CanvasObject)) {
 		walk(w.Obj, fn)
 	case *container.Scroll:
 		walk(w.Content, fn)
+	case *container.Clip:
+		walk(w.Content, fn)
 	case *container.Split:
 		walk(w.Leading, fn)
 		walk(w.Trailing, fn)

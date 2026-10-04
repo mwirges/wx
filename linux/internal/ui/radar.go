@@ -3,6 +3,8 @@ package ui
 import (
 	"bytes"
 	"image"
+	"image/color"
+	"image/draw"
 	"image/png"
 	"math"
 
@@ -75,14 +77,21 @@ func NewRadarPanel(st *store.Store, win fyne.Window) *RadarPanel {
 	next := widget.NewButton("▶", func() { st.StepFrame(1) })
 	pngBtn := widget.NewButton("Save PNG", func() { p.choose("wx-radar.png", p.SavePNG) })
 	gifBtn := widget.NewButton("Save GIF", func() { p.choose("wx-radar.gif", p.SaveGIF) })
-	controls := container.NewHBox(p.Product, p.Radius, prev, p.Loop, next, pngBtn, gifBtn)
+	// Two rows so the control strip's minimum width does not crush the telemetry column.
+	controls := container.NewVBox(
+		container.NewGridWithColumns(2, p.Product, p.Radius),
+		container.NewGridWithColumns(5, prev, p.Loop, next, pngBtn, gifBtn),
+	)
 	p.Frame = widget.NewLabel("RADAR")
 	p.Picture = canvas.NewImageFromImage(image.NewNRGBA(image.Rect(0, 0, 1, 1)))
 	p.Picture.FillMode = canvas.ImageFillContain
-	p.Picture.SetMinSize(fyne.NewSize(320, 240))
+	p.Picture.ScaleMode = canvas.ImageScaleFastest
+	p.Picture.SetMinSize(fyne.NewSize(160, 120))
 	p.Note = widget.NewLabel("")
 	p.Note.Wrapping = fyne.TextWrapWord
-	p.Root = newSection("wx.radar", container.NewVBox(controls, p.Frame, p.Picture, p.Note))
+	// The picture is the center, so it fills the pane under the controls instead of
+	// staying at its minimum size and leaving a blank region under the LIVE label.
+	p.Root = newSection("wx.radar", container.NewBorder(container.NewVBox(controls, p.Frame), p.Note, nil, nil, p.Picture))
 	return p
 }
 
@@ -139,9 +148,23 @@ func (p *RadarPanel) showPNG(blob []byte) {
 		p.Note.SetText("Radar image from wx was not a PNG (" + err.Error() + ").")
 		return
 	}
-	p.Picture.Image = img
+	p.Picture.File = ""
+	p.Picture.Resource = nil
+	p.Picture.Image = matteRadar(img)
 	p.Picture.Refresh()
 }
+
+// matteRadar paints the CLI PNG onto the desk background. Raw frames are
+// transparent, and a transparent texture is invisible in this pane.
+func matteRadar(src image.Image) *image.NRGBA {
+	b := src.Bounds()
+	dst := image.NewNRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
+	draw.Draw(dst, dst.Bounds(), image.NewUniform(radarField), image.Point{}, draw.Src)
+	draw.Draw(dst, dst.Bounds(), src, b.Min, draw.Over)
+	return dst
+}
+
+var radarField = color.NRGBA{R: 0x06, G: 0x0A, B: 0x14, A: 0xFF}
 
 // SavePNG asks the CLI to write a PNG. The desk does not encode the image.
 func (p *RadarPanel) SavePNG(path string) {
