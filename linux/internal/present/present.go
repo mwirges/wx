@@ -301,7 +301,7 @@ func ParseISO(raw string) (time.Time, bool) {
 	return t, true
 }
 
-// HourLabel is a local "3 PM" label, or the period name.
+// HourLabel is a local "3 PM" label for an hourly period, or the period name.
 func HourLabel(period map[string]any) string {
 	stamp, ok := ParseISO(AsString(period["start_time"]))
 	if !ok {
@@ -309,6 +309,56 @@ func HourLabel(period map[string]any) string {
 	}
 	local := stamp.In(time.Local)
 	return local.Format("3") + " " + local.Format("PM")
+}
+
+// ClockLabel is a local "3:04 PM" label. Nowcast slots are 15 minutes apart,
+// so an hour-only label makes neighboring slots look identical.
+func ClockLabel(period map[string]any) string {
+	if text := formatStamp(AsString(period["start_time"]), time.Local, "3:04 PM"); text != "" {
+		return text
+	}
+	return AsString(period["name"])
+}
+
+// LocalStamp is a local "Jan 2, 3:04 PM" reading of an RFC3339 observation time.
+// The raw string is returned when it is not a timestamp.
+func LocalStamp(raw string) string {
+	if text := formatStamp(raw, time.Local, "Jan 2, 3:04 PM"); text != "" {
+		return text
+	}
+	return strings.TrimSpace(raw)
+}
+
+func formatStamp(raw string, loc *time.Location, layout string) string {
+	stamp, ok := ParseISO(raw)
+	if !ok {
+		return ""
+	}
+	if loc == nil {
+		loc = time.Local
+	}
+	return stamp.In(loc).Format(layout)
+}
+
+// WindLine is the desk metric, "Wind SE 11 mph". The tray keeps the arrow glyph.
+// This line does not, because the desk font draws those arrows as a blank dot.
+func WindLine(payload map[string]any, units string) string {
+	cond := Conditions(payload)
+	var speed string
+	if units == "metric" {
+		if value, ok := AsFloat(cond["wind_kph"]); ok {
+			speed = fmt.Sprintf("%.0f km/h", value)
+		}
+	} else if value, ok := AsFloat(cond["wind_mph"]); ok {
+		speed = fmt.Sprintf("%.0f mph", value)
+	}
+	if speed == "" {
+		return ""
+	}
+	if dir := AsString(cond["wind_direction"]); dir != "" {
+		return "Wind " + dir + " " + speed
+	}
+	return "Wind " + speed
 }
 
 // PeriodTemp formats one forecast period.

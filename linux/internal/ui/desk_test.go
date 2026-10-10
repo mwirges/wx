@@ -38,10 +38,16 @@ func TestDailySurfaceShowsCLIJSON(t *testing.T) {
 		t.Fatal("desk did not open")
 	}
 	obs := desk.SectionText("wx.observation")
-	for _, want := range []string{"FORT WAYNE, IN", "72°", "Partly Cloudy"} {
+	for _, want := range []string{"FORT WAYNE, IN", "72°", "Partly Cloudy", "Wind NW 12 mph"} {
 		if !contains(obs, want) {
 			t.Fatalf("observation %q missing %q", obs, want)
 		}
+	}
+	if contains(obs, "2026-10-04T15:00:00Z") {
+		t.Fatalf("observation still shows the raw stamp: %q", obs)
+	}
+	if contains(obs, "↘") {
+		t.Fatalf("observation wind arrow did not render as text: %q", obs)
 	}
 	now := desk.SectionText("wx.nowcast")
 	for _, want := range []string{"ALL CLEAR // DRY", "Dry next 6h"} {

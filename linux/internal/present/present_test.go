@@ -3,6 +3,7 @@ package present
 import (
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/mwirges/wx/linux/internal/fixture"
 	"github.com/mwirges/wx/linux/internal/pixmap"
@@ -70,6 +71,36 @@ func TestMetricTempAndWind(t *testing.T) {
 	}
 	if got := TacticalWind(fixture.Payload, "metric"); got != "↘19km/h" {
 		t.Fatalf("metric wind %q", got)
+	}
+	if got := WindLine(fixture.Payload, "imperial"); got != "Wind NW 12 mph" {
+		t.Fatalf("wind line %q", got)
+	}
+	if got := WindLine(fixture.Payload, "metric"); got != "Wind NW 19 km/h" {
+		t.Fatalf("metric wind line %q", got)
+	}
+}
+
+func TestClockLabelKeepsMinutes(t *testing.T) {
+	five := ClockLabel(map[string]any{"start_time": "2026-10-10T21:00:00Z"})
+	quarter := ClockLabel(map[string]any{"start_time": "2026-10-10T21:15:00Z"})
+	if five == quarter {
+		t.Fatalf("same clock label %q", five)
+	}
+	if !contains(five, ":00") || !contains(quarter, ":15") {
+		t.Fatalf("labels %q %q", five, quarter)
+	}
+}
+
+func TestLocalStampUsesLocalClock(t *testing.T) {
+	loc, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := formatStamp("2026-10-10T21:20:00Z", loc, "Jan 2, 3:04 PM"); got != "Oct 10, 5:20 PM" {
+		t.Fatalf("stamp %q", got)
+	}
+	if got := LocalStamp("not-a-time"); got != "not-a-time" {
+		t.Fatalf("passthrough %q", got)
 	}
 }
 

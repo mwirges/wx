@@ -79,8 +79,8 @@ func fillObservation(body *fyne.Container, st *store.Store) {
 	if humidity, ok := present.AsFloat(cond["humidity_pct"]); ok {
 		metrics = append(metrics, fmt.Sprintf("Humidity %.0f%%", humidity))
 	}
-	if wind := present.TacticalWind(st.Payload, st.Units); wind != "" {
-		metrics = append(metrics, strings.TrimSpace("Wind "+present.AsString(cond["wind_direction"])+" "+wind))
+	if wind := present.WindLine(st.Payload, st.Units); wind != "" {
+		metrics = append(metrics, wind)
 	}
 	if st.Units == "metric" {
 		if pressure, ok := present.AsFloat(cond["pressure_hpa"]); ok {
@@ -104,7 +104,7 @@ func fillObservation(body *fyne.Container, st *store.Store) {
 	if station := present.AsString(cond["station"]); station != "" {
 		meta = append(meta, station)
 	}
-	if observed := present.AsString(cond["observed_at"]); observed != "" {
+	if observed := present.LocalStamp(present.AsString(cond["observed_at"])); observed != "" {
 		meta = append(meta, observed)
 	}
 	if len(meta) > 0 {
@@ -128,6 +128,7 @@ func fillNowcast(body *fyne.Container, st *store.Store) {
 	addLine(body, present.NowcastBadge(nc), role)
 	addLine(body, present.AsString(nc["headline"]), "")
 	addLine(body, present.AsString(nc["summary"]), "muted")
+	row := container.NewHBox()
 	count := 0
 	for _, item := range present.Slice(nc["intervals"]) {
 		if count >= 8 {
@@ -137,12 +138,18 @@ func fillNowcast(body *fyne.Container, st *store.Store) {
 		if interval == nil {
 			continue
 		}
-		extra := ""
-		if pop := popText(interval["probability"]); pop != "" {
-			extra = "  " + pop
+		cell := container.NewVBox(line(present.ClockLabel(interval), "tag"))
+		if summary := present.AsString(interval["summary"]); summary != "" {
+			cell.Add(line(summary, "muted"))
 		}
-		addLine(body, strings.TrimSpace(present.HourLabel(interval)+"  "+present.AsString(interval["summary"])+extra), "muted")
+		if pop := popText(interval["probability"]); pop != "" {
+			cell.Add(line(pop, "muted"))
+		}
+		row.Add(cell)
 		count++
+	}
+	if count > 0 {
+		body.Add(container.NewHScroll(row))
 	}
 }
 

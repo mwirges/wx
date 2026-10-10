@@ -129,7 +129,7 @@ func (d *Desk) Refresh() {
 		place = "AUTO"
 	}
 	d.Status.SetText(place + "   " + text)
-	if label := present.FormatLabels[d.store.MenuBarFormat]; d.Format.Selected != label {
+	if label := deskFormatLabel(d.store.MenuBarFormat); d.Format.Selected != label {
 		d.Format.SetSelected(label)
 	}
 	unitsLabel := "Imperial"
@@ -164,7 +164,7 @@ func (d *Desk) build() {
 	d.Location.OnSubmitted = func(text string) { d.store.SelectLocation(text) }
 
 	d.Format = widget.NewSelect(formatLabels(), nil)
-	d.Format.SetSelected(present.FormatLabels[d.store.MenuBarFormat])
+	d.Format.SetSelected(deskFormatLabel(d.store.MenuBarFormat))
 	d.Format.OnChanged = d.onFormat
 
 	d.Units = widget.NewSelect([]string{"Imperial", "Metric"}, nil)
@@ -232,9 +232,9 @@ func (d *Desk) onFormat(label string) {
 	if d.building {
 		return
 	}
-	for _, key := range present.Formats {
-		if present.FormatLabels[key] == label {
-			d.store.SetMenuBarFormat(key)
+	for _, item := range deskFormats {
+		if item.label == label {
+			d.store.SetMenuBarFormat(item.key)
 			return
 		}
 	}
@@ -253,10 +253,27 @@ func (d *Desk) onUnits(label string) {
 	}
 }
 
+// Desk select titles stay short. The tray keeps the long examples in FormatLabels,
+// which ellipsize to "Standard (..." in this control.
+var deskFormats = []struct{ key, label string }{
+	{"compact", "Compact"},
+	{"standard", "Standard"},
+	{"tactical", "Tactical"},
+}
+
+func deskFormatLabel(key string) string {
+	for _, item := range deskFormats {
+		if item.key == key {
+			return item.label
+		}
+	}
+	return "Standard"
+}
+
 func formatLabels() []string {
-	out := make([]string, len(present.Formats))
-	for i, key := range present.Formats {
-		out[i] = present.FormatLabels[key]
+	out := make([]string, len(deskFormats))
+	for i, item := range deskFormats {
+		out[i] = item.label
 	}
 	return out
 }
