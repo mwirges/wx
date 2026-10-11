@@ -113,6 +113,11 @@ linux-test:
 linux-run:
 	$(MAKE) -C linux run
 
+## linux-deb: Package the Linux CLI and desk as build/wx_VERSION_arch.deb
+.PHONY: linux-deb
+linux-deb:
+	$(MAKE) -C linux deb VERSION=$(VERSION)
+
 ## mac-ui-test: XCUITest the Mac app. Not part of `make test`.
 .PHONY: mac-ui-test
 mac-ui-test:

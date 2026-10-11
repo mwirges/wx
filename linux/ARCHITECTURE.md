@@ -15,3 +15,5 @@
 **Tray:** a StatusNotifier item on the session bus (`org.kde.StatusNotifierItem` and `com.canonical.dbusmenu`). Compact, standard, and tactical strings match the Mac menu bar. A warning is a steady red pip. A watch or advisory is a steady amber pip. There is no blink. A missing StatusNotifier host does not stop the window.
 
 **Preferences:** `WX_CONFIG` when set, otherwise `~/.config/wx/config.json`. The shell preserves unknown keys. The Go CLI does not read `WX_CONFIG`. Tests set `WX_CONFIG` and do not read the user config.
+
+**Package:** `make linux-deb` builds `build/wx_<version>_<arch>.deb`. It installs `/usr/bin/wx`, `/usr/bin/wx-desk`, a desktop entry, and the radar icon in hicolor. The window uses that same icon.

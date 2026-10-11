@@ -12,6 +12,8 @@ make build-all    # cross-compile darwin/linux/windows
 make mac-build    # build macOS app (macos/)
 make mac-run      # build & run macOS app
 make mac-dmg      # package release DMG (build/wx.dmg, alias: make dmg)
+make linux-desk   # build Linux desk (build/wx-desk)
+make linux-deb    # package Linux CLI and desk (build/wx_VERSION_arch.deb)
 make help         # list targets
 ```
 

@@ -41,6 +41,15 @@ Install the native macOS SwiftUI app via disk image:
 
 > **Note:** The `wx.app` bundle includes both the native macOS menu bar HUD / Command Console and the embedded `wx-cli` binary inside `wx.app/Contents/MacOS/wx-cli`.
 
+### Linux desk (deb)
+
+The desk uses the same radar icon as the Mac app. The package installs the `wx` command, the `wx-desk` window, a desktop entry, and the icon.
+
+```bash
+make linux-deb    # → build/wx_1.1.4_amd64.deb
+sudo apt install ./build/wx_1.1.4_amd64.deb
+```
+
 ### CLI App
 
 ```bash
@@ -482,6 +491,8 @@ make build-all      # cross-compile CLI for darwin/linux/windows
 make mac-build      # build macOS SwiftUI app (macos/build/Build/Products/Debug/wx.app)
 make mac-run        # build and launch macOS app
 make mac-dmg        # package release macOS app into build/wx.dmg (alias: make dmg)
+make linux-desk     # build the Linux desk (build/wx-desk)
+make linux-deb      # package the Linux CLI and desk (build/wx_VERSION_arch.deb)
 make release        # build, test, package, tag, and publish GitHub release (or make release VERSION=X.Y.Z)
 make release-patch  # bump patch version and release
 make release-minor  # bump minor version and release

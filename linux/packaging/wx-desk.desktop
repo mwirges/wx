@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=wx
+GenericName=Weather
+Comment=Current conditions, forecast, and radar
+Exec=wx-desk
+Icon=wx
+Terminal=false
+Categories=Science;Utility;
+Keywords=weather;forecast;radar;nws;
+StartupWMClass=wx-desk

@@ -11,6 +11,7 @@ import (
 
 func main() {
 	application := app.NewWithID("com.github.mwirges.wx.desk")
+	application.SetIcon(ui.AppIcon())
 	application.Settings().SetTheme(ui.NewTheme())
 	shell := ui.NewShell(application, cli.New(""), prefs.New(""))
 	shell.Start(true)

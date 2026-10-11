@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.github.mwirges.wx.desk</id>
+  <name>wx</name>
+  <summary>Current conditions, forecast, and radar</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <description>
+    <p>Linux desk for wx. The window and tray are a shell over the wx command.</p>
+  </description>
+  <launchable type="desktop-id">wx-desk.desktop</launchable>
+  <url type="homepage">https://github.com/mwirges/wx</url>
+  <provides>
+    <binary>wx</binary>
+    <binary>wx-desk</binary>
+  </provides>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="@VERSION@" date="@DATE@"/>
+  </releases>
+</component>
