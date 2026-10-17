@@ -20,17 +20,28 @@ for arg in "$@"; do
   esac
 done
 
+# Any truthy WX_STUB_ALERT stays a Severe Tornado Warning.
+# watch -> Tornado Watch. multi -> warning + watch + advisory.
+case "${WX_STUB_ALERT:-}" in
+  "")
+    alerts='[]'
+    ;;
+  watch)
+    alerts='[{"event":"Tornado Watch","severity":"Moderate","headline":"Tornado Watch in effect","area":"Allen County, IN","expires":"2026-10-18T02:00:00Z","description":"Conditions are favorable for tornadoes.","instruction":"Be ready to act."}]'
+    ;;
+  multi)
+    alerts='[{"event":"Tornado Warning","severity":"Severe","headline":"Tornado Warning issued","area":"Allen County, IN","expires":"2026-10-17T23:00:00Z","description":"A tornado has been sighted.","instruction":"Take shelter now."},{"event":"Tornado Watch","severity":"Moderate","headline":"Tornado Watch issued","area":"Allen County, IN","expires":"2026-10-18T02:00:00Z","description":"Conditions are favorable for tornadoes.","instruction":"Monitor weather radio."},{"event":"Wind Advisory","severity":"Minor","headline":"Wind Advisory in effect","area":"Allen County, IN","expires":"2026-10-18T04:00:00Z","description":"Southwest winds 25 to 35 mph.","instruction":"Secure loose objects."}]'
+    ;;
+  *)
+    alerts='[{"event":"Tornado Warning","severity":"Severe","headline":"Tornado Warning issued","area":"Allen County, IN","expires":"2026-10-17T23:00:00Z","description":"A tornado has been sighted.","instruction":"Take shelter now."}]'
+    ;;
+esac
+
 if [ "$radar" -eq 1 ]; then
   printf '%s\n' '{"product":"composite-reflectivity","product_label":"Composite","location":"stub","valid_time":"2026-10-02T00:00:00Z","image_base64":"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==","frames":[]}'
 elif [ "$hourly" -eq 1 ]; then
-  alerts='[]'
-  if [ -n "${WX_STUB_ALERT:-}" ]; then
-    alerts='[{"event":"Tornado Warning","severity":"Severe"}]'
-  fi
   printf '%s\n' "{\"alerts\":$alerts,\"forecast\":{\"generated_at\":\"2026-10-02T18:00:00Z\",\"periods\":[{\"name\":\"Tonight\",\"start_time\":\"2026-10-02T22:00:00-04:00\",\"is_daytime\":false,\"temperature_f\":55,\"temperature_c\":12.8}],\"hourly\":[{\"name\":\"3 PM\",\"start_time\":\"2026-10-02T15:00:00-04:00\",\"is_daytime\":true,\"temperature_f\":72,\"temperature_c\":22.2}]}}"
-elif [ -n "${WX_STUB_ALERT:-}" ]; then
-  printf '%s\n' '{"alerts":[{"event":"Tornado Warning","severity":"Severe"}]}'
 else
-  printf '%s\n' '{"alerts":[]}'
+  printf '%s\n' "{\"alerts\":$alerts}"
 fi
 exit 0
