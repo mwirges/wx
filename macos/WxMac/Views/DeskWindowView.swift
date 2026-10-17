@@ -73,6 +73,8 @@ struct DeskWindowView: View {
                 )
                 .frame(height: 1)
 
+            AlertBannerView()
+
             GeometryReader { geo in
                 let isWide = geo.size.width >= 760
                 if store.selectedDeskTab == .dual && isWide {
@@ -90,13 +92,13 @@ struct DeskWindowView: View {
                                     NowBlockView(compact: false, popoverMetrics: false)
                                 }
 
+                                AlertsListView(popoverMode: false)
+
                                 ephemerisCard
 
                                 airQualityCard
 
                                 nowcastCard
-
-                                AlertsListView(popoverMode: false)
 
                                 tacticalSignalsCard
 
@@ -162,13 +164,13 @@ struct DeskWindowView: View {
                                 NowBlockView(compact: false, popoverMetrics: false)
                             }
 
+                            AlertsListView(popoverMode: false)
+
                             ephemerisCard
 
                             airQualityCard
 
                             nowcastCard
-
-                            AlertsListView(popoverMode: false)
 
                             tacticalSignalsCard
 
