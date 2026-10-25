@@ -77,8 +77,8 @@ func radarCommand() *cli.Command {
 				Usage: "bypass the local cache",
 			},
 			&cli.BoolFlag{
-				Name:    "no-inline",
-				Usage:   "force half-block rendering even when the terminal supports inline images",
+				Name:  "no-inline",
+				Usage: "force half-block rendering even when the terminal supports inline images",
 			},
 			&cli.BoolFlag{
 				Name:    "json",
@@ -92,6 +92,10 @@ func radarCommand() *cli.Command {
 			&cli.BoolFlag{
 				Name:  "raw",
 				Usage: "fetch raw transparent radar imagery without background map or labels",
+			},
+			&cli.IntFlag{
+				Name:  "pixels",
+				Usage: "long edge of the radar image in pixels (default 1600)",
 			},
 			&cli.StringFlag{
 				Name:  "save",
@@ -237,6 +241,7 @@ func radarAction(c *cli.Context) error {
 		RadiusKM: radius,
 		Raw:      c.Bool("raw"),
 		BBox:     customBBox,
+		Pixels:   c.Int("pixels"),
 	}
 
 	saveGifPath := c.String("save-gif")

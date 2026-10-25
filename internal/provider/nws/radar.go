@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"image"
 	"image/draw"
-	_ "image/png" // register PNG decoder
 	"image/png"
+	_ "image/png" // register PNG decoder
 	"io"
 	"math"
 	"net/http"
@@ -39,7 +39,6 @@ const (
 	// historicalFrameTTL is how long past loop frames are cached on disk.
 	// Historical radar frames never change, so a long TTL is appropriate.
 	historicalFrameTTL = 24 * time.Hour
-
 )
 
 // nwsWMSLayers maps our product codes to NWS MRMS WMS layer names.
@@ -82,13 +81,37 @@ func isWideRadius(radiusKM float64) bool {
 	return radiusKM > SingleStationMaxRadiusKM
 }
 
-// computeDimensions calculates proportional width and height (up to 1600px)
+// imageEdge is the long side of a radar image. Zero keeps the historical 1600px fetch.
+func imageEdge(pixels int) int {
+	if pixels <= 0 {
+		return 1600
+	}
+	if pixels < 320 {
+		return 320
+	}
+	if pixels > 3200 {
+		return 3200
+	}
+	return pixels
+}
+
+// sizeSuffix keeps a non-default image size out of the 1600px cache entries.
+func sizeSuffix(pixels int) string {
+	edge := imageEdge(pixels)
+	if edge == 1600 {
+		return ""
+	}
+	return fmt.Sprintf(":px%d", edge)
+}
+
+// computeDimensions calculates proportional width and height (up to the long edge)
 // based on the geographic aspect ratio of the bounding box to avoid image distortion.
-func computeDimensions(bb radarBBox) (int, int) {
+func computeDimensions(bb radarBBox, pixels int) (int, int) {
+	edge := imageEdge(pixels)
 	dLat := bb.MaxLat - bb.MinLat
 	dLon := bb.MaxLon - bb.MinLon
 	if dLat <= 0 || dLon <= 0 {
-		return 1600, 1600
+		return edge, edge
 	}
 	midLat := (bb.MinLat + bb.MaxLat) / 2.0
 	cosLat := math.Cos(midLat * math.Pi / 180.0)
@@ -97,26 +120,30 @@ func computeDimensions(bb radarBBox) (int, int) {
 	}
 	aspect := (dLon * cosLat) / dLat
 	if aspect <= 0 {
-		return 1600, 1600
+		return edge, edge
+	}
+	floor := edge / 4
+	if floor < 64 {
+		floor = 64
 	}
 	if aspect >= 1.0 {
-		w := 1600
+		w := edge
 		h := int(float64(w) / aspect)
-		if h < 400 {
-			h = 400
+		if h < floor {
+			h = floor
 		}
-		if h > 1600 {
-			h = 1600
+		if h > edge {
+			h = edge
 		}
 		return w, h
 	}
-	h := 1600
+	h := edge
 	w := int(float64(h) * aspect)
-	if w < 400 {
-		w = 400
+	if w < floor {
+		w = floor
 	}
-	if w > 1600 {
-		w = 1600
+	if w > edge {
+		w = edge
 	}
 	return w, h
 }
@@ -325,9 +352,9 @@ func (p *RadarProvider) CurrentFrame(ctx context.Context, loc location.Location,
 		}
 		var rawKey string
 		if opts.BBox != nil {
-			rawKey = fmt.Sprintf("nws:radar:raw:v4:%s:bbox:%.4f,%.4f,%.4f,%.4f", opts.Product, bb.MinLat, bb.MinLon, bb.MaxLat, bb.MaxLon)
+			rawKey = fmt.Sprintf("nws:radar:raw:v4:%s:bbox:%.4f,%.4f,%.4f,%.4f%s", opts.Product, bb.MinLat, bb.MinLon, bb.MaxLat, bb.MaxLon, sizeSuffix(opts.Pixels))
 		} else {
-			rawKey = fmt.Sprintf("nws:radar:raw:v3:%s:%.4f,%.4f:%.0f", opts.Product, loc.Lat, loc.Lon, opts.RadiusKM)
+			rawKey = fmt.Sprintf("nws:radar:raw:v3:%s:%.4f,%.4f:%.0f%s", opts.Product, loc.Lat, loc.Lon, opts.RadiusKM, sizeSuffix(opts.Pixels))
 		}
 		if f := p.imgGet(rawKey); f != nil {
 			return f, nil
@@ -336,7 +363,7 @@ func (p *RadarProvider) CurrentFrame(ctx context.Context, loc location.Location,
 			p.imgSet(rawKey, f, currentFrameTTL)
 			return f, nil
 		}
-		img, validTime, err := p.fetchWMSFrame(ctx, layer, bb, "")
+		img, validTime, err := p.fetchWMSFrame(ctx, layer, bb, "", opts.Pixels)
 		if err != nil {
 			return nil, fmt.Errorf("nws radar raw WMS: %w", err)
 		}
@@ -354,9 +381,9 @@ func (p *RadarProvider) CurrentFrame(ctx context.Context, loc location.Location,
 
 	var key string
 	if opts.BBox != nil {
-		key = fmt.Sprintf("nws:radar:cur:v5:%s:bbox:%.4f,%.4f,%.4f,%.4f", opts.Product, bb.MinLat, bb.MinLon, bb.MaxLat, bb.MaxLon)
+		key = fmt.Sprintf("nws:radar:cur:v5:%s:bbox:%.4f,%.4f,%.4f,%.4f%s", opts.Product, bb.MinLat, bb.MinLon, bb.MaxLat, bb.MaxLon, sizeSuffix(opts.Pixels))
 	} else {
-		key = fmt.Sprintf("nws:radar:cur:v4:%s:%.4f,%.4f:%.0f", opts.Product, loc.Lat, loc.Lon, opts.RadiusKM)
+		key = fmt.Sprintf("nws:radar:cur:v4:%s:%.4f,%.4f:%.0f%s", opts.Product, loc.Lat, loc.Lon, opts.RadiusKM, sizeSuffix(opts.Pixels))
 	}
 
 	// L1: in-process (avoids re-decoding PNG within the same invocation)
@@ -371,7 +398,7 @@ func (p *RadarProvider) CurrentFrame(ctx context.Context, loc location.Location,
 
 	now := time.Now().UTC().Truncate(radarFrameInterval)
 
-	w, h := computeDimensions(bb)
+	w, h := computeDimensions(bb, opts.Pixels)
 	params := url.Values{}
 	p.addRadarLayers(params, loc, opts)
 	params.Set("width", strconv.Itoa(w))
@@ -389,7 +416,7 @@ func (p *RadarProvider) CurrentFrame(ctx context.Context, loc location.Location,
 	// For WMS composite products (echo tops), overlay radar data from NWS WMS.
 	if isWMSCompositeProduct(opts.Product) {
 		if layer, ok := nwsWMSLayers[opts.Product]; ok {
-			radarImg, _, wmsErr := p.fetchWMSFrame(ctx, layer, bb, "")
+			radarImg, _, wmsErr := p.fetchWMSFrame(ctx, layer, bb, "", opts.Pixels)
 			if wmsErr == nil {
 				img = compositeOver(img, radarImg)
 			}
@@ -483,12 +510,12 @@ func (p *RadarProvider) RecentFrames(ctx context.Context, loc location.Location,
 				timeStr := ts.Format(time.RFC3339)
 				var key string
 				if opts.BBox != nil {
-					key = fmt.Sprintf("nws:radar:raw:wms:v2:%s:bbox:%.4f,%.4f,%.4f,%.4f:%s",
-						opts.Product, bb.MinLat, bb.MinLon, bb.MaxLat, bb.MaxLon, timeStr)
+					key = fmt.Sprintf("nws:radar:raw:wms:v2:%s:bbox:%.4f,%.4f,%.4f,%.4f:%s%s",
+						opts.Product, bb.MinLat, bb.MinLon, bb.MaxLat, bb.MaxLon, timeStr, sizeSuffix(opts.Pixels))
 				} else {
-					key = fmt.Sprintf("nws:radar:raw:wms:v1:%s:%.4f,%.4f:%.0f:%s",
+					key = fmt.Sprintf("nws:radar:raw:wms:v1:%s:%.4f,%.4f:%.0f:%s%s",
 						opts.Product, (bb.MinLat+bb.MaxLat)/2, (bb.MinLon+bb.MaxLon)/2,
-						opts.RadiusKM, timeStr)
+						opts.RadiusKM, timeStr, sizeSuffix(opts.Pixels))
 				}
 				if f := p.imgGet(key); f != nil {
 					results[idx] = result{f, nil}
@@ -499,7 +526,7 @@ func (p *RadarProvider) RecentFrames(ctx context.Context, loc location.Location,
 					results[idx] = result{f, nil}
 					return
 				}
-				img, validTime, err := p.fetchWMSFrame(ctx, layer, bb, timeStr)
+				img, validTime, err := p.fetchWMSFrame(ctx, layer, bb, timeStr, opts.Pixels)
 				if err != nil {
 					results[idx] = result{nil, err}
 					return
@@ -578,8 +605,8 @@ func (p *RadarProvider) RecentFrames(ctx context.Context, loc location.Location,
 
 // ── WMS fetch (current frame) ─────────────────────────────────────────────────
 
-func (p *RadarProvider) fetchWMSFrame(ctx context.Context, layer string, bb radarBBox, timeStr string) (image.Image, time.Time, error) {
-	w, h := computeDimensions(bb)
+func (p *RadarProvider) fetchWMSFrame(ctx context.Context, layer string, bb radarBBox, timeStr string, pixels int) (image.Image, time.Time, error) {
+	w, h := computeDimensions(bb, pixels)
 	params := url.Values{
 		"SERVICE":     {"WMS"},
 		"VERSION":     {"1.3.0"},
@@ -619,12 +646,12 @@ func (p *RadarProvider) fetchWMSFrame(ctx context.Context, layer string, bb rada
 func (p *RadarProvider) fetchIEMFrame(ctx context.Context, loc location.Location, bb radarBBox, opts radar.Options, ts time.Time, c *cache.Cache) (*radar.Frame, error) {
 	var key string
 	if opts.BBox != nil {
-		key = fmt.Sprintf("nws:radar:iem:v5:%s:bbox:%.4f,%.4f,%.4f,%.4f:%s",
-			opts.Product, bb.MinLat, bb.MinLon, bb.MaxLat, bb.MaxLon, ts.Format(time.RFC3339))
+		key = fmt.Sprintf("nws:radar:iem:v5:%s:bbox:%.4f,%.4f,%.4f,%.4f:%s%s",
+			opts.Product, bb.MinLat, bb.MinLon, bb.MaxLat, bb.MaxLon, ts.Format(time.RFC3339), sizeSuffix(opts.Pixels))
 	} else {
-		key = fmt.Sprintf("nws:radar:iem:v4:%s:%.4f,%.4f:%.0f:%s",
+		key = fmt.Sprintf("nws:radar:iem:v4:%s:%.4f,%.4f:%.0f:%s%s",
 			opts.Product, (bb.MinLat+bb.MaxLat)/2, (bb.MinLon+bb.MaxLon)/2,
-			opts.RadiusKM, ts.Format(time.RFC3339))
+			opts.RadiusKM, ts.Format(time.RFC3339), sizeSuffix(opts.Pixels))
 	}
 
 	// L1: in-process
@@ -637,7 +664,7 @@ func (p *RadarProvider) fetchIEMFrame(ctx context.Context, loc location.Location
 		return f, nil
 	}
 
-	w, h := computeDimensions(bb)
+	w, h := computeDimensions(bb, opts.Pixels)
 	params := url.Values{}
 	p.addRadarLayers(params, loc, opts)
 	params.Set("width", strconv.Itoa(w))
@@ -654,7 +681,7 @@ func (p *RadarProvider) fetchIEMFrame(ctx context.Context, loc location.Location
 	// For WMS composite products (echo tops), overlay radar data from NWS WMS.
 	if isWMSCompositeProduct(opts.Product) {
 		if layer, ok := nwsWMSLayers[opts.Product]; ok {
-			radarImg, _, wmsErr := p.fetchWMSFrame(ctx, layer, bb, ts.Format(time.RFC3339))
+			radarImg, _, wmsErr := p.fetchWMSFrame(ctx, layer, bb, ts.Format(time.RFC3339), opts.Pixels)
 			if wmsErr == nil {
 				img = compositeOver(img, radarImg)
 			}

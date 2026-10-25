@@ -49,6 +49,47 @@ func TestBoundingBox(t *testing.T) {
 	}
 }
 
+func TestComputeDimensionsUsesTheRequestedEdge(t *testing.T) {
+	bb := radarBBox{MinLat: 40, MinLon: -87, MaxLat: 42, MaxLon: -83}
+	w, h := computeDimensions(bb, 0)
+	if w != 1600 && h != 1600 {
+		t.Fatalf("default long edge %dx%d", w, h)
+	}
+	w, h = computeDimensions(bb, 800)
+	long := w
+	if h > long {
+		long = h
+	}
+	if long != 800 {
+		t.Fatalf("800 request drew %dx%d", w, h)
+	}
+	if sizeSuffix(0) != "" || sizeSuffix(800) != ":px800" {
+		t.Fatalf("suffix %q %q", sizeSuffix(0), sizeSuffix(800))
+	}
+}
+
+func TestRadarProvider_CurrentFrameUsesPixels(t *testing.T) {
+	pngData := solidPNG(t, 0, 200, 0)
+	var got string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.URL.Query().Get("width")
+		w.Header().Set("Content-Type", "image/png")
+		w.Write(pngData)
+	}))
+	defer srv.Close()
+
+	p := &RadarProvider{wmsBase: srv.URL, iemBase: srv.URL, nwsAPIBase: srv.URL, imgCache: make(map[string]radarCacheEntry)}
+	loc := location.Location{Lat: 39.1, Lon: -94.6, CountryCode: "US"}
+	opts := radar.DefaultOptions()
+	opts.Pixels = 800
+	if _, err := p.CurrentFrame(context.Background(), loc, opts, cache.NewNoOp()); err != nil {
+		t.Fatal(err)
+	}
+	if got != "800" {
+		t.Fatalf("width %q", got)
+	}
+}
+
 func TestRadarProvider_CurrentFrame(t *testing.T) {
 	pngData := solidPNG(t, 0, 200, 0)
 
@@ -297,10 +338,10 @@ func TestRidgeStationCode(t *testing.T) {
 	}{
 		{"KEAX", "EAX"},
 		{"KIWX", "IWX"},
-		{"PGUA", "GUA"},  // Pacific prefix
-		{"TJUA", "JUA"},  // Caribbean prefix
-		{"EAX", "EAX"},   // already 3-letter
-		{"AB", "AB"},     // short code, unchanged
+		{"PGUA", "GUA"}, // Pacific prefix
+		{"TJUA", "JUA"}, // Caribbean prefix
+		{"EAX", "EAX"},  // already 3-letter
+		{"AB", "AB"},    // short code, unchanged
 	}
 	for _, tc := range tests {
 		if got := ridgeStationCode(tc.input); got != tc.want {

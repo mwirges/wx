@@ -89,6 +89,7 @@ type Options struct {
 	RadiusKM float64 // km radius around the location center; default 200
 	Raw      bool    // fetch raw transparent radar data without background map or labels
 	BBox     *BBox   // optional explicit bounding box; if set, overrides RadiusKM
+	Pixels   int     // long edge of the fetched image; 0 keeps the 1600px default
 }
 
 // DefaultOptions returns sensible defaults.
