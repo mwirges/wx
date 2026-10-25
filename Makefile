@@ -53,6 +53,11 @@ vet:
 	go vet ./...
 	$(MAKE) -C linux vet
 
+## mobile-bridge-test: Build the c-archive bridge and compare it with wx --json
+.PHONY: mobile-bridge-test
+mobile-bridge-test:
+	@./scripts/mobile-bridge-test.sh
+
 ## build-all: Cross-compile for all supported platforms → build/wx-{os}-{arch}[.exe]
 .PHONY: build-all
 build-all: $(foreach p,$(PLATFORMS),build-$(subst /,-,$(p)))

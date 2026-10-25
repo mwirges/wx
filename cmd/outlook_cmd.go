@@ -104,7 +104,7 @@ func outlookAction(c *cli.Context) error {
 }
 
 func runCPC(c *cli.Context) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(commandContext(c), 20*time.Second)
 	defer cancel()
 
 	cfg, _ := config.Load()
@@ -162,7 +162,7 @@ func runCPC(c *cli.Context) error {
 }
 
 func runSPC(c *cli.Context) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(commandContext(c), 20*time.Second)
 	defer cancel()
 
 	cfg, _ := config.Load()
