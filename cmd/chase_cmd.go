@@ -67,7 +67,7 @@ func chaseCommand() *cli.Command {
 }
 
 func runChase(c *cli.Context) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+	ctx, cancel := context.WithTimeout(commandContext(c), 25*time.Second)
 	defer cancel()
 
 	forceJSON := c.Bool("json")

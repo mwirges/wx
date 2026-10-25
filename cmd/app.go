@@ -124,7 +124,7 @@ func action(c *cli.Context) error {
 }
 
 func runWeather(c *cli.Context, opts weatherOpts) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(commandContext(c), 30*time.Second)
 	defer cancel()
 
 	// Load user config (missing file is not an error)

@@ -122,7 +122,7 @@ func radarAction(c *cli.Context) error {
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	ctx, cancel := context.WithTimeout(commandContext(c), 120*time.Second)
 	defer cancel()
 
 	cfg, _ := config.Load()

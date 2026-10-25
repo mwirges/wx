@@ -43,7 +43,7 @@ func nowcastCommand() *cli.Command {
 }
 
 func runNowcast(c *cli.Context) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(commandContext(c), 20*time.Second)
 	defer cancel()
 
 	cfg, _ := config.Load()
