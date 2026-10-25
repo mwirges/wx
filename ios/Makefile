@@ -1,4 +1,5 @@
-# wx iOS shell (SwiftUI). Simulator only. No team, certs, or entitlements.
+# wx iOS shell (SwiftUI). Simulator only. No team or certs.
+# Local App Group entitlements live in WxIOS.entitlements and WxWidget.entitlements.
 XCODEGEN ?= /opt/homebrew/bin/xcodegen
 SCHEME   := WxIOS
 CONFIG   := Debug
@@ -13,7 +14,7 @@ space := $(empty) $(empty)
 IOS_SIM_ID := $(patsubst id=%,%,$(filter id=%,$(subst $(comma),$(space),$(IOS_SIMULATOR))))
 
 APP := $(DERIVED)/Build/Products/$(CONFIG)-iphonesimulator/wx.app
-SIGN_OVERRIDES := CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= DEVELOPMENT_TEAM= CODE_SIGN_ENTITLEMENTS=
+SIGN_OVERRIDES := CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= DEVELOPMENT_TEAM=
 
 .DEFAULT_GOAL := build
 
@@ -52,7 +53,24 @@ check-app:
 	    echo "ios: missing fixture $$name.json" >&2; exit 1; \
 	  fi; \
 	done; \
-	echo "ios app ok $$id simulator $(IOS_SIM_ID)"
+	live="$$(plutil -extract NSSupportsLiveActivities raw -o - "$$INFO")"; \
+	test "$$live" = "true"; \
+	APPEX="$$(find "$(APP)/PlugIns" -maxdepth 1 -name '*.appex' | head -1)"; \
+	test -n "$$APPEX"; \
+	test -f "$$APPEX/Info.plist"; \
+	wid="$$(plutil -extract CFBundleIdentifier raw -o - "$$APPEX/Info.plist")"; \
+	test "$$wid" = "com.mwirges.wx.ios.widget"; \
+	point="$$(plutil -extract NSExtension.NSExtensionPointIdentifier raw -o - "$$APPEX/Info.plist")"; \
+	test "$$point" = "com.apple.widgetkit-extension"; \
+	test -f "$$APPEX/WxWidget"; \
+	if find "$$APPEX" -name 'WxCore*' | grep -q .; then \
+	  echo "ios: widget links WxCore" >&2; exit 1; \
+	fi; \
+	bytes="$$(wc -c < "$$APPEX/WxWidget" | tr -d ' ')"; \
+	if [ "$$bytes" -gt 8388608 ]; then \
+	  echo "ios: widget binary is $$bytes bytes" >&2; exit 1; \
+	fi; \
+	echo "ios app ok $$id widget $$wid simulator $(IOS_SIM_ID)"
 
 ## sim: Install and launch on the pinned simulator. Fixture data, no live NWS.
 sim: build
@@ -71,5 +89,6 @@ ui-test: build
 	  -destination '$(IOS_SIMULATOR)' -derivedDataPath $(DERIVED) \
 	  -parallel-testing-enabled NO \
 	  -maximum-concurrent-test-simulator-destinations 1 \
+	  -only-testing:WxWidgetTests \
 	  -only-testing:WxIOSUITests \
 	  $(SIGN_OVERRIDES) test

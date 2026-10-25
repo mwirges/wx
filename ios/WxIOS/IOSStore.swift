@@ -59,8 +59,11 @@ final class IOSStore: ObservableObject {
     @Published private(set) var ticksWhilePaused = 0
     @Published private(set) var pauseCount = 0
     @Published private(set) var refreshCount = 0
+    @Published private(set) var liveStatus = "pending"
+    @Published private(set) var liveActivityID = "none"
 
     let showsPowerProbe: Bool
+    let showsLiveProbe: Bool
     let client: any IOSWeatherClient
     private let clock: any IOSClock
     private let locator = IOSLocation()
@@ -69,11 +72,13 @@ final class IOSStore: ObservableObject {
     private let loopIntervalMs: Int
     private var loopTask: Task<Void, Never>?
     private var refreshTask: Task<Void, Never>?
+    private var didConsiderActivity = false
 
     init(client: (any IOSWeatherClient)? = nil, clock: (any IOSClock)? = nil) {
         let resolved = clock ?? IOSClocks.make()
         self.clock = resolved
         self.showsPowerProbe = resolved is AdjustableClock
+        self.showsLiveProbe = ProcessInfo.processInfo.environment["WX_LIVE_ACTIVITY_TEST"] == "1"
         self.client = client ?? IOSClients.make()
         self.loopIntervalMs = IOSLoopTiming.intervalMilliseconds()
     }
@@ -86,6 +91,14 @@ final class IOSStore: ObservableObject {
     func advanceTestClock(by seconds: TimeInterval = 6 * 60) {
         guard let adjustable = clock as? AdjustableClock else { return }
         adjustable.advance(by: seconds)
+    }
+
+    func injectLiveOnset() async {
+        await injectLive(onsetMinutes: 20)
+    }
+
+    func injectLiveDry() async {
+        await injectLive(onsetMinutes: nil)
     }
 
     func boot() async {
@@ -277,6 +290,7 @@ final class IOSStore: ObservableObject {
         isLoading = false
         radarLoading = false
         syncRadarLoop()
+        await publishSharedCache()
     }
 
     func loadRadar() async {
@@ -288,6 +302,7 @@ final class IOSStore: ObservableObject {
             try self.applyRadar(raw)
         }
         syncRadarLoop()
+        await publishSharedCache()
     }
 
     func loadSevere() async {
@@ -325,6 +340,62 @@ final class IOSStore: ObservableObject {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
         return formatter.string(from: lastRefreshed)
+    }
+
+    private func publishSharedCache() async {
+        let snapshot = WidgetPublish.snapshot(
+            place: place,
+            units: units,
+            payload: payload,
+            nowcast: nowcast,
+            now: clock.now()
+        )
+        var cacheError: String?
+        do {
+            try WidgetPublish.store(snapshot, radarBase64: radar?.imageBase64)
+        } catch {
+            cacheError = error.localizedDescription
+        }
+        let shouldSync = snapshot.cue.shouldRun || showsLiveProbe || !didConsiderActivity
+        didConsiderActivity = true
+        guard shouldSync else {
+            if let cacheError, showsLiveProbe {
+                liveStatus = "failed: cache \(cacheError)"
+            }
+            return
+        }
+        let result = await NowcastLiveActivitySync.sync(cue: snapshot.cue)
+        liveActivityID = result.id
+        if let cacheError {
+            liveStatus = "failed: cache \(cacheError)"
+        } else {
+            liveStatus = result.status
+        }
+    }
+
+    private func injectLive(onsetMinutes: Double?) async {
+        let now = clock.now()
+        let next = onsetMinutes.map { now.addingTimeInterval($0 * 60) }
+        let sample = NowcastWindowSample(
+            now: now,
+            isActivePrecip: false,
+            nextPrecipTime: next,
+            intervals: []
+        )
+        let headline = onsetMinutes.map { "Rain starting in ~\(Int($0))m" } ?? "Dry next 6h"
+        let cue = LiveActivityCue.make(
+            sample: sample,
+            location: place.isEmpty ? "New Haven, IN" : place,
+            headline: headline,
+            phase: onsetMinutes == nil ? "none" : "rain",
+            sparkline: onsetMinutes == nil ? "" : " ▂▄▆",
+            temperatureText: IOSFormat.observation(payload?.conditions, units: units),
+            detail: headline,
+            cessationText: ""
+        )
+        let result = await NowcastLiveActivitySync.sync(cue: cue)
+        liveStatus = result.status
+        liveActivityID = result.id
     }
 
     private func considerStaleRefresh() {

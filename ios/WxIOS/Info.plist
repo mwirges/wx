@@ -39,5 +39,7 @@
 	<string>Dark</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>wx uses your location once to show local observations, alerts, and radar. If you decline, wx uses the place saved in Config.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 </dict>
 </plist>
