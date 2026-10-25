@@ -51,9 +51,9 @@ func runJSON(argsJSON string, timeout time.Duration) string {
 	if err != nil {
 		return errorJSON(code, err.Error())
 	}
-	argv, err := buildArgv(args)
+	argv, code, err := buildArgv(args)
 	if err != nil {
-		return errorJSON("unknown_command", err.Error())
+		return errorJSON(code, err.Error())
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -79,10 +79,11 @@ func runJSON(argsJSON string, timeout time.Duration) string {
 	case res := <-ch:
 		return finish(res.stdout, res.err, res.panicVal, ctx.Err(), timeout)
 	case <-ctx.Done():
-		res := <-ch
-		if res.panicVal != nil {
-			return errorJSON("panic", fmt.Sprint(res.panicVal))
-		}
+		// The command may still be inside the capture gate. Return now and
+		// let that goroutine finish on its own. The gate stays held until it
+		// does, so its stdout cannot land in a later capture. A later call
+		// waits on the gate only until its own ctx ends.
+		go func() { <-ch }()
 		return errorJSON("timeout", timeoutMessage(timeout))
 	}
 }
@@ -143,38 +144,78 @@ func parseArgs(argsJSON string) ([]string, string, error) {
 	return args, "", nil
 }
 
-// buildArgv maps a mobile command onto the CLI argv that prints JSON.
-// forecast and alerts are flags on the root command. The other names are
-// subcommands. --json is added when the caller did not pass it.
-func buildArgv(args []string) ([]string, error) {
-	name := args[0]
-	rest := args[1:]
-	switch name {
-	case "forecast":
-		return appendJSON([]string{"wx", "--forecast"}, rest), nil
-	case "alerts":
-		return appendJSON([]string{"wx", "--alerts"}, rest), nil
-	default:
-		if _, ok := allowedCommands[name]; !ok {
-			return nil, fmt.Errorf("unknown command %q", name)
-		}
-		return appendJSON([]string{"wx", name}, rest), nil
-	}
+// rejectedFlags change the output away from JSON, write a file, or enter an
+// interactive loop. The bridge always wants one JSON document on stdout.
+var rejectedFlags = map[string]struct{}{
+	"--short":               {},
+	"-s":                    {},
+	"--template":            {},
+	"-T":                    {},
+	"--save":                {},
+	"--save-gif":            {},
+	"--force-pretty":        {},
+	"--interactive":         {},
+	"-i":                    {},
+	"--loop":                {},
+	"-L":                    {},
+	"--no-inline":           {},
+	"--exit-code-on-alerts": {},
 }
 
-func appendJSON(prefix, rest []string) []string {
-	hasJSON := false
-	for _, arg := range rest {
-		if arg == "--json" || arg == "-j" {
-			hasJSON = true
-			break
+// buildArgv maps a mobile command onto the CLI argv that prints JSON.
+// forecast and alerts are flags on the root command. The other names are
+// subcommands. --json is placed immediately after that command, before any
+// positional argument, and any caller-supplied --json is removed.
+// The code return is unknown_command or invalid_args.
+func buildArgv(args []string) ([]string, string, error) {
+	name := args[0]
+	rest := args[1:]
+	var prefix []string
+	switch name {
+	case "forecast":
+		prefix = []string{"wx", "--forecast"}
+	case "alerts":
+		prefix = []string{"wx", "--alerts"}
+	default:
+		if _, ok := allowedCommands[name]; !ok {
+			return nil, "unknown_command", fmt.Errorf("unknown command %q", name)
 		}
+		prefix = []string{"wx", name}
+	}
+	argv, err := appendJSON(prefix, rest)
+	if err != nil {
+		return nil, "invalid_args", err
+	}
+	return argv, "", nil
+}
+
+func appendJSON(prefix, rest []string) ([]string, error) {
+	kept := make([]string, 0, len(rest))
+	for _, arg := range rest {
+		if name, bad := rejectedFlag(arg); bad {
+			return nil, fmt.Errorf("%s is not allowed", name)
+		}
+		if arg == "--json" || arg == "-j" {
+			continue
+		}
+		kept = append(kept, arg)
 	}
 	out := append([]string{}, prefix...)
-	if !hasJSON {
-		out = append(out, "--json")
+	out = append(out, "--json")
+	return append(out, kept...), nil
+}
+
+func rejectedFlag(arg string) (string, bool) {
+	name := arg
+	if strings.HasPrefix(arg, "--") {
+		if i := strings.IndexByte(arg, '='); i >= 0 {
+			name = arg[:i]
+		}
 	}
-	return append(out, rest...)
+	if _, ok := rejectedFlags[name]; ok {
+		return name, true
+	}
+	return "", false
 }
 
 func errorJSON(code, message string) string {

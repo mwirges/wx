@@ -56,6 +56,9 @@ func dropClock(v any) any {
 		delete(t, "age")
 		delete(t, "age_seconds")
 		delete(t, "fetched_at")
+		// Nowcast and tropics stamp this from the clock. Two processes a
+		// moment apart will not share the same instant.
+		delete(t, "generated_at")
 		for k, child := range t {
 			t[k] = dropClock(child)
 		}

@@ -14,9 +14,19 @@ echo "==> c-archive"
 CGO_ENABLED=1 go build -buildmode=c-archive -o build/libwxmobile.a ./pkg/mobile
 
 echo "==> C harness"
-cc -I build -o build/mobile-bridge-harness \
-  pkg/mobile/testdata/harness.c build/libwxmobile.a \
-  -framework CoreFoundation -framework Security
+# Go's c-archive needs the host's system libraries. CoreFoundation and
+# Security are Darwin-only; Linux wants pthread and dl.
+cc_cmd=(cc -I build -o build/mobile-bridge-harness \
+  pkg/mobile/testdata/harness.c build/libwxmobile.a)
+case "$(uname -s)" in
+  Darwin)
+    cc_cmd+=(-framework CoreFoundation -framework Security)
+    ;;
+  Linux)
+    cc_cmd+=(-lpthread -ldl)
+    ;;
+esac
+"${cc_cmd[@]}"
 
 echo "==> stub server"
 go build -o build/wx-mobile-stub pkg/mobile/testdata/stub.go
@@ -110,6 +120,18 @@ run_case aqi '["aqi","--no-cache","New Haven, IN"]' \
   aqi --json --no-cache "New Haven, IN"
 run_case spc '["spc","--no-cache","New Haven, IN"]' \
   spc --json --no-cache "New Haven, IN"
+run_case nowcast '["nowcast","New Haven, IN"]' \
+  nowcast --json "New Haven, IN"
+run_case radar '["radar","--no-cache","New Haven, IN"]' \
+  radar --json --no-cache "New Haven, IN"
+run_case climate '["climate","--date","2026-06-21","New Haven, IN"]' \
+  climate --json --date 2026-06-21 "New Haven, IN"
+run_case tropics '["tropics","New Haven, IN"]' \
+  tropics --json "New Haven, IN"
+run_case spc-json-after '["spc","New Haven, IN","--json"]' \
+  spc --json "New Haven, IN"
+run_case aqi-place-only '["aqi","New Haven, IN"]' \
+  aqi --json "New Haven, IN"
 
 expect_error() {
   local name="$1"
