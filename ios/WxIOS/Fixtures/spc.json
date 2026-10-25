@@ -1,0 +1,14 @@
+{
+  "location": "New Haven, IN",
+  "convective_summary": "Fixture Slight",
+  "day1": {
+    "day": 1,
+    "category": {
+      "dn": 2,
+      "code": "SLGT",
+      "name": "Slight",
+      "description": "Fixture slight risk of severe storms",
+      "color": "#fff200"
+    }
+  }
+}

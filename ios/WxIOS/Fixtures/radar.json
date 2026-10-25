@@ -1,0 +1,12 @@
+{
+  "product": "composite-reflectivity",
+  "product_label": "Fixture Composite",
+  "location": "New Haven, IN",
+  "station": "KIND",
+  "valid_time": "2026-10-25T18:00:00Z",
+  "image_base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGO4o6EBAAMQAS0ujiXaAAAAAElFTkSuQmCC",
+  "radius_km": 200,
+  "raw": true,
+  "is_composite": true,
+  "frames": []
+}
