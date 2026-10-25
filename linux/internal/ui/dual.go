@@ -24,7 +24,7 @@ func NewDualPane(telemetry, radar fyne.CanvasObject) *DualPane {
 		container.NewClip(container.NewVScroll(telemetry)),
 		container.NewClip(radar),
 	)
-	d.split.Offset = 0.42
+	d.split.Offset = 0.44
 	d.ExtendBaseWidget(d)
 	return d
 }
@@ -33,14 +33,19 @@ func NewDualPane(telemetry, radar fyne.CanvasObject) *DualPane {
 func (d *DualPane) Horizontal() bool { return d.horizontal }
 
 // ApplyWidth keeps the radar beside telemetry until the desk is narrower than 760 px.
+// Below that, telemetry keeps the top of the stack and the radar takes the rest.
 func (d *DualPane) ApplyWidth(width float32) {
 	wide := width >= 760
-	if wide == d.horizontal {
-		return
-	}
 	d.horizontal = wide
 	d.split.Horizontal = wide
-	d.split.Refresh()
+	if wide {
+		// Mac left column is about 40% and stays between 380 and 480 px.
+		d.split.Offset = 0.44
+	} else {
+		// The pinned alert banner sits above this split. Leave the radar
+		// the lower four fifths so a 540 px frame does not pinch it.
+		d.split.Offset = 0.18
+	}
 }
 
 // CreateRenderer lays the split out and updates its direction from the width.

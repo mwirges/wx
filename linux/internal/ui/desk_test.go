@@ -15,9 +15,9 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/software"
 	"fyne.io/fyne/v2/test"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/mwirges/wx/linux/internal/fixture"
+	"github.com/mwirges/wx/linux/internal/present"
 	"github.com/mwirges/wx/linux/internal/store"
 )
 
@@ -25,6 +25,38 @@ func testApp() fyne.App {
 	application := test.NewApp()
 	application.Settings().SetTheme(NewTheme())
 	return application
+}
+
+func TestDeskMinimumIsSmallerThanTheOpenFrame(t *testing.T) {
+	application := testApp()
+	defer application.Quit()
+	st := store.New(&fixture.Fake{}, nil, true)
+	st.Payload = fixture.Payload
+	desk := NewDesk(application, st, nil)
+	defer desk.Window.Close()
+	scroll, ok := desk.Window.Content().(*container.Scroll)
+	if !ok {
+		t.Fatalf("window content %T is not a scroll", desk.Window.Content())
+	}
+	min := scroll.MinSize()
+	if min.Width > deskMinSize.Width+8 || min.Height > deskMinSize.Height+8 {
+		t.Fatalf("window minimum %v exceeds %v", min, deskMinSize)
+	}
+	if deskOpenSize.Width < 760 || deskOpenSize.Height < 640 {
+		t.Fatalf("open size %v hides the side-by-side desk", deskOpenSize)
+	}
+	if deskOpenSize.Width > 1280 || deskOpenSize.Height > 860 {
+		t.Fatalf("open size %v fills a 1440p panel", deskOpenSize)
+	}
+	if deskOpenSize.Width < min.Width || deskOpenSize.Height < min.Height {
+		t.Fatalf("open size %v is below minimum %v", deskOpenSize, min)
+	}
+	// The first frame should show the whole chrome. Scrolling is for when
+	// the window is dragged below the body's own size.
+	body := scroll.Content.MinSize()
+	if deskOpenSize.Width < body.Width || deskOpenSize.Height < body.Height {
+		t.Fatalf("open size %v clips the desk %v", deskOpenSize, body)
+	}
 }
 
 func TestDailySurfaceShowsCLIJSON(t *testing.T) {
@@ -38,7 +70,7 @@ func TestDailySurfaceShowsCLIJSON(t *testing.T) {
 		t.Fatal("desk did not open")
 	}
 	obs := desk.SectionText("wx.observation")
-	for _, want := range []string{"FORT WAYNE, IN", "72°", "Partly Cloudy", "Wind NW 12 mph"} {
+	for _, want := range []string{"FORT WAYNE, IN", "72°", "Partly Cloudy", "12 mph NW"} {
 		if !contains(obs, want) {
 			t.Fatalf("observation %q missing %q", obs, want)
 		}
@@ -50,7 +82,7 @@ func TestDailySurfaceShowsCLIJSON(t *testing.T) {
 		t.Fatalf("observation wind arrow did not render as text: %q", obs)
 	}
 	now := desk.SectionText("wx.nowcast")
-	for _, want := range []string{"ALL CLEAR // DRY", "Dry next 6h"} {
+	for _, want := range []string{"ALL CLEAR // DRY", "Dry next 6h", "LIQUID TOTAL", "15-MINUTE INTENSITY TIMELINE"} {
 		if !contains(now, want) {
 			t.Fatalf("nowcast %q missing %q", now, want)
 		}
@@ -65,6 +97,145 @@ func TestDailySurfaceShowsCLIJSON(t *testing.T) {
 	for _, want := range []string{"This Afternoon", "Partly Sunny", "74°"} {
 		if !contains(days, want) {
 			t.Fatalf("days %q missing %q", days, want)
+		}
+	}
+}
+
+func TestAlertBannerPinsWarningsAboveEveryTab(t *testing.T) {
+	application := testApp()
+	defer application.Quit()
+	st := store.New(&fixture.Fake{}, nil, true)
+	st.Payload = map[string]any{
+		"conditions": fixture.Payload["conditions"],
+		"alerts": []any{
+			map[string]any{"event": "Wind Advisory", "severity": "Minor", "headline": "Breezy", "area": "Allen, IN"},
+			map[string]any{"event": "Flood Watch", "severity": "Moderate", "headline": "Flooding possible", "expires": "2026-10-18T22:15:00Z", "description": "Rises on the Maumee"},
+			map[string]any{"event": "Tornado Warning", "severity": "Severe", "headline": "Storm near New Haven", "expires": "2026-10-18T22:30:00Z"},
+		},
+	}
+	desk := NewDesk(application, st, nil)
+	defer desk.Window.Close()
+
+	expiry := "EXPIRES " + strings.ToUpper(present.BannerExpiry("2026-10-18T22:30:00Z"))
+	banner := desk.SectionText("wx.alert.banner")
+	for _, want := range []string{"TORNADO WARNING", "+1 more", expiry} {
+		if !contains(banner, want) {
+			t.Fatalf("banner %q missing %q", banner, want)
+		}
+	}
+	if contains(banner, "ADVISORY") || contains(banner, "FLOOD WATCH") {
+		t.Fatalf("banner promoted a lower alert: %q", banner)
+	}
+	if desk.banner.kind != present.BannerWarning {
+		t.Fatalf("kind %q", desk.banner.kind)
+	}
+	if color.NRGBAModel.Convert(desk.banner.bg.FillColor) != color.NRGBAModel.Convert(colRed) {
+		t.Fatalf("warning wash %v", desk.banner.bg.FillColor)
+	}
+	if findID(desk.Find("wx.alerts"), "wx.alert.banner") != nil {
+		t.Fatal("banner is inside the scrolling alerts card")
+	}
+	alerts := desk.SectionText("wx.alerts")
+	for _, want := range []string{"TORNADO WARNING", "FLOOD WATCH", "WIND ADVISORY"} {
+		if !contains(alerts, want) {
+			t.Fatalf("alerts %q missing %q", alerts, want)
+		}
+	}
+	if n := countBadges(desk.Find("wx.alerts")); n != 3 {
+		t.Fatalf("condition badges %d", n)
+	}
+	if !desk.Surfaces[0].alertPulse.live || !desk.banner.pulse.live {
+		t.Fatal("alert lamps are steady")
+	}
+	canvas := software.NewCanvas()
+	canvas.SetPadded(false)
+	canvas.SetContent(desk.Window.Content())
+	canvas.Resize(fyne.NewSize(940, 760))
+	if desk.banner.event.Size().Width < 160 {
+		t.Fatalf("event label collapsed: %v", desk.banner.event.Size())
+	}
+	if desk.banner.extra.Size().Width < 40 || desk.banner.expiry.Size().Width < 80 {
+		t.Fatalf("expiry %v extra %v", desk.banner.expiry.Size(), desk.banner.extra.Size())
+	}
+
+	desk.TapMode("radar")
+	if desk.Visible() != "radar" {
+		t.Fatalf("tab %s", desk.Visible())
+	}
+	if !contains(desk.SectionText("wx.alert.banner"), "TORNADO WARNING") {
+		t.Fatal("radar tab hid the banner")
+	}
+
+	st.Payload = fixture.Quiet
+	desk.Refresh()
+	if strings.TrimSpace(desk.SectionText("wx.alert.banner")) != "" || desk.banner.section.Visible() {
+		t.Fatalf("quiet banner %q visible=%v", desk.SectionText("wx.alert.banner"), desk.banner.section.Visible())
+	}
+
+	st.Payload = fixture.Watch
+	desk.Refresh()
+	watch := desk.SectionText("wx.alert.banner")
+	if !contains(watch, "FLOOD WATCH") || contains(watch, "+") {
+		t.Fatalf("watch banner %q", watch)
+	}
+	if desk.banner.kind != present.BannerWatch || desk.banner.bg.StrokeWidth != 1.5 {
+		t.Fatalf("watch style kind=%s stroke=%v", desk.banner.kind, desk.banner.bg.StrokeWidth)
+	}
+	if got := color.NRGBAModel.Convert(desk.banner.bg.FillColor).(color.NRGBA); got != withAlpha(colAmber, 0x29) {
+		t.Fatalf("watch wash %v", got)
+	}
+}
+
+func countBadges(o fyne.CanvasObject) int {
+	n := 0
+	walk(o, func(c fyne.CanvasObject) {
+		if _, ok := c.(*conditionBadge); ok {
+			n++
+		}
+	})
+	return n
+}
+
+func TestNowcastTimelineShowsTheClock(t *testing.T) {
+	application := testApp()
+	defer application.Quit()
+	intervals := make([]any, 8)
+	for i := range intervals {
+		intervals[i] = map[string]any{
+			"start_time": "2026-10-04T15:00:00Z",
+			"phase":      "none",
+		}
+		if i > 0 {
+			intervals[i] = map[string]any{
+				"start_time": "2026-10-04T16:00:00Z",
+				"phase":      "none",
+			}
+		}
+	}
+	intervals[7] = map[string]any{"start_time": "2026-10-04T18:00:00Z", "phase": "none"}
+	st := store.New(&fixture.Fake{}, nil, true)
+	st.Payload = map[string]any{
+		"conditions": map[string]any{
+			"location":      "Fort Wayne, IN",
+			"temperature_f": 70.0,
+			"nowcast": map[string]any{
+				"headline":      "Dry next 6h",
+				"summary":       "Dry",
+				"primary_phase": "none",
+				"intervals":     intervals,
+			},
+		},
+	}
+	desk := NewDesk(application, st, nil)
+	defer desk.Window.Close()
+	text := desk.SectionText("wx.nowcast")
+	for _, item := range []map[string]any{
+		intervals[0].(map[string]any),
+		intervals[7].(map[string]any),
+	} {
+		stamp := present.ClockLabel(item)
+		if stamp == "" || !contains(text, stamp) {
+			t.Fatalf("timeline %q missing %q", text, stamp)
 		}
 	}
 }
@@ -456,7 +627,7 @@ sys.exit(0)
 	}
 }
 
-func TestCityFieldStaysBelowTheTitleAndRadarFillsItsPane(t *testing.T) {
+func TestCityFieldStaysAboveTheRadarAndRadarFillsItsPane(t *testing.T) {
 	application := testApp()
 	defer application.Quit()
 	st := store.New(&fixture.Fake{}, nil, true)
@@ -468,20 +639,12 @@ func TestCityFieldStaysBelowTheTitleAndRadarFillsItsPane(t *testing.T) {
 	canvas := software.NewCanvas()
 	canvas.SetPadded(false)
 	canvas.SetContent(desk.Window.Content())
-	canvas.Resize(fyne.NewSize(980, 760))
+	canvas.Resize(fyne.NewSize(1080, 720))
 
 	content := canvas.Content()
-	title := findRich(content, "ATMOSPHERIC TELEMETRY CONSOLE")
-	if title == nil {
-		t.Fatal("missing title")
-	}
-	titleAt, ok := originOf(content, title)
 	locAt, locOK := originOf(content, desk.Location)
-	if !ok || !locOK {
-		t.Fatal("missing title or city field")
-	}
-	if locAt.Y < titleAt.Y+title.Size().Height-1 {
-		t.Fatalf("city field overlaps the title: city %v title %v h %.1f", locAt, titleAt, title.Size().Height)
+	if !locOK {
+		t.Fatal("missing city field")
 	}
 	picture := desk.RadarPanels[0].Picture
 	if picture.Size().Height < 360 {
@@ -490,6 +653,9 @@ func TestCityFieldStaysBelowTheTitleAndRadarFillsItsPane(t *testing.T) {
 	picAt, ok := originOf(content, picture)
 	if !ok {
 		t.Fatal("missing picture")
+	}
+	if picAt.Y < locAt.Y+desk.Location.Size().Height-1 {
+		t.Fatalf("radar covers the city field: city %v radar %v", locAt, picAt)
 	}
 	img := canvas.Capture().(*image.NRGBA)
 	red := 0
@@ -514,6 +680,11 @@ func TestCityFieldStaysBelowTheTitleAndRadarFillsItsPane(t *testing.T) {
 	if bleed > 20 {
 		t.Fatalf("left column cuts into the radar: %d pixels", bleed)
 	}
+
+	canvas.Resize(fyne.NewSize(720, 540))
+	if picture.Size().Height < 160 || picture.Size().Width < 160 {
+		t.Fatalf("narrow radar is a thumbnail: %v", picture.Size())
+	}
 }
 
 func solidPNG(t *testing.T, w, h int, c color.NRGBA) []byte {
@@ -533,19 +704,6 @@ func drawFill(img *image.NRGBA, c color.NRGBA) {
 			img.SetNRGBA(x, y, c)
 		}
 	}
-}
-
-func findRich(root fyne.CanvasObject, text string) *widget.RichText {
-	var found *widget.RichText
-	walk(root, func(c fyne.CanvasObject) {
-		if found != nil {
-			return
-		}
-		if rt, ok := c.(*widget.RichText); ok && rt.String() == text {
-			found = rt
-		}
-	})
-	return found
 }
 
 func originOf(root, target fyne.CanvasObject) (fyne.Position, bool) {
@@ -578,6 +736,8 @@ func originOf(root, target fyne.CanvasObject) (fyne.Position, bool) {
 			visit(w.Trailing, at)
 		case *DualPane:
 			visit(w.split, at)
+		case *chipSlot:
+			visit(w.body, at)
 		}
 	}
 	visit(root, fyne.NewPos(0, 0))

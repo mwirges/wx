@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -19,6 +20,10 @@ const (
 	weatherTimeout = 35 * time.Second
 	radarTimeout   = 45 * time.Second
 	extraTimeout   = 25 * time.Second
+	// deskRadarPixels is the long edge the desk asks IEM to draw. The pane is
+	// about half of that, so the picture scales 2:1 instead of smearing a
+	// 1600px composite down into the card.
+	deskRadarPixels = 1200
 )
 
 // CLIError is a failed wx invocation.
@@ -94,7 +99,7 @@ func (c *WxCLI) FetchRadar(location, product string, radius float64, bbox string
 	c.lock()
 	epoch := c.epoch
 	c.unlock()
-	out, errText, code, err := c.run(RadarArgs(location, product, radius, bbox, false, true, frames), radarTimeout, true, &epoch)
+	out, errText, code, err := c.run(deskRadarArgs(location, product, radius, bbox, frames), radarTimeout, true, &epoch)
 	if err != nil {
 		return nil, err
 	}
@@ -359,6 +364,13 @@ func WeatherArgs(location, units string, hourly bool) []string {
 		args = append(args, "--units", units)
 	}
 	return args
+}
+
+// deskRadarArgs is the on-screen fetch: a pane-sized IEM composite, without
+// the bitmap city overlay. IEM already draws place names at that size.
+func deskRadarArgs(location, product string, radius float64, bbox string, frames int) []string {
+	args := RadarArgs(location, product, radius, bbox, false, true, frames)
+	return append(args, "--pixels", strconv.Itoa(deskRadarPixels), "--no-labels")
 }
 
 // RadarArgs builds wx radar --json. The desk leaves raw off; pass raw only

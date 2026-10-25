@@ -30,6 +30,10 @@ func TestWeatherArgsMatchMacCLI(t *testing.T) {
 }
 
 func TestRadarAndExportArgsUseCLIWriters(t *testing.T) {
+	desk := deskRadarArgs("64101", "composite-reflectivity", 200, "", 8)
+	if !contains(desk, "--pixels") || !contains(desk, "1200") || !contains(desk, "--no-labels") || contains(desk, "--basemap") || contains(desk, "--raw") {
+		t.Fatalf("desk radar args %v", desk)
+	}
 	got := RadarArgs("64101", "composite-reflectivity", 200, "", true, true, 8)
 	want := []string{"radar", "--json", "--raw", "--loop", "--frames", "8", "--location", "64101", "--product", "composite-reflectivity", "--radius", "200"}
 	if !same(got, want) {

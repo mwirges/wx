@@ -29,6 +29,8 @@ func walk(o fyne.CanvasObject, fn func(fyne.CanvasObject)) {
 		walk(w.Trailing, fn)
 	case *DualPane:
 		walk(w.split, fn)
+	case *chipSlot:
+		walk(w.body, fn)
 	}
 }
 

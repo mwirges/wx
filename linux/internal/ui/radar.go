@@ -7,11 +7,13 @@ import (
 	"image/draw"
 	"image/png"
 	"math"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/mwirges/wx/linux/internal/store"
@@ -61,6 +63,10 @@ type RadarPanel struct {
 	store   *store.Store
 	window  fyne.Window
 	guard   bool
+
+	productChip *menuChip
+	radiusChip  *menuChip
+	loopChip    *actionChip
 }
 
 // NewRadarPanel builds the radar controls and picture.
@@ -73,25 +79,28 @@ func NewRadarPanel(st *store.Store, win fyne.Window) *RadarPanel {
 	p.Radius.SetSelectedIndex(radiusIndex(st.RadarRadius))
 	p.Radius.OnChanged = p.onRadius
 	p.Loop = widget.NewButton("Loop", func() { st.ToggleLoop() })
-	prev := widget.NewButton("◀", func() { st.StepFrame(-1) })
-	next := widget.NewButton("▶", func() { st.StepFrame(1) })
-	pngBtn := widget.NewButton("Save PNG", func() { p.choose("wx-radar.png", p.SavePNG) })
-	gifBtn := widget.NewButton("Save GIF", func() { p.choose("wx-radar.gif", p.SaveGIF) })
-	// Two rows so the control strip's minimum width does not crush the telemetry column.
-	controls := container.NewVBox(
-		container.NewGridWithColumns(2, p.Product, p.Radius),
-		container.NewGridWithColumns(5, prev, p.Loop, next, pngBtn, gifBtn),
-	)
+	p.productChip = newMenuChip("PRODUCT //", p.Product, strings.ToUpper)
+	p.radiusChip = newMenuChip("SCALE //", p.Radius, scaleWord)
+	p.loopChip = newActionChip("LOOP", func() { st.ToggleLoop() })
+	prev := newActionChip("<", func() { st.StepFrame(-1) })
+	next := newActionChip(">", func() { st.StepFrame(1) })
+	pngBtn := newActionChip("PNG", func() { p.choose("wx-radar.png", p.SavePNG) })
+	gifBtn := newActionChip("GIF", func() { p.choose("wx-radar.gif", p.SaveGIF) })
 	p.Frame = widget.NewLabel("RADAR")
+	p.Frame.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
+	p.Frame.SizeName = theme.SizeNameCaptionText
 	p.Picture = canvas.NewImageFromImage(image.NewNRGBA(image.Rect(0, 0, 1, 1)))
 	p.Picture.FillMode = canvas.ImageFillContain
-	p.Picture.ScaleMode = canvas.ImageScaleFastest
+	p.Picture.ScaleMode = canvas.ImageScaleSmooth
 	p.Picture.SetMinSize(fyne.NewSize(160, 120))
 	p.Note = widget.NewLabel("")
 	p.Note.Wrapping = fyne.TextWrapWord
-	// The picture is the center, so it fills the pane under the controls instead of
-	// staying at its minimum size and leaving a blank region under the LIVE label.
-	p.Root = newSection("wx.radar", container.NewBorder(container.NewVBox(controls, p.Frame), p.Note, nil, nil, p.Picture))
+	// The selects stay off the row so tests can still drive SetSelectedIndex.
+	// The picture is the center and fills the pane between the two chip rows.
+	menus := container.NewHBox(p.productChip, p.radiusChip)
+	transport := container.NewHBox(prev, p.loopChip, next, pngBtn, gifBtn, p.Frame)
+	body := container.NewBorder(menus, container.NewVBox(transport, p.Note), nil, nil, p.Picture)
+	p.Root = newSection("wx.radar", consoleCard("Doppler Radar Array", "NOAA.MRMS", "kicker", colCyan, body))
 	return p
 }
 
@@ -104,12 +113,16 @@ func (p *RadarPanel) Refresh(st *store.Store) {
 	}
 	if st.LoopPlaying {
 		p.Loop.SetText("Pause")
+		p.loopChip.SetText("PAUSE")
 	} else {
 		p.Loop.SetText("Loop")
+		p.loopChip.SetText("LOOP")
 	}
 	if idx := radiusIndex(st.RadarRadius); p.Radius.SelectedIndex() != idx {
 		p.Radius.SetSelectedIndex(idx)
 	}
+	p.productChip.Refresh()
+	p.radiusChip.Refresh()
 	switch {
 	case st.RadarError != "":
 		p.Note.SetText(st.RadarError)
@@ -243,6 +256,24 @@ func (p *RadarPanel) onRadius(label string) {
 	p.store.RadarRadius = radius
 	if p.store.DeskOpen {
 		p.store.RefreshRadar()
+	}
+}
+
+// scaleWord is the Mac coverage name. The select keeps the longer option.
+func scaleWord(label string) string {
+	switch {
+	case strings.HasPrefix(label, "Local"):
+		return "LOCAL"
+	case strings.HasPrefix(label, "Metro"):
+		return "METRO"
+	case strings.HasPrefix(label, "Regional"):
+		return "REGIONAL"
+	case strings.HasPrefix(label, "Synoptic"):
+		return "SYNOPTIC"
+	case strings.HasPrefix(label, "CONUS"):
+		return "CONUS"
+	default:
+		return strings.ToUpper(label)
 	}
 }
 

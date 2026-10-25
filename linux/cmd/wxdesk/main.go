@@ -10,6 +10,7 @@ import (
 )
 
 func main() {
+	ui.CalmXWaylandScale()
 	application := app.NewWithID("com.github.mwirges.wx.desk")
 	application.SetIcon(ui.AppIcon())
 	application.Settings().SetTheme(ui.NewTheme())

@@ -7,6 +7,13 @@ import (
 	"fyne.io/fyne/v2/theme"
 )
 
+// Banner text sits on a solid red warning or an amber watch wash.
+// RichText can only tint through the theme, so these names are desk-only.
+const (
+	colorBannerOnRed fyne.ThemeColorName = "wxBannerOnRed"
+	colorBannerWatch fyne.ThemeColorName = "wxBannerWatch"
+)
+
 // Theme is the desk palette: dark field, cyan marks, steady hazard colors.
 type Theme struct{ fyne.Theme }
 
@@ -38,7 +45,44 @@ func (t *Theme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color
 		return color.NRGBA{R: 0x30, G: 0xD1, B: 0x58, A: 0xFF}
 	case theme.ColorNameSeparator, theme.ColorNameInputBorder:
 		return color.NRGBA{R: 0x38, G: 0xE1, B: 0xFF, A: 0x59}
+	case theme.ColorNameScrollBar:
+		return color.NRGBA{R: 0x38, G: 0xE1, B: 0xFF, A: 0x88}
+	case theme.ColorNameScrollBarBackground:
+		return color.NRGBA{A: 0x00}
+	case colorBannerOnRed:
+		return color.NRGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xFF}
+	case colorBannerWatch:
+		return color.NRGBA{R: 0xFF, G: 0x9F, B: 0x0A, A: 0xFF}
 	default:
 		return t.Theme.Color(name, theme.VariantDark)
 	}
+}
+
+// Size keeps the desk dense. Fyne's default inner padding turns a tab row
+// into a keypad and a scrollbar into a stripe.
+func (t *Theme) Size(name fyne.ThemeSizeName) float32 {
+	switch name {
+	case theme.SizeNamePadding:
+		return 3
+	case theme.SizeNameInnerPadding:
+		return 4
+	case theme.SizeNameScrollBar:
+		return 3
+	case theme.SizeNameScrollBarSmall:
+		return 2
+	case theme.SizeNameText:
+		return 12
+	case theme.SizeNameHeadingText:
+		return 42
+	case theme.SizeNameCaptionText:
+		return 11
+	default:
+		return t.Theme.Size(name)
+	}
+}
+
+// Font is the Mac console face: monospace for every style.
+func (t *Theme) Font(style fyne.TextStyle) fyne.Resource {
+	style.Monospace = true
+	return t.Theme.Font(style)
 }
