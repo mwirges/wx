@@ -1,0 +1,13 @@
+{
+  "alerts": [
+    {
+      "event": "Fixture Advisory",
+      "headline": "Fixture advisory",
+      "severity": "Minor",
+      "urgency": "Expected",
+      "effective": "2026-10-25T18:00:00Z",
+      "expires": "2026-10-25T23:00:00Z",
+      "area": "New Haven, IN"
+    }
+  ]
+}

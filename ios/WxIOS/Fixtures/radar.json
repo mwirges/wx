@@ -3,10 +3,27 @@
   "product_label": "Fixture Composite",
   "location": "New Haven, IN",
   "station": "KIND",
-  "valid_time": "2026-10-25T18:00:00Z",
-  "image_base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGO4o6EBAAMQAS0ujiXaAAAAAElFTkSuQmCC",
+  "valid_time": "2026-10-25T18:03:00Z",
+  "image_base64": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGN4tkUOK2IYWhIALU1uAZxzUEsAAAAASUVORK5CYII=",
   "radius_km": 200,
   "raw": true,
   "is_composite": true,
-  "frames": []
+  "frames": [
+    {
+      "valid_time": "2026-10-25T18:00:00Z",
+      "image_base64": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGO4o6GBFTEMLQkAe3tLAfuiUfAAAAAASUVORK5CYII="
+    },
+    {
+      "valid_time": "2026-10-25T18:01:00Z",
+      "image_base64": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGPQ2BKAFTEMLQkARHtLAXOtv+sAAAAASUVORK5CYII="
+    },
+    {
+      "valid_time": "2026-10-25T18:02:00Z",
+      "image_base64": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGPQiLqDFTEMLQkAA8ZXgV21/8cAAAAASUVORK5CYII="
+    },
+    {
+      "valid_time": "2026-10-25T18:03:00Z",
+      "image_base64": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGN4tkUOK2IYWhIALU1uAZxzUEsAAAAASUVORK5CYII="
+    }
+  ]
 }

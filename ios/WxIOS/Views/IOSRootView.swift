@@ -24,6 +24,10 @@ struct IOSRootView: View {
                         .accessibilityIdentifier("location.note")
                 }
 
+                if store.showsPowerProbe {
+                    powerProbe
+                }
+
                 TabView(selection: $store.tab) {
                     SurfaceView()
                         .tag(IOSTab.surface)
@@ -52,8 +56,40 @@ struct IOSRootView: View {
             tabBar
         }
         .onChange(of: store.tab) { _, tab in
+            store.syncRadarLoop()
             Task { await store.ensure(tab) }
         }
+    }
+
+    private var powerProbe: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 8) {
+                probe("power.loopTicks", "\(store.loopTicks)")
+                probe("power.loopState", store.loopPlaying ? "playing" : "paused")
+                probe("power.frameCount", "\(store.radarPictures.count)")
+                probe("power.fetchCount", "\(store.refreshCount)")
+                probe("power.ticksAtPause", "\(store.ticksAtPause)")
+                probe("power.ticksWhilePaused", "\(store.ticksWhilePaused)")
+                probe("power.pauseCount", "\(store.pauseCount)")
+            }
+            .accessibilityElement(children: .contain)
+            Button("Advance 6 min") {
+                store.advanceTestClock()
+            }
+            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+            .foregroundStyle(WxTheme.snwGold)
+            .accessibilityIdentifier("power.clock.advance")
+        }
+        .accessibilityElement(children: .contain)
+        .padding(.horizontal, 12)
+    }
+
+    private func probe(_ id: String, _ value: String) -> some View {
+        Text(value)
+            .font(.system(size: 9, weight: .medium, design: .monospaced))
+            .foregroundStyle(WxTheme.textSecondary)
+            .accessibilityIdentifier(id)
+            .accessibilityLabel(value)
     }
 
     private var tabBar: some View {
@@ -61,6 +97,7 @@ struct IOSRootView: View {
             ForEach(IOSTab.allCases) { tab in
                 Button {
                     store.tab = tab
+                    store.syncRadarLoop()
                 } label: {
                     VStack(spacing: 2) {
                         Image(systemName: tab.symbol)

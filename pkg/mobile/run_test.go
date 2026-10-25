@@ -171,7 +171,6 @@ func TestRunJSON_RejectsNonJSONFlags(t *testing.T) {
 		`["radar","--save=/tmp/wx.png","New Haven, IN"]`,
 		`["radar","--save-gif","/tmp/wx.gif"]`,
 		`["radar","--interactive","New Haven, IN"]`,
-		`["radar","--loop","New Haven, IN"]`,
 		`["radar","--no-inline","New Haven, IN"]`,
 		`["tropics","--force-pretty","New Haven, IN"]`,
 		`["alerts","--exit-code-on-alerts","New Haven, IN"]`,
@@ -182,6 +181,38 @@ func TestRunJSON_RejectsNonJSONFlags(t *testing.T) {
 	}
 	if called {
 		t.Fatal("rejected flag was dispatched")
+	}
+}
+
+func TestRunJSON_RadarLoopReturnsFrames(t *testing.T) {
+	prev := testDispatch
+	t.Cleanup(func() { testDispatch = prev })
+	cases := []struct {
+		in   string
+		want []string
+	}{
+		{
+			`["radar","--loop","--frames","6","--raw","--location","New Haven, IN"]`,
+			[]string{"wx", "radar", "--json", "--loop", "--frames", "6", "--raw", "--location", "New Haven, IN"},
+		},
+		{
+			`["radar","-L","New Haven, IN"]`,
+			[]string{"wx", "radar", "--json", "-L", "New Haven, IN"},
+		},
+	}
+	for _, tc := range cases {
+		var got []string
+		testDispatch = func(ctx context.Context, argv []string) (string, error) {
+			got = append([]string{}, argv...)
+			return `{"ok":true}`, nil
+		}
+		out := RunJSON(tc.in)
+		if strings.Contains(out, `"error"`) {
+			t.Fatalf("RunJSON(%s) = %s", tc.in, out)
+		}
+		if strings.Join(got, " ") != strings.Join(tc.want, " ") {
+			t.Fatalf("argv = %q, want %q", got, tc.want)
+		}
 	}
 }
 

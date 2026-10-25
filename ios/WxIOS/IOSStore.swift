@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import UIKit
 
 enum IOSTab: String, CaseIterable, Identifiable {
     case surface = "Surface"
@@ -23,6 +24,12 @@ enum IOSTab: String, CaseIterable, Identifiable {
     }
 }
 
+struct IOSRadarPicture: Identifiable {
+    let id: Int
+    let image: CGImage
+    let validTime: String
+}
+
 @MainActor
 final class IOSStore: ObservableObject {
     @Published var tab: IOSTab = .surface
@@ -44,14 +51,41 @@ final class IOSStore: ObservableObject {
     @Published var locationNote: String?
     @Published var lastRefreshed: Date?
     @Published private(set) var foreground = true
+    @Published private(set) var radarPictures: [IOSRadarPicture] = []
+    @Published private(set) var loopFrame = 0
+    @Published private(set) var loopTicks = 0
+    @Published private(set) var loopPlaying = false
+    @Published private(set) var ticksAtPause = 0
+    @Published private(set) var ticksWhilePaused = 0
+    @Published private(set) var pauseCount = 0
+    @Published private(set) var refreshCount = 0
 
+    let showsPowerProbe: Bool
     let client: any IOSWeatherClient
+    private let clock: any IOSClock
     private let locator = IOSLocation()
     private var didBoot = false
     private let staleAfter: TimeInterval = 5 * 60
+    private let loopIntervalMs: Int
+    private var loopTask: Task<Void, Never>?
+    private var refreshTask: Task<Void, Never>?
 
-    init(client: (any IOSWeatherClient)? = nil) {
+    init(client: (any IOSWeatherClient)? = nil, clock: (any IOSClock)? = nil) {
+        let resolved = clock ?? IOSClocks.make()
+        self.clock = resolved
+        self.showsPowerProbe = resolved is AdjustableClock
         self.client = client ?? IOSClients.make()
+        self.loopIntervalMs = IOSLoopTiming.intervalMilliseconds()
+    }
+
+    var currentRadarImage: CGImage? {
+        guard radarPictures.indices.contains(loopFrame) else { return nil }
+        return radarPictures[loopFrame].image
+    }
+
+    func advanceTestClock(by seconds: TimeInterval = 6 * 60) {
+        guard let adjustable = clock as? AdjustableClock else { return }
+        adjustable.advance(by: seconds)
     }
 
     func boot() async {
@@ -71,20 +105,44 @@ final class IOSStore: ObservableObject {
     }
 
     func noteForeground(_ active: Bool) {
-        foreground = active
-        guard active, didBoot, let last = lastRefreshed else { return }
-        guard Date().timeIntervalSince(last) > staleAfter else { return }
-        Task { await refreshVisible() }
+        if active == foreground {
+            syncRadarLoop()
+            if active {
+                considerStaleRefresh()
+            }
+            return
+        }
+        if !active {
+            foreground = false
+            syncRadarLoop()
+            return
+        }
+        if loopTicks > ticksAtPause {
+            ticksWhilePaused += loopTicks - ticksAtPause
+        }
+        ticksAtPause = loopTicks
+        foreground = true
+        syncRadarLoop()
+        considerStaleRefresh()
+    }
+
+    func syncRadarLoop() {
+        if foreground && tab == .radar && radarPictures.count > 1 {
+            startRadarLoop()
+        } else {
+            stopRadarLoop()
+        }
     }
 
     func ensure(_ tab: IOSTab) async {
+        syncRadarLoop()
         switch tab {
         case .surface, .tactical, .config:
-            if payload == nil, !place.isEmpty {
+            if payload == nil, !place.isEmpty, !isLoading {
                 await refreshSurface()
             }
         case .radar:
-            if radar == nil {
+            if radar == nil, !radarLoading {
                 await loadRadar()
             }
         case .severe:
@@ -138,23 +196,38 @@ final class IOSStore: ObservableObject {
             return
         }
         isLoading = true
+        radarLoading = true
         surfaceError = nil
-        let forecastArgs = [
-            "forecast", "--alerts", "--hourly", "--hours", "24",
+        radarError = nil
+        refreshCount += 1
+        let client = self.client
+        let units = self.units
+        // One radio wake: conditions (the forecast document), nowcast, alerts,
+        // and radar all start before any of them is awaited.
+        async let forecastRaw = fetchIOSWeather(client, args: [
+            "forecast", "--hourly", "--hours", "24",
             "--units", units, "--location", whereTo,
-        ]
-        let nowcastArgs = ["nowcast", "--units", units, "--location", whereTo]
-        async let forecastRaw = capture(forecastArgs)
-        async let nowcastRaw = capture(nowcastArgs)
+        ])
+        async let nowcastRaw = fetchIOSWeather(client, args: [
+            "nowcast", "--units", units, "--location", whereTo,
+        ])
+        async let alertsRaw = fetchIOSWeather(client, args: [
+            "alerts", "--units", units, "--location", whereTo,
+        ])
+        async let radarRaw = fetchIOSWeather(client, args: [
+            "radar", "--raw", "--loop", "--frames", "6",
+            "--location", whereTo, "--product", "composite-reflectivity",
+        ])
         let forecastResult = await forecastRaw
         let nowcastResult = await nowcastRaw
-        isLoading = false
+        let alertsResult = await alertsRaw
+        let radarResult = await radarRaw
 
         switch forecastResult {
         case .success(let raw):
             do {
                 payload = try BridgeJSON.decode(WxPayload.self, from: raw)
-                lastRefreshed = Date()
+                lastRefreshed = clock.now()
             } catch {
                 surfaceError = error.localizedDescription
             }
@@ -176,16 +249,45 @@ final class IOSStore: ObservableObject {
                 surfaceError = error.localizedDescription
             }
         }
+
+        switch alertsResult {
+        case .success(let raw):
+            if let alertsPayload = try? BridgeJSON.decode(WxPayload.self, from: raw) {
+                if payload == nil {
+                    payload = alertsPayload
+                } else {
+                    payload?.alerts = alertsPayload.alerts
+                }
+            }
+        case .failure:
+            break
+        }
+
+        switch radarResult {
+        case .success(let raw):
+            do {
+                try applyRadar(raw)
+            } catch {
+                radarError = error.localizedDescription
+            }
+        case .failure(let error):
+            radarError = error.localizedDescription
+        }
+
+        isLoading = false
+        radarLoading = false
+        syncRadarLoop()
     }
 
     func loadRadar() async {
         await loadExtra(
-            args: ["radar", "--raw", "--location", place, "--product", "composite-reflectivity"],
+            args: ["radar", "--raw", "--loop", "--frames", "6", "--location", place, "--product", "composite-reflectivity"],
             loading: \.radarLoading,
             error: \.radarError
         ) { raw in
-            self.radar = try BridgeJSON.decode(RadarPayload.self, from: raw)
+            try self.applyRadar(raw)
         }
+        syncRadarLoop()
     }
 
     func loadSevere() async {
@@ -225,6 +327,16 @@ final class IOSStore: ObservableObject {
         return formatter.string(from: lastRefreshed)
     }
 
+    private func considerStaleRefresh() {
+        guard refreshTask == nil else { return }
+        guard didBoot, let last = lastRefreshed else { return }
+        guard clock.now().timeIntervalSince(last) > staleAfter else { return }
+        refreshTask = Task { @MainActor [weak self] in
+            await self?.refreshVisible()
+            self?.refreshTask = nil
+        }
+    }
+
     private func refreshVisible() async {
         guard !place.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             surfaceError = "Set a place in Config."
@@ -232,13 +344,11 @@ final class IOSStore: ObservableObject {
         }
         await refreshSurface()
         switch tab {
-        case .radar:
-            await loadRadar()
         case .severe:
             await loadSevere()
         case .tropics:
             await loadTropics()
-        case .surface, .tactical, .config:
+        case .surface, .tactical, .config, .radar:
             break
         }
     }
@@ -247,9 +357,12 @@ final class IOSStore: ObservableObject {
         payload = nil
         nowcast = nil
         radar = nil
+        radarPictures = []
+        loopFrame = 0
         spc = nil
         tropics = nil
         lastRefreshed = nil
+        stopRadarLoop()
     }
 
     private func resolvePlace(saved: String) async -> String {
@@ -292,12 +405,70 @@ final class IOSStore: ObservableObject {
         WxConfig.save(cfg)
     }
 
-    private func capture(_ args: [String]) async -> Result<String, Error> {
-        do {
-            return .success(try await client.run(args: args))
-        } catch {
-            return .failure(error)
+    private func applyRadar(_ raw: String) throws {
+        let decoded = try BridgeJSON.decode(RadarPayload.self, from: raw)
+        radar = decoded
+        radarPictures = pictures(from: decoded)
+        if radarPictures.isEmpty || loopFrame >= radarPictures.count {
+            loopFrame = 0
         }
+    }
+
+    private func pictures(from radar: RadarPayload) -> [IOSRadarPicture] {
+        var sources: [(String, String)] = radar.frames.map { frame in
+            (frame.validTime ?? radar.validTime, frame.imageBase64)
+        }
+        if sources.isEmpty, !radar.imageBase64.isEmpty {
+            sources = [(radar.validTime, radar.imageBase64)]
+        }
+        var pictures: [IOSRadarPicture] = []
+        pictures.reserveCapacity(sources.count)
+        for (index, source) in sources.enumerated() {
+            guard let data = Data(base64Encoded: source.1, options: .ignoreUnknownCharacters),
+                  let image = UIImage(data: data) else {
+                continue
+            }
+            let decoded = image.preparingForDisplay() ?? image
+            guard let cgImage = decoded.cgImage else { continue }
+            pictures.append(IOSRadarPicture(id: index, image: cgImage, validTime: source.0))
+        }
+        return pictures
+    }
+
+    private func startRadarLoop() {
+        guard radarPictures.count > 1 else {
+            stopRadarLoop()
+            return
+        }
+        guard loopTask == nil else {
+            loopPlaying = true
+            return
+        }
+        loopPlaying = true
+        let intervalNs = UInt64(loopIntervalMs) * 1_000_000
+        loopTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: intervalNs)
+                guard let self, !Task.isCancelled else { return }
+                guard self.foreground, self.tab == .radar, self.radarPictures.count > 1 else {
+                    self.stopRadarLoop()
+                    return
+                }
+                self.loopFrame = (self.loopFrame + 1) % self.radarPictures.count
+                self.loopTicks += 1
+            }
+        }
+    }
+
+    private func stopRadarLoop() {
+        let wasPlaying = loopTask != nil || loopPlaying
+        if wasPlaying {
+            ticksAtPause = loopTicks
+            pauseCount += 1
+        }
+        loopPlaying = false
+        loopTask?.cancel()
+        loopTask = nil
     }
 
     private func loadExtra(
@@ -310,7 +481,7 @@ final class IOSStore: ObservableObject {
         guard !whereTo.isEmpty else { return }
         self[keyPath: loading] = true
         self[keyPath: error] = nil
-        let result = await capture(args)
+        let result = await fetchIOSWeather(client, args: args)
         self[keyPath: loading] = false
         switch result {
         case .success(let raw):

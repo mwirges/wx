@@ -40,6 +40,14 @@ struct BridgeClient: IOSWeatherClient {
     }
 }
 
+func fetchIOSWeather(_ client: any IOSWeatherClient, args: [String]) async -> Result<String, Error> {
+    do {
+        return .success(try await client.run(args: args))
+    } catch {
+        return .failure(error)
+    }
+}
+
 struct FixtureClient: IOSWeatherClient {
     func run(args: [String]) async throws -> String {
         guard let name = args.first, !name.isEmpty else {
