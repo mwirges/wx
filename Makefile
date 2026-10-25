@@ -58,6 +58,49 @@ vet:
 mobile-bridge-test:
 	@./scripts/mobile-bridge-test.sh
 
+# iOS 17 is the floor in docs/ios-mobile-architecture.md.
+# CC is clang from `xcrun --sdk <sdk> --find clang`, plus -isysroot and -target,
+# so each c-archive carries the device or simulator platform.
+IOS_MIN := 17.0
+
+## ios-framework: Build device and simulator arm64 into build/WxCore.xcframework
+.PHONY: ios-framework
+ios-framework:
+	@echo "==> Compiling Go C-archive for iOS device (arm64)..."
+	@set -eu; \
+	sdk="$$(xcrun --sdk iphoneos --show-sdk-path)"; \
+	clang="$$(xcrun --sdk iphoneos --find clang)"; \
+	mkdir -p "$(BUILD_DIR)/ios/arm64-device/Headers"; \
+	CGO_ENABLED=1 GOOS=ios GOARCH=arm64 \
+	CC="\"$$clang\" -isysroot \"$$sdk\" -target arm64-apple-ios$(IOS_MIN)" \
+	go build -buildmode=c-archive -o "$(BUILD_DIR)/ios/arm64-device/libwxcore.a" ./pkg/mobile; \
+	cp "$(BUILD_DIR)/ios/arm64-device/libwxcore.h" "$(BUILD_DIR)/ios/arm64-device/Headers/libwxcore.h"; \
+	printf '%s\n' 'module WxCore {' '    header "libwxcore.h"' '    export *' '}' \
+	  > "$(BUILD_DIR)/ios/arm64-device/Headers/module.modulemap"
+	@echo "==> Compiling Go C-archive for iOS simulator (arm64)..."
+	@set -eu; \
+	sdk="$$(xcrun --sdk iphonesimulator --show-sdk-path)"; \
+	clang="$$(xcrun --sdk iphonesimulator --find clang)"; \
+	mkdir -p "$(BUILD_DIR)/ios/arm64-simulator/Headers"; \
+	CGO_ENABLED=1 GOOS=ios GOARCH=arm64 \
+	CC="\"$$clang\" -isysroot \"$$sdk\" -target arm64-apple-ios$(IOS_MIN)-simulator" \
+	go build -buildmode=c-archive -o "$(BUILD_DIR)/ios/arm64-simulator/libwxcore.a" ./pkg/mobile; \
+	cp "$(BUILD_DIR)/ios/arm64-simulator/libwxcore.h" "$(BUILD_DIR)/ios/arm64-simulator/Headers/libwxcore.h"; \
+	printf '%s\n' 'module WxCore {' '    header "libwxcore.h"' '    export *' '}' \
+	  > "$(BUILD_DIR)/ios/arm64-simulator/Headers/module.modulemap"
+	@echo "==> Packaging $(BUILD_DIR)/WxCore.xcframework..."
+	rm -rf "$(BUILD_DIR)/WxCore.xcframework"
+	xcodebuild -create-xcframework \
+	  -library "$(BUILD_DIR)/ios/arm64-device/libwxcore.a" -headers "$(BUILD_DIR)/ios/arm64-device/Headers" \
+	  -library "$(BUILD_DIR)/ios/arm64-simulator/libwxcore.a" -headers "$(BUILD_DIR)/ios/arm64-simulator/Headers" \
+	  -output "$(BUILD_DIR)/WxCore.xcframework"
+	@echo "Built $(BUILD_DIR)/WxCore.xcframework"
+
+## ios-framework-test: Check WxCore.xcframework slices, module map, and exports
+.PHONY: ios-framework-test
+ios-framework-test: ios-framework
+	@./scripts/ios-framework-test.sh
+
 ## build-all: Cross-compile for all supported platforms → build/wx-{os}-{arch}[.exe]
 .PHONY: build-all
 build-all: $(foreach p,$(PLATFORMS),build-$(subst /,-,$(p)))

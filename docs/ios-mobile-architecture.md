@@ -248,46 +248,16 @@ When active precipitation is detected:
 
 ## 7. Toolchain & Build System (`Makefile`)
 
-To build the iOS static library and framework on macOS:
+`make ios-framework` builds `./pkg/mobile` (`-buildmode=c-archive`, `CGO_ENABLED=1`, `GOOS=ios`, `GOARCH=arm64`) for two slices and packages `build/WxCore.xcframework`.
 
-```makefile
-# Target Architectures
-IOS_SDK = $(shell xcrun --sdk iphoneos --show-sdk-path)
-IOS_SIM_SDK = $(shell xcrun --sdk iphonesimulator --show-sdk-path)
+- Device arm64 uses clang from `xcrun --sdk iphoneos --find clang`, `-isysroot` set to the iphoneos SDK, and `-target arm64-apple-ios17.0`.
+- Simulator arm64 uses clang from `xcrun --sdk iphonesimulator --find clang`, `-isysroot` set to the iphonesimulator SDK, and `-target arm64-apple-ios17.0-simulator`.
+- Each slice gets a `Headers` directory with the generated header and `module.modulemap` (`module WxCore`).
+- An existing `build/WxCore.xcframework` is removed first. `xcodebuild -create-xcframework -library ... -headers ...` writes the new one.
 
-.PHONY: ios-framework
-ios-framework:
-	@echo "==> Compiling Go C-Archive for iOS Device (arm64)..."
-	GOOS=darwin GOARCH=arm64 CGO_ENABLED=1 \
-	CC="xcrun --sdk iphoneos clang -arch arm64" \
-	go build -buildmode=c-archive -o build/ios/arm64-device/libwxcore.a ./pkg/mobile
+`make ios-framework-test` depends on `ios-framework`. It checks that `Info.plist` lists `ios-arm64` and `ios-arm64-simulator` (`plutil` and `PlistBuddy`), that each slice has `Headers` and `Headers/module.modulemap`, and that `nm` shows `WxRunJSON` and `WxFreeString` exported from each slice archive. Any miss exits nonzero.
 
-	@echo "==> Compiling Go C-Archive for iOS Simulator (arm64)..."
-	GOOS=darwin GOARCH=arm64 CGO_ENABLED=1 \
-	CC="xcrun --sdk iphonesimulator clang -arch arm64" \
-	go build -buildmode=c-archive -o build/ios/arm64-sim/libwxcore.a ./pkg/mobile
-
-	@echo "==> Packaging Apple XCFramework..."
-	rm -rf build/WxCore.xcframework
-	xcodebuild -create-xcframework \
-		-library build/ios/arm64-device/libwxcore.a -headers build/ios/arm64-device/libwxcore.h \
-		-library build/ios/arm64-sim/libwxcore.a -headers build/ios/arm64-sim/libwxcore.h \
-		-output build/WxCore.xcframework
-	@echo "==> Successfully generated build/WxCore.xcframework"
-
-.PHONY: ios-build
-ios-build: ios-framework
-	@echo "==> Building iOS Application..."
-	xcodebuild -project ios/WxApp.xcodeproj -scheme WxApp -destination 'generic/platform=iOS' build
-
-.PHONY: ios-sim
-ios-sim: ios-framework
-	@echo "==> Running in iOS Simulator..."
-	xcodebuild -project ios/WxApp.xcodeproj -scheme WxApp -destination 'platform=iOS Simulator,name=iPhone 16' -derivedDataPath build/ios-sim
-	xcrun simctl boot "iPhone 16" || true
-	xcrun simctl install booted build/ios-sim/Build/Products/Debug-iphonesimulator/WxApp.app
-	xcrun simctl launch booted com.mwirges.wx.ios
-```
+`make clean` removes `build/`, including the xcframework. The iOS app shell (`ios-build`, `ios-sim`) is milestone 3 and is not a Makefile target yet.
 
 ---
 
@@ -297,8 +267,8 @@ ios-sim: ios-framework
    - Implement `bridge.go` exposing `WxRunJSON` and memory release functions.
    - Verify static compilation and link against a test C command-line tool.
 2. **Milestone 2: `WxCore.xcframework` Automation**
-   - Implement `make ios-framework` to assemble the universal `.xcframework`.
-   - Add automated headers and modulemap.
+   - `make ios-framework` assembles `build/WxCore.xcframework` (device arm64 and simulator arm64, headers, `module WxCore`).
+   - `make ios-framework-test` checks the slices, module map, and exported `WxRunJSON` / `WxFreeString`.
 3. **Milestone 3: iOS Shell & SwiftUI Binding**
    - Create `ios/` Xcode project referencing `WxCore.xcframework`.
    - Implement `WxBridge.swift` and connect to existing `WeatherStore`.
