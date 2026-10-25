@@ -228,21 +228,28 @@ On iPad (and iPhone in landscape), the interface automatically expands to a **Sp
 ## 6. Mobile-Native Capabilities (WidgetKit & Live Activities)
 
 ### 6.1 Lock Screen & Home Screen Widgets (`WidgetExtension`)
-WidgetKit extensions run in a separate process with a strict **30MB RAM ceiling**:
+WidgetKit extensions run in a separate process with a strict **30MB RAM ceiling**. The extension bundle id is `com.mwirges.wx.ios.widget`. It does not link `WxCore` and it does not call NWS. The Go core remains the only weather implementation. The shell writes a small snapshot after each forecast/nowcast refresh.
+
 - **Lock Screen**:
   - `accessoryInline`: `☀️ 72° · Dry next 6h`
-  - `accessoryRectangular`: Current temp, high/low, and 15-min precip sparkline.
+  - `accessoryRectangular`: Current temp, high/low, and the precip headline plus a short sparkline.
+  - `accessoryCircular`: Current temperature.
 - **Home Screen**:
-  - `systemSmall`: Current observation card + radar thumbnail.
-  - `systemMedium`: 6-hour precip timeline + 3-day forecast.
-- **Data Sharing**: The iOS App and WidgetExtension share a local cache folder using an **Apple App Group container** (`group.com.mwirges.wx`), allowing the widget to read cached Go payloads instantly without redundant network calls.
+  - `systemSmall`: Current observation card + one radar thumbnail.
+  - `systemMedium`: Precip headline, up to six hourly chips, and up to three forecast periods.
+- **Radar thumbnail**: One frame, the current `image_base64` only (not the loop). ImageIO downsamples it to a longest edge of 72 px. The widget ignores a file larger than 32 KB or an image whose longest edge is over 72 px, so a full scan cannot land in the widget process.
+- **Data sharing**: The app and the widget read `widget-snapshot.json` and `radar-thumb.png` from the App Group container `group.com.mwirges.wx`. Those ids are in the local entitlements files used for simulator builds. There is no Apple Developer portal registration in this slice. When `containerURL(forSecurityApplicationGroupIdentifier:)` is nil, the shell writes the same files under Caches/`wx-widget-cache`. That fallback is per-process, so the widget only sees the snapshot when the group container is available.
 
 ### 6.2 Live Activities & Dynamic Island
-When active precipitation is detected:
-- The app automatically registers an `Activity<NowcastAttributes>`.
-- Displays real-time rain countdowns on the Lock Screen and in the Dynamic Island:
-  - *Dynamic Island Compact*: `💧 15m`
-  - *Dynamic Island Expanded*: Unicode intensity sparkline + estimated cessation time.
+The Live Activity widget lives in the same widget extension. Updates are local ActivityKit only: `Activity.request` / `update` / `end` with `pushType: nil`. No APNs, push token, or server. The app `Info.plist` sets `NSSupportsLiveActivities`.
+
+**Trigger rule.** The window is the next 60 minutes from the shell clock.
+
+- **Start** when the nowcast shows precipitation onset in that window. Onset is `next_precip_time` from now through 60 minutes, precipitation already falling (`is_active_precip`), or a precipitating nowcast interval that overlaps the window. A precipitating interval has phase rain, snow, freezing-rain, ice-pellets, or mixed, or a positive rate or accumulation. Probability alone does not count.
+- **Update** the running activity locally when a newer nowcast still shows precipitation in the window.
+- **End** the activity when a nowcast shows no precipitation in the window.
+
+Dynamic Island compact is `💧` plus the minutes label (`15m`, or `now` when precipitation is already falling). Expanded shows the temperature, the minutes label, the intensity sparkline, and the cessation time when the nowcast has one. The lock screen shows the same fields.
 
 ---
 
@@ -257,7 +264,7 @@ When active precipitation is detected:
 
 `make ios-framework-test` depends on `ios-framework`. It checks that `Info.plist` lists `ios-arm64` and `ios-arm64-simulator` (`plutil` and `PlistBuddy`), that each slice has `Headers` and `Headers/module.modulemap`, and that `nm` shows `WxRunJSON` and `WxFreeString` exported from each slice archive. Any miss exits nonzero.
 
-`make clean` removes `build/`, including the xcframework. The iOS app shell (`ios-build`, `ios-sim`) is milestone 3 and is not a Makefile target yet.
+`make clean` removes `build/`, including the xcframework. `make ios-build` builds the simulator shell and the widget extension (`com.mwirges.wx.ios.widget`). `make ios-ui-test` runs the widget timeline tests and the shell UI tests on the pinned simulator.
 
 ---
 
@@ -280,3 +287,4 @@ When active precipitation is detected:
 5. **Milestone 5: Widgets & Live Activities**
    - Implement `WidgetExtension` using App Group shared disk cache.
    - Implement Dynamic Island nowcasting timeline.
+   - Live Activity trigger: start on precipitation onset within 60 minutes, update locally as the nowcast changes, end when the window is dry. See §6.2.

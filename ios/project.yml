@@ -32,8 +32,10 @@ targets:
       - path: WxIOS
         excludes:
           - "Fixtures/**"
+          - "*.entitlements"
       - path: WxIOS/Fixtures
         buildPhase: resources
+      - path: Shared
       - path: ../macos/WxMac/Services/WeatherModels.swift
       - path: ../macos/WxMac/Services/WxTheme.swift
       - path: ../macos/WxMac/Services/WxConfig.swift
@@ -41,6 +43,9 @@ targets:
     dependencies:
       - framework: ../build/WxCore.xcframework
         embed: false
+        codeSign: false
+      - target: WxWidget
+        embed: true
         codeSign: false
     settings:
       base:
@@ -58,13 +63,65 @@ targets:
         CODE_SIGNING_REQUIRED: "NO"
         CODE_SIGN_IDENTITY: ""
         DEVELOPMENT_TEAM: ""
-        CODE_SIGN_ENTITLEMENTS: ""
+        CODE_SIGN_ENTITLEMENTS: WxIOS/WxIOS.entitlements
         LD_RUNPATH_SEARCH_PATHS: "@executable_path/Frameworks"
         OTHER_LDFLAGS: "-lresolv -lc++ -framework Security -framework CFNetwork"
         DEAD_CODE_STRIPPING: "NO"
     scheme:
       testTargets:
+        - WxWidgetTests
         - WxIOSUITests
+  WxWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: WxWidget
+        excludes:
+          - Info.plist
+          - "*.entitlements"
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.mwirges.wx.ios.widget
+        PRODUCT_NAME: WxWidget
+        INFOPLIST_FILE: WxWidget/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: WxWidget/WxWidget.entitlements
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        SDKROOT: iphonesimulator
+        SUPPORTED_PLATFORMS: iphonesimulator
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+        CODE_SIGNING_ALLOWED: "NO"
+        CODE_SIGNING_REQUIRED: "NO"
+        CODE_SIGN_IDENTITY: ""
+        DEVELOPMENT_TEAM: ""
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
+  WxWidgetTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: WxWidgetTests
+      - path: Shared
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.mwirges.wx.ios.widgettests
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        SDKROOT: iphonesimulator
+        SUPPORTED_PLATFORMS: iphonesimulator
+        SUPPORTS_MACCATALYST: NO
+        CODE_SIGNING_ALLOWED: "NO"
+        CODE_SIGNING_REQUIRED: "NO"
+        CODE_SIGN_IDENTITY: ""
+        DEVELOPMENT_TEAM: ""
+        TEST_HOST: ""
+        BUNDLE_LOADER: ""
   WxIOSUITests:
     type: bundle.ui-testing
     platform: iOS

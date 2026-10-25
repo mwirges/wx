@@ -27,6 +27,9 @@ struct IOSRootView: View {
                 if store.showsPowerProbe {
                     powerProbe
                 }
+                if store.showsLiveProbe {
+                    liveProbe
+                }
 
                 TabView(selection: $store.tab) {
                     SurfaceView()
@@ -79,6 +82,30 @@ struct IOSRootView: View {
             .font(.system(size: 11, weight: .semibold, design: .monospaced))
             .foregroundStyle(WxTheme.snwGold)
             .accessibilityIdentifier("power.clock.advance")
+        }
+        .accessibilityElement(children: .contain)
+        .padding(.horizontal, 12)
+    }
+
+    private var liveProbe: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 8) {
+                probe("live.status", store.liveStatus)
+                probe("live.id", store.liveActivityID)
+            }
+            HStack(spacing: 12) {
+                Button("Start onset") {
+                    Task { await store.injectLiveOnset() }
+                }
+                .accessibilityIdentifier("live.inject.onset")
+                Button("End dry") {
+                    Task { await store.injectLiveDry() }
+                }
+                .accessibilityIdentifier("live.inject.dry")
+            }
+            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+            .foregroundStyle(WxTheme.snwGold)
+            .buttonStyle(.plain)
         }
         .accessibilityElement(children: .contain)
         .padding(.horizontal, 12)
