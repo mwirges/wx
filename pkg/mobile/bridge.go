@@ -9,6 +9,11 @@ import (
 	"unsafe"
 )
 
+func init() {
+	// 40 MiB heap and a tighter GC keep this in-process runtime under iOS jetsam.
+	applyMobileLimits()
+}
+
 // WxRunJSON runs one allow-listed wx command.
 // argsJSON is a JSON array of strings, for example ["forecast","New Haven, IN"].
 // The returned string is JSON. On failure it is an error object and the

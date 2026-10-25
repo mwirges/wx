@@ -108,11 +108,24 @@ struct RadarTabView: View {
                         Text(radar.location)
                             .font(.system(size: 13))
                             .foregroundStyle(WxTheme.textSecondary)
-                        radarImage(radar.imageBase64)
-                        if !radar.frames.isEmpty {
-                            Text("\(radar.frames.count) frames")
-                                .font(.system(size: 12, design: .monospaced))
-                                .foregroundStyle(WxTheme.textSecondary)
+                        HStack {
+                            Text(store.loopPlaying ? "Loop" : "Held")
+                                .accessibilityIdentifier("radar.transport")
+                            Spacer()
+                            if !store.radarPictures.isEmpty {
+                                Text("\(store.loopFrame + 1)/\(store.radarPictures.count)")
+                                    .accessibilityIdentifier("radar.frame")
+                            }
+                        }
+                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                        .foregroundStyle(store.loopPlaying ? WxTheme.snwCyan : WxTheme.textSecondary)
+                        if let cgImage = store.currentRadarImage {
+                            Image(uiImage: UIImage(cgImage: cgImage))
+                                .resizable()
+                                .interpolation(.none)
+                                .scaledToFit()
+                                .frame(maxWidth: .infinity, maxHeight: 240)
+                                .accessibilityIdentifier("radar.image")
                         }
                     }
                 } else if !store.radarLoading && store.radarError == nil {
@@ -124,19 +137,6 @@ struct RadarTabView: View {
             .accessibilityElement(children: .contain)
         }
         .accessibilityIdentifier("radar.root")
-    }
-
-    @ViewBuilder
-    private func radarImage(_ b64: String) -> some View {
-        if let data = Data(base64Encoded: b64, options: .ignoreUnknownCharacters),
-           let image = UIImage(data: data) {
-            Image(uiImage: image)
-                .resizable()
-                .interpolation(.none)
-                .scaledToFit()
-                .frame(maxWidth: .infinity, maxHeight: 240)
-                .accessibilityIdentifier("radar.image")
-        }
     }
 }
 

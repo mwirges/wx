@@ -145,7 +145,9 @@ func parseArgs(argsJSON string) ([]string, string, error) {
 }
 
 // rejectedFlags change the output away from JSON, write a file, or enter an
-// interactive loop. The bridge always wants one JSON document on stdout.
+// interactive loop. The bridge always adds --json, so it wants one JSON
+// document on stdout. --loop / -L stay allowed: with --json the radar
+// command returns frames and exits, and does not run the terminal animation.
 var rejectedFlags = map[string]struct{}{
 	"--short":               {},
 	"-s":                    {},
@@ -156,8 +158,6 @@ var rejectedFlags = map[string]struct{}{
 	"--force-pretty":        {},
 	"--interactive":         {},
 	"-i":                    {},
-	"--loop":                {},
-	"-L":                    {},
 	"--no-inline":           {},
 	"--exit-code-on-alerts": {},
 }
