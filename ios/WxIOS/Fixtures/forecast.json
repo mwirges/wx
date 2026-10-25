@@ -1,0 +1,70 @@
+{
+  "conditions": {
+    "station": "KFWA",
+    "observed_at": "2026-10-25T18:00:00Z",
+    "location": "New Haven, IN",
+    "description": "Fixture Partly Cloudy",
+    "condition_code": "partly-cloudy-day",
+    "temperature_f": 72,
+    "temperature_c": 22,
+    "feels_like_f": 70,
+    "dew_point_f": 55,
+    "dew_point_c": 13,
+    "humidity_pct": 48,
+    "wind_mph": 8,
+    "wind_kph": 13,
+    "wind_direction": "SW",
+    "pressure_inhg": 30.05,
+    "pressure_hpa": 1018,
+    "visibility_mi": 10,
+    "visibility_m": 16093,
+    "air_quality": {
+      "aqi": 42,
+      "category": "Good",
+      "uv_index": 3.0,
+      "uv_category": "Moderate"
+    },
+    "astronomy": {
+      "moon_phase": "Fixture Waxing",
+      "day_length": "11h"
+    },
+    "nowcast": {
+      "headline": "Fixture Dry next 6h",
+      "summary": "Fixture dry window.",
+      "is_active_precip": false,
+      "primary_phase": "none"
+    }
+  },
+  "forecast": {
+    "generated_at": "2026-10-25T18:00:00Z",
+    "periods": [
+      {
+        "name": "Fixture Tuesday",
+        "start_time": "2026-10-25T16:00:00Z",
+        "is_daytime": true,
+        "temperature_f": 72,
+        "temperature_c": 22,
+        "short_description": "Fixture sun",
+        "probability_of_precipitation": 10
+      },
+      {
+        "name": "Fixture Tuesday Night",
+        "is_daytime": false,
+        "temperature_f": 51,
+        "temperature_c": 11,
+        "short_description": "Fixture clear"
+      }
+    ],
+    "hourly": [
+      {
+        "name": "15:00",
+        "is_daytime": true,
+        "temperature_f": 70,
+        "temperature_c": 21,
+        "short_description": "Fixture hour",
+        "probability_of_precipitation": 5
+      }
+    ]
+  },
+  "alerts": []
+}

@@ -28,4 +28,8 @@ __pycache__/
 macos/build/
 macos/WxMac.xcodeproj/
 
+# iOS shell derived data
+ios/build/
+ios/WxIOS.xcodeproj/
+
 macos/qa-shots/

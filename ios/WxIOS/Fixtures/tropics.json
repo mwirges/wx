@@ -1,0 +1,28 @@
+{
+  "location": "New Haven, IN",
+  "tropics": {
+    "generated_at": "2026-10-25T18:00:00Z",
+    "total_active": 1,
+    "storms": [
+      {
+        "id": "AL012026",
+        "name": "Fixture Storm",
+        "classification": "TS",
+        "category": 0,
+        "intensity_kt": 45,
+        "wind_speed_mph": 50,
+        "wind_speed_kmh": 85,
+        "pressure_mb": 1000,
+        "pressure_inhg": 29.53,
+        "latitude": 25.0,
+        "longitude": -80.0,
+        "location_text": "25.0N 80.0W",
+        "movement_dir": 360,
+        "movement_compass": "N",
+        "movement_speed_mph": 10,
+        "movement_speed_kmh": 16,
+        "headline": "Fixture Storm advisory"
+      }
+    ]
+  }
+}

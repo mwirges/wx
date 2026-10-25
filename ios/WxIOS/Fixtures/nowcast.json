@@ -1,0 +1,11 @@
+{
+  "location": "New Haven, IN",
+  "nowcast": {
+    "headline": "Fixture Dry next 6h",
+    "summary": "No precipitation in the fixture window.",
+    "is_active_precip": false,
+    "primary_phase": "none",
+    "total_liquid_in": 0,
+    "intervals": []
+  }
+}

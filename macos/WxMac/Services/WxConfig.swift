@@ -50,8 +50,15 @@ enum WxConfig {
             .trimmingCharacters(in: .whitespacesAndNewlines), !override.isEmpty {
             return URL(fileURLWithPath: override)
         }
+        #if os(iOS)
+        // homeDirectoryForCurrentUser is unavailable in the iOS sandbox.
+        let base = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+            ?? URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+        return base.appendingPathComponent("wx-config.json")
+        #else
         return FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".config/wx/config.json")
+        #endif
     }
 
     static func load() -> WxConfigFile {
