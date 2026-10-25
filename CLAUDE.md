@@ -12,6 +12,8 @@ make build-all    # cross-compile for darwin/linux/windows
 make test         # go test ./... -count=1
 make test-verbose # same with -v
 make vet          # go vet ./...
+make ios-framework       # device + simulator arm64 → build/WxCore.xcframework
+make ios-framework-test  # check slices, module map, and exports
 make mac-build    # build macOS SwiftUI app (macos/)
 make mac-run      # build & launch macOS app
 make mac-dmg      # package release DMG installer (build/wx.dmg, alias: make dmg)
