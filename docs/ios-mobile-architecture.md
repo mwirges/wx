@@ -187,7 +187,7 @@ Mobile power management is fundamentally different from desktop. The following p
 | :--- | :--- | :--- |
 | **GPS Tracking** | Continuous tracking (`startUpdatingLocation`) burns **10–15% battery/hr**. | Use **One-Shot Location** (`CLLocationManager.requestLocation()`). Powers up the GPS radio, gets a fix in ~1.5s, and powers down immediately. For tracking while moving, use **Significant Change Service** (cell-tower handoffs only; ~0% battery). |
 | **Cellular Tail Energy** | Staggered HTTP calls keep the 5G/LTE radio in high-power state for 10–15s after each call. | **Batch all requests in parallel**. Fire conditions, nowcast, alerts, and radar simultaneously. The cellular modem powers up once, transfers all data in <1s, and returns to sleep. |
-| **Radar Animation** | 60fps loops burning GPU/CPU when screen is locked or tab is hidden. | Automatically pause animations on `scenePhase != .active` or when navigating away from the radar tab. Render radar loops at **10–15 fps** (matching radar scan dwell intervals). Cache decoded `CGImage` frames in memory; never re-decode base64 PNGs on every frame. |
+| **Radar Animation** | 60fps loops burning GPU/CPU when screen is locked or tab is hidden. | Automatically pause animations on `scenePhase != .active`. On iPhone the loop runs only on the Radar tab. On the iPad split desk the loop runs while the radar pane is on screen, and pauses when that pane is gone. Render radar loops at **10–15 fps** (matching radar scan dwell intervals). Cache decoded `CGImage` frames in memory; never re-decode base64 PNGs on every frame. |
 | **Memory / Jetsam Kills** | Go's default `GOGC=100` allows heap to double before GC runs, risking OS termination. | Call `debug.SetMemoryLimit(40 * 1024 * 1024)` (`GOMEMLIMIT=40MiB`) and `debug.SetGCPercent(50)` at startup. Keeps peak resident memory well below iOS warning thresholds. |
 
 ---
@@ -200,7 +200,7 @@ Mobile power management is fundamentally different from desktop. The following p
 - **Telemetry Views**: `NowBlockView`, `PeriodsListView`, `NowcastCardView`, `StormChaseView`, `TropicsView`, `ClimateTrendsView`, `CommandGridView`.
 
 ### 5.2 iOS Navigation Shell
-Replace macOS `NSWindow` / `NSStatusItem` / `NSPopover` with an iOS-native `TabView`:
+On iPhone, and whenever the horizontal size class is compact, replace macOS `NSWindow` / `NSStatusItem` / `NSPopover` with an iOS-native `TabView`:
 
 ```
 +-----------------------------------------------------------+
@@ -221,7 +221,15 @@ Replace macOS `NSWindow` / `NSStatusItem` / `NSPopover` with an iOS-native `TabV
 ```
 
 ### 5.3 iPadOS Adaptive Layout
-On iPad (and iPhone in landscape), the interface automatically expands to a **Split-Pane Command Console** (reusing the desktop `Dual` mode), displaying the Radar array side-by-side with Atmospheric Telemetry.
+
+`TARGETED_DEVICE_FAMILY` is `1,2` (iPhone and iPad). The Xcode project stays simulator-only: `SDKROOT` is `iphonesimulator`, signing is off, and there is no Apple Developer portal, team, or certificate. The widget extension uses the same device family, still does not link `WxCore`, and still does not call NWS.
+
+The shell reads the horizontal size class and the device idiom. The split is shown only when both say iPad and regular width. A nil size class stays on the phone tabs until SwiftUI reports regular.
+
+- **iPad, regular width** (full-screen iPad, portrait or landscape): a split desk, the same idea as the Mac dual desk (`DeskWindowView` when the desk tab is dual and the window is wide). Atmospheric telemetry is the left pane: the existing `SurfaceView` (observation, nowcast, days, hourly), titled `TELEMETRY`, identifier `desk.telemetry`. The radar array is the right pane: the existing `RadarTabView`, titled `RADAR`, identifier `desk.radar`. The pair is `desk.split`. The left column is 40% of the width, clamped to 340–480 points. A one-point cyan rule separates the panes. The custom tab bar stays. Surface and Radar both show this desk. Tactical, Severe, Tropics, and Config stay one full-width page. The radar loop runs while this desk is on screen, because the radar pane is visible, and pauses when the user leaves the desk or the scene is inactive.
+- **iPhone, and any compact width** (including iPad Slide Over and a narrow split): the `TabView` in §5.2 is unchanged. The radar loop still runs only on the Radar tab. The split identifiers are absent.
+
+The Go core stays the only weather implementation. The split is a SwiftUI arrangement of the same shell views. It does not fetch weather on its own. `refreshSurface` already batches the forecast, nowcast, alerts, and radar in one radio wake, so opening the desk does not add a second radar call.
 
 ---
 
@@ -264,7 +272,7 @@ Dynamic Island compact is `💧` plus the minutes label (`15m`, or `now` when pr
 
 `make ios-framework-test` depends on `ios-framework`. It checks that `Info.plist` lists `ios-arm64` and `ios-arm64-simulator` (`plutil` and `PlistBuddy`), that each slice has `Headers` and `Headers/module.modulemap`, and that `nm` shows `WxRunJSON` and `WxFreeString` exported from each slice archive. Any miss exits nonzero.
 
-`make clean` removes `build/`, including the xcframework. `make ios-build` builds the simulator shell and the widget extension (`com.mwirges.wx.ios.widget`). `make ios-ui-test` runs the widget timeline tests and the shell UI tests on the pinned simulator.
+`make clean` removes `build/`, including the xcframework. `make ios-build` builds the simulator shell and the widget extension (`com.mwirges.wx.ios.widget`) for iPhone and iPad (`UIDeviceFamily` 1 and 2). `make ios-ui-test` runs the widget timeline tests and the shell UI tests on the pinned iPhone simulator (`IOS_SIMULATOR` in `ios/Makefile`), then `WxPadSplitUITests` on the pinned iPad simulator (`IPAD_SIMULATOR`). Those tests use bundled fixtures. They do not call NWS. The iPad test asserts `desk.split`, `desk.telemetry`, and `desk.radar` are on screen together, along with the surface and radar fixture strings.
 
 ---
 
@@ -279,7 +287,7 @@ Dynamic Island compact is `💧` plus the minutes label (`15m`, or `now` when pr
 3. **Milestone 3: iOS Shell & SwiftUI Binding**
    - Create `ios/` Xcode project referencing `WxCore.xcframework`.
    - Implement `WxBridge.swift` and connect to existing `WeatherStore`.
-   - Wire `TabView` with `Surface`, `Tactical`, `Radar`, and `Tropics`.
+   - Wire `TabView` with `Surface`, `Tactical`, `Radar`, and `Tropics`. On iPad regular width, show the split desk from §5.3.
 4. **Milestone 4: Power & Touch Polish**
    - Hook up One-Shot CoreLocation GPS.
    - Implement background suspension pauses for radar animations.

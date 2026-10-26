@@ -12,7 +12,7 @@ settings:
   base:
     SWIFT_VERSION: "5.10"
     IPHONEOS_DEPLOYMENT_TARGET: "17.0"
-    TARGETED_DEVICE_FAMILY: "1"
+    TARGETED_DEVICE_FAMILY: "1,2"
     SDKROOT: iphonesimulator
     SUPPORTED_PLATFORMS: iphonesimulator
     SUPPORTS_MACCATALYST: NO
@@ -53,7 +53,7 @@ targets:
         PRODUCT_NAME: wx
         INFOPLIST_FILE: WxIOS/Info.plist
         GENERATE_INFOPLIST_FILE: false
-        TARGETED_DEVICE_FAMILY: "1"
+        TARGETED_DEVICE_FAMILY: "1,2"
         SDKROOT: iphonesimulator
         SUPPORTED_PLATFORMS: iphonesimulator
         SUPPORTS_MACCATALYST: NO
@@ -90,7 +90,7 @@ targets:
         APPLICATION_EXTENSION_API_ONLY: YES
         SKIP_INSTALL: YES
         IPHONEOS_DEPLOYMENT_TARGET: "17.0"
-        TARGETED_DEVICE_FAMILY: "1"
+        TARGETED_DEVICE_FAMILY: "1,2"
         SDKROOT: iphonesimulator
         SUPPORTED_PLATFORMS: iphonesimulator
         SUPPORTS_MACCATALYST: NO
@@ -112,7 +112,7 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: com.mwirges.wx.ios.widgettests
         IPHONEOS_DEPLOYMENT_TARGET: "17.0"
-        TARGETED_DEVICE_FAMILY: "1"
+        TARGETED_DEVICE_FAMILY: "1,2"
         SDKROOT: iphonesimulator
         SUPPORTED_PLATFORMS: iphonesimulator
         SUPPORTS_MACCATALYST: NO
@@ -134,7 +134,7 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: com.mwirges.wx.ios.uitests
         IPHONEOS_DEPLOYMENT_TARGET: "17.0"
-        TARGETED_DEVICE_FAMILY: "1"
+        TARGETED_DEVICE_FAMILY: "1,2"
         SDKROOT: iphonesimulator
         SUPPORTED_PLATFORMS: iphonesimulator
         SUPPORTS_MACCATALYST: NO

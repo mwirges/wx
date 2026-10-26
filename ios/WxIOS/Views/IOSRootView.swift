@@ -1,7 +1,14 @@
 import SwiftUI
+import UIKit
 
 struct IOSRootView: View {
     @EnvironmentObject private var store: IOSStore
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    /// Full-screen iPad is regular width. iPhone, and a compact iPad split, keep the phone tabs.
+    private var showsSplitDesk: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad && horizontalSizeClass == .regular
+    }
 
     var body: some View {
         ZStack {
@@ -31,37 +38,112 @@ struct IOSRootView: View {
                     liveProbe
                 }
 
-                TabView(selection: $store.tab) {
-                    SurfaceView()
-                        .tag(IOSTab.surface)
-                        .tabItem { Label("Surface", systemImage: IOSTab.surface.symbol) }
-                    TacticalView()
-                        .tag(IOSTab.tactical)
-                        .tabItem { Label("Tactical", systemImage: IOSTab.tactical.symbol) }
-                    RadarTabView()
-                        .tag(IOSTab.radar)
-                        .tabItem { Label("Radar", systemImage: IOSTab.radar.symbol) }
-                    SevereView()
-                        .tag(IOSTab.severe)
-                        .tabItem { Label("Severe", systemImage: IOSTab.severe.symbol) }
-                    TropicsTabView()
-                        .tag(IOSTab.tropics)
-                        .tabItem { Label("Tropics", systemImage: IOSTab.tropics.symbol) }
-                    ConfigView()
-                        .tag(IOSTab.config)
-                        .tabItem { Label("Config", systemImage: IOSTab.config.symbol) }
+                Group {
+                    if showsSplitDesk {
+                        padContent
+                    } else {
+                        phoneTabs
+                    }
                 }
-                .tint(WxTheme.snwCyan)
-                .toolbar(.hidden, for: .tabBar)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             tabBar
         }
+        .onAppear { syncPane() }
+        .onChange(of: horizontalSizeClass) { _, _ in
+            syncPane()
+        }
         .onChange(of: store.tab) { _, tab in
-            store.syncRadarLoop()
+            syncPane()
             Task { await store.ensure(tab) }
         }
+    }
+
+    private var phoneTabs: some View {
+        TabView(selection: $store.tab) {
+            SurfaceView()
+                .tag(IOSTab.surface)
+                .tabItem { Label("Surface", systemImage: IOSTab.surface.symbol) }
+            TacticalView()
+                .tag(IOSTab.tactical)
+                .tabItem { Label("Tactical", systemImage: IOSTab.tactical.symbol) }
+            RadarTabView()
+                .tag(IOSTab.radar)
+                .tabItem { Label("Radar", systemImage: IOSTab.radar.symbol) }
+            SevereView()
+                .tag(IOSTab.severe)
+                .tabItem { Label("Severe", systemImage: IOSTab.severe.symbol) }
+            TropicsTabView()
+                .tag(IOSTab.tropics)
+                .tabItem { Label("Tropics", systemImage: IOSTab.tropics.symbol) }
+            ConfigView()
+                .tag(IOSTab.config)
+                .tabItem { Label("Config", systemImage: IOSTab.config.symbol) }
+        }
+        .tint(WxTheme.snwCyan)
+        .toolbar(.hidden, for: .tabBar)
+    }
+
+    @ViewBuilder
+    private var padContent: some View {
+        switch store.tab {
+        case .surface, .radar:
+            splitDesk
+        case .tactical:
+            TacticalView()
+        case .severe:
+            SevereView()
+        case .tropics:
+            TropicsTabView()
+        case .config:
+            ConfigView()
+        }
+    }
+
+    /// Same idea as the Mac dual desk: telemetry on the left, radar filling the right.
+    private var splitDesk: some View {
+        GeometryReader { geo in
+            let leftWidth = min(480, max(340, geo.size.width * 0.40))
+            HStack(alignment: .top, spacing: 0) {
+                VStack(alignment: .leading, spacing: 6) {
+                    paneTitle("TELEMETRY", id: "desk.telemetry")
+                    SurfaceView()
+                        .frame(maxHeight: .infinity)
+                }
+                .frame(width: leftWidth, height: geo.size.height)
+
+                Rectangle()
+                    .fill(WxTheme.snwCyan.opacity(0.35))
+                    .frame(width: 1)
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    paneTitle("RADAR", id: "desk.radar")
+                    RadarTabView()
+                        .frame(maxHeight: .infinity)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: geo.size.height)
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("desk.split")
+        }
+    }
+
+    private func paneTitle(_ title: String, id: String) -> some View {
+        Text(title)
+            .font(.system(size: 11, weight: .bold, design: .monospaced))
+            .foregroundStyle(WxTheme.snwCyan)
+            .padding(.horizontal, 12)
+            .padding(.top, 4)
+            .accessibilityIdentifier(id)
+    }
+
+    private func syncPane() {
+        let radarVisible = showsSplitDesk && (store.tab == .surface || store.tab == .radar)
+        store.setRadarPaneOnScreen(radarVisible)
     }
 
     private var powerProbe: some View {
@@ -124,7 +206,7 @@ struct IOSRootView: View {
             ForEach(IOSTab.allCases) { tab in
                 Button {
                     store.tab = tab
-                    store.syncRadarLoop()
+                    syncPane()
                 } label: {
                     VStack(spacing: 2) {
                         Image(systemName: tab.symbol)

@@ -101,7 +101,7 @@ ios-framework:
 ios-framework-test: ios-framework
 	@./scripts/ios-framework-test.sh
 
-## ios-build: Build the iPhone shell for the pinned simulator. No signing.
+## ios-build: Build the simulator shell (iPhone and iPad) for the pinned iPhone simulator. No signing.
 .PHONY: ios-build
 ios-build:
 	@test -d $(BUILD_DIR)/WxCore.xcframework || $(MAKE) ios-framework
@@ -113,7 +113,7 @@ ios-sim:
 	@test -d $(BUILD_DIR)/WxCore.xcframework || $(MAKE) ios-framework
 	$(MAKE) -C ios sim
 
-## ios-ui-test: XCUITest the iPhone shell against bundled fixtures
+## ios-ui-test: XCUITest the iPhone shell and the iPad split pane against bundled fixtures
 .PHONY: ios-ui-test
 ios-ui-test:
 	@test -d $(BUILD_DIR)/WxCore.xcframework || $(MAKE) ios-framework

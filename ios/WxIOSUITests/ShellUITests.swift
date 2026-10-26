@@ -18,6 +18,7 @@ final class WxIOSShellUITests: XCTestCase {
         app.launch()
 
         assertSurface(app)
+        XCTAssertFalse(app.descendants(matching: .any)["desk.split"].exists, "iPhone showed the iPad split. \(dump(app))")
         open(app, "Tactical")
         XCTAssertTrue(text(app, "Tactical sensors").waitForExistence(timeout: 5), dump(app))
         open(app, "Radar")
