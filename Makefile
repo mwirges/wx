@@ -94,6 +94,7 @@ ios-framework:
 	  -library "$(BUILD_DIR)/ios/arm64-device/libwxcore.a" -headers "$(BUILD_DIR)/ios/arm64-device/Headers" \
 	  -library "$(BUILD_DIR)/ios/arm64-simulator/libwxcore.a" -headers "$(BUILD_DIR)/ios/arm64-simulator/Headers" \
 	  -output "$(BUILD_DIR)/WxCore.xcframework"
+	cp ios/WxCore/PrivacyInfo.xcprivacy "$(BUILD_DIR)/WxCore.xcframework/PrivacyInfo.xcprivacy"
 	@echo "Built $(BUILD_DIR)/WxCore.xcframework"
 
 ## ios-framework-test: Check WxCore.xcframework slices, module map, and exports
@@ -118,6 +119,12 @@ ios-sim:
 ios-ui-test:
 	@test -d $(BUILD_DIR)/WxCore.xcframework || $(MAKE) ios-framework
 	$(MAKE) -C ios ui-test
+
+## ios-archive: Unsigned Release device .xcarchive and content checks. Not part of `make test`.
+.PHONY: ios-archive
+ios-archive:
+	@test -f $(BUILD_DIR)/WxCore.xcframework/ios-arm64/libwxcore.a || $(MAKE) ios-framework
+	$(MAKE) -C ios archive
 
 ## build-all: Cross-compile for all supported platforms → build/wx-{os}-{arch}[.exe]
 .PHONY: build-all

@@ -13,17 +13,30 @@ settings:
     SWIFT_VERSION: "5.10"
     IPHONEOS_DEPLOYMENT_TARGET: "17.0"
     TARGETED_DEVICE_FAMILY: "1,2"
-    SDKROOT: iphonesimulator
-    SUPPORTED_PLATFORMS: iphonesimulator
     SUPPORTS_MACCATALYST: NO
     SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
     SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
     CODE_SIGNING_ALLOWED: "NO"
     CODE_SIGNING_REQUIRED: "NO"
     CODE_SIGN_IDENTITY: ""
+    # Real team ID stays out of the repo. Signed export uses $(WX_TEAM_ID).
     DEVELOPMENT_TEAM: ""
     ARCHS: arm64
-    ONLY_ACTIVE_ARCH: YES
+    EXCLUDED_ARCHS: "i386 x86_64"
+    ENABLE_BITCODE: NO
+  # Debug stays on the simulator SDK. Release is the device SDK so an
+  # App Store archive is not a simulator slice.
+  configs:
+    Debug:
+      SDKROOT: iphonesimulator
+      SUPPORTED_PLATFORMS: iphonesimulator
+      ONLY_ACTIVE_ARCH: YES
+    Release:
+      SDKROOT: iphoneos
+      SUPPORTED_PLATFORMS: iphoneos
+      ONLY_ACTIVE_ARCH: NO
+      DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+      ENABLE_BITCODE: NO
 targets:
   WxIOS:
     type: application
@@ -33,6 +46,9 @@ targets:
         excludes:
           - "Fixtures/**"
           - "*.entitlements"
+          - PrivacyInfo.xcprivacy
+      - path: WxIOS/PrivacyInfo.xcprivacy
+        buildPhase: resources
       - path: WxIOS/Fixtures
         buildPhase: resources
       - path: Shared
@@ -46,7 +62,7 @@ targets:
         codeSign: false
       - target: WxWidget
         embed: true
-        codeSign: false
+        codeSign: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.mwirges.wx.ios
@@ -54,8 +70,8 @@ targets:
         INFOPLIST_FILE: WxIOS/Info.plist
         GENERATE_INFOPLIST_FILE: false
         TARGETED_DEVICE_FAMILY: "1,2"
-        SDKROOT: iphonesimulator
-        SUPPORTED_PLATFORMS: iphonesimulator
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: YES
         SUPPORTS_MACCATALYST: NO
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
@@ -67,7 +83,23 @@ targets:
         LD_RUNPATH_SEARCH_PATHS: "@executable_path/Frameworks"
         OTHER_LDFLAGS: "-lresolv -lc++ -framework Security -framework CFNetwork"
         DEAD_CODE_STRIPPING: "NO"
+        ENABLE_BITCODE: NO
+      configs:
+        Debug:
+          SDKROOT: iphonesimulator
+          SUPPORTED_PLATFORMS: iphonesimulator
+        Release:
+          SDKROOT: iphoneos
+          SUPPORTED_PLATFORMS: iphoneos
+          DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
     scheme:
+      archive:
+        config: Release
+        revealArchiveInOrganizer: false
+      run:
+        config: Debug
+      test:
+        config: Debug
       testTargets:
         - WxWidgetTests
         - WxIOSUITests
@@ -79,6 +111,9 @@ targets:
         excludes:
           - Info.plist
           - "*.entitlements"
+          - PrivacyInfo.xcprivacy
+      - path: WxWidget/PrivacyInfo.xcprivacy
+        buildPhase: resources
       - path: Shared
     settings:
       base:
@@ -91,8 +126,6 @@ targets:
         SKIP_INSTALL: YES
         IPHONEOS_DEPLOYMENT_TARGET: "17.0"
         TARGETED_DEVICE_FAMILY: "1,2"
-        SDKROOT: iphonesimulator
-        SUPPORTED_PLATFORMS: iphonesimulator
         SUPPORTS_MACCATALYST: NO
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
@@ -100,7 +133,16 @@ targets:
         CODE_SIGNING_REQUIRED: "NO"
         CODE_SIGN_IDENTITY: ""
         DEVELOPMENT_TEAM: ""
+        ENABLE_BITCODE: NO
         LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
+      configs:
+        Debug:
+          SDKROOT: iphonesimulator
+          SUPPORTED_PLATFORMS: iphonesimulator
+        Release:
+          SDKROOT: iphoneos
+          SUPPORTED_PLATFORMS: iphoneos
+          DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
   WxWidgetTests:
     type: bundle.unit-test
     platform: iOS
@@ -113,8 +155,6 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.mwirges.wx.ios.widgettests
         IPHONEOS_DEPLOYMENT_TARGET: "17.0"
         TARGETED_DEVICE_FAMILY: "1,2"
-        SDKROOT: iphonesimulator
-        SUPPORTED_PLATFORMS: iphonesimulator
         SUPPORTS_MACCATALYST: NO
         CODE_SIGNING_ALLOWED: "NO"
         CODE_SIGNING_REQUIRED: "NO"
@@ -122,6 +162,13 @@ targets:
         DEVELOPMENT_TEAM: ""
         TEST_HOST: ""
         BUNDLE_LOADER: ""
+      configs:
+        Debug:
+          SDKROOT: iphonesimulator
+          SUPPORTED_PLATFORMS: iphonesimulator
+        Release:
+          SDKROOT: iphonesimulator
+          SUPPORTED_PLATFORMS: iphonesimulator
   WxIOSUITests:
     type: bundle.ui-testing
     platform: iOS
@@ -135,11 +182,16 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.mwirges.wx.ios.uitests
         IPHONEOS_DEPLOYMENT_TARGET: "17.0"
         TARGETED_DEVICE_FAMILY: "1,2"
-        SDKROOT: iphonesimulator
-        SUPPORTED_PLATFORMS: iphonesimulator
         SUPPORTS_MACCATALYST: NO
         CODE_SIGNING_ALLOWED: "NO"
         CODE_SIGNING_REQUIRED: "NO"
         CODE_SIGN_IDENTITY: ""
         DEVELOPMENT_TEAM: ""
         TEST_TARGET_NAME: WxIOS
+      configs:
+        Debug:
+          SDKROOT: iphonesimulator
+          SUPPORTED_PLATFORMS: iphonesimulator
+        Release:
+          SDKROOT: iphonesimulator
+          SUPPORTED_PLATFORMS: iphonesimulator
