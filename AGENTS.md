@@ -16,6 +16,7 @@ make mac-run      # build & run macOS app
 make mac-dmg      # package release DMG (build/wx.dmg, alias: make dmg)
 make linux-desk   # build Linux desk (build/wx-desk)
 make linux-deb    # package Linux CLI and desk (build/wx_VERSION_arch.deb)
+make tls-smoke    # live TLS dial of upstream hosts; not part of make test
 make help         # list targets
 ```
 
@@ -78,4 +79,4 @@ All measurements in SI: °C, km/h, hPa, meters. All value fields are `*float64` 
 
 ## Go version
 
-Requires Go 1.26.1 (see go.mod).
+Requires Go 1.26.10 with toolchain go1.27.3 (see go.mod). That toolchain includes the crypto/x509 fix for CVE-2026-111943. wx trusts the operating-system CA roots only; see README "TLS and certificate authorities".

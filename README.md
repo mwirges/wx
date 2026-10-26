@@ -478,6 +478,12 @@ Use `--no-cache` to bypass the local cache for a fresh fetch.
 | Zip / City Geocoding | [Nominatim](https://nominatim.openstreetmap.org) (OpenStreetMap) |
 | IP Geolocation | [ipinfo.io](https://ipinfo.io) (free tier) |
 
+### TLS and certificate authorities
+
+wx verifies upstream HTTPS with Go's default transport and the operating system's trust store. It does not ship a CA bundle, does not import `golang.org/x/crypto/x509roots/fallback`, and does not set `InsecureSkipVerify` or a custom `RootCAs` pool. On macOS and iOS, Go verifies through the platform API, so operating-system CA blocks apply. On Linux, Go reads the distro CA bundle (`ca-certificates`). The module is `go 1.26.10` with `toolchain go1.27.3`, which includes the October 2026 `crypto/x509` fixes (CVE-2026-111943).
+
+`make tls-smoke` dials each upstream host on port 443 with those system roots. It needs the live network and is not part of `make test` or the default gates.
+
 ---
 
 ## Development
@@ -493,6 +499,7 @@ make mac-run        # build and launch macOS app
 make mac-dmg        # package release macOS app into build/wx.dmg (alias: make dmg)
 make linux-desk     # build the Linux desk (build/wx-desk)
 make linux-deb      # package the Linux CLI and desk (build/wx_VERSION_arch.deb)
+make tls-smoke      # dial upstream hosts with system roots (live network; not part of make test)
 make release        # build, test, package, tag, and publish GitHub release (or make release VERSION=X.Y.Z)
 make release-patch  # bump patch version and release
 make release-minor  # bump minor version and release
