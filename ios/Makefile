@@ -7,6 +7,8 @@ DERIVED  := build
 # Xcode 27, runtime iOS 27.0, device "iPhone 17". The id lives only here.
 # name= is omitted: xcodebuild will not match this UDID when the name contains a space.
 IOS_SIMULATOR := platform=iOS Simulator,id=C5357135-AE11-4E33-B95C-B4D7D9031047,OS=27.0
+# Xcode 27, runtime iOS 27.0, device "iPad Pro 11-inch (M5)". The id lives only here.
+IPAD_SIMULATOR := platform=iOS Simulator,id=B9A7FDAF-37E8-45BE-A3DA-5902B7A84D63,OS=27.0
 
 comma := ,
 empty :=
@@ -38,6 +40,8 @@ check-app:
 	test -f "$$INFO"; \
 	id="$$(plutil -extract CFBundleIdentifier raw -o - "$$INFO")"; \
 	test "$$id" = "com.mwirges.wx.ios"; \
+	family="$$(plutil -extract UIDeviceFamily json -o - "$$INFO" | tr -d '[:space:]')"; \
+	test "$$family" = "[1,2]"; \
 	plutil -extract NSLocationWhenInUseUsageDescription raw -o - "$$INFO" >/dev/null; \
 	if plutil -extract NSLocationAlwaysAndWhenInUseUsageDescription raw -o - "$$INFO" >/dev/null 2>&1; then \
 	  echo "ios: NSLocationAlwaysAndWhenInUseUsageDescription is set" >&2; exit 1; \
@@ -60,6 +64,8 @@ check-app:
 	test -f "$$APPEX/Info.plist"; \
 	wid="$$(plutil -extract CFBundleIdentifier raw -o - "$$APPEX/Info.plist")"; \
 	test "$$wid" = "com.mwirges.wx.ios.widget"; \
+	wfamily="$$(plutil -extract UIDeviceFamily json -o - "$$APPEX/Info.plist" | tr -d '[:space:]')"; \
+	test "$$wfamily" = "[1,2]"; \
 	point="$$(plutil -extract NSExtension.NSExtensionPointIdentifier raw -o - "$$APPEX/Info.plist")"; \
 	test "$$point" = "com.apple.widgetkit-extension"; \
 	test -f "$$APPEX/WxWidget"; \
@@ -70,7 +76,7 @@ check-app:
 	if [ "$$bytes" -gt 8388608 ]; then \
 	  echo "ios: widget binary is $$bytes bytes" >&2; exit 1; \
 	fi; \
-	echo "ios app ok $$id widget $$wid simulator $(IOS_SIM_ID)"
+	echo "ios app ok $$id family $$family widget $$wid family $$wfamily simulator $(IOS_SIM_ID)"
 
 ## sim: Install and launch on the pinned simulator. Fixture data, no live NWS.
 sim: build
@@ -83,7 +89,7 @@ sim: build
 	SIMCTL_CHILD_WX_DEFAULT_LOCATION="New Haven, IN" \
 	xcrun simctl launch --terminate-running-process "$(IOS_SIM_ID)" com.mwirges.wx.ios
 
-## ui-test: XCUITest against bundled fixtures on the pinned simulator
+## ui-test: iPhone widget + shell UI tests, then the iPad split-pane UI test. Fixtures only.
 ui-test: build
 	xcodebuild -project WxIOS.xcodeproj -scheme $(SCHEME) -configuration $(CONFIG) \
 	  -destination '$(IOS_SIMULATOR)' -derivedDataPath $(DERIVED) \
@@ -91,4 +97,11 @@ ui-test: build
 	  -maximum-concurrent-test-simulator-destinations 1 \
 	  -only-testing:WxWidgetTests \
 	  -only-testing:WxIOSUITests \
+	  -skip-testing:WxIOSUITests/WxPadSplitUITests \
+	  $(SIGN_OVERRIDES) test
+	xcodebuild -project WxIOS.xcodeproj -scheme $(SCHEME) -configuration $(CONFIG) \
+	  -destination '$(IPAD_SIMULATOR)' -derivedDataPath $(DERIVED) \
+	  -parallel-testing-enabled NO \
+	  -maximum-concurrent-test-simulator-destinations 1 \
+	  -only-testing:WxIOSUITests/WxPadSplitUITests \
 	  $(SIGN_OVERRIDES) test

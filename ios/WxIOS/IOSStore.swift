@@ -55,6 +55,9 @@ final class IOSStore: ObservableObject {
     @Published private(set) var loopFrame = 0
     @Published private(set) var loopTicks = 0
     @Published private(set) var loopPlaying = false
+    /// True while the iPad split keeps the radar pane on screen. iPhone leaves this false,
+    /// so the loop still runs only on the Radar tab there.
+    @Published private(set) var radarPaneOnScreen = false
     @Published private(set) var ticksAtPause = 0
     @Published private(set) var ticksWhilePaused = 0
     @Published private(set) var pauseCount = 0
@@ -139,12 +142,23 @@ final class IOSStore: ObservableObject {
         considerStaleRefresh()
     }
 
+    func setRadarPaneOnScreen(_ onScreen: Bool) {
+        if radarPaneOnScreen != onScreen {
+            radarPaneOnScreen = onScreen
+        }
+        syncRadarLoop()
+    }
+
     func syncRadarLoop() {
-        if foreground && tab == .radar && radarPictures.count > 1 {
+        if foreground && wantsRadarLoop && radarPictures.count > 1 {
             startRadarLoop()
         } else {
             stopRadarLoop()
         }
+    }
+
+    private var wantsRadarLoop: Bool {
+        tab == .radar || radarPaneOnScreen
     }
 
     func ensure(_ tab: IOSTab) async {
@@ -521,7 +535,8 @@ final class IOSStore: ObservableObject {
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: intervalNs)
                 guard let self, !Task.isCancelled else { return }
-                guard self.foreground, self.tab == .radar, self.radarPictures.count > 1 else {
+                let wanted = self.tab == .radar || self.radarPaneOnScreen
+                guard self.foreground, wanted, self.radarPictures.count > 1 else {
                     self.stopRadarLoop()
                     return
                 }
