@@ -85,4 +85,19 @@ check_slice() {
 
 check_slice ios-arm64
 check_slice ios-arm64-simulator
+
+PRIV="${FW}/PrivacyInfo.xcprivacy"
+[[ -f "$PRIV" ]] || fail "missing ${PRIV}"
+plutil -lint "$PRIV" >/dev/null
+track="$(plutil -extract NSPrivacyTracking raw -o - "$PRIV")"
+[[ "$track" == "false" ]] || fail "WxCore privacy manifest must set NSPrivacyTracking false"
+plutil -extract NSPrivacyAccessedAPITypes json -o - "$PRIV" | grep -q 'NSPrivacyAccessedAPICategoryFileTimestamp' \
+  || fail "WxCore privacy manifest missing file-timestamp category"
+plutil -extract NSPrivacyAccessedAPITypes json -o - "$PRIV" | grep -q 'C617.1' \
+  || fail "WxCore privacy manifest missing C617.1"
+plutil -extract NSPrivacyAccessedAPITypes json -o - "$PRIV" | grep -q 'NSPrivacyAccessedAPICategorySystemBootTime' \
+  || fail "WxCore privacy manifest missing system-boot-time category"
+plutil -extract NSPrivacyAccessedAPITypes json -o - "$PRIV" | grep -q '35F9.1' \
+  || fail "WxCore privacy manifest missing 35F9.1"
+
 echo "ios-framework-test passed"

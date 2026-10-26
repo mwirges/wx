@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# scripts/bump-version.sh — Bump version numbers across Go CLI, macOS app, and README
+# scripts/bump-version.sh — Bump version numbers across Go CLI, macOS app, iOS app, and README.
+# The iOS app and the widget extension share one marketing version and one build number.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -8,7 +9,23 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 VERSION_FILE="${ROOT_DIR}/VERSION"
 GO_VERSION_FILE="${ROOT_DIR}/cmd/version.go"
 PLIST_FILE="${ROOT_DIR}/macos/WxMac/Info.plist"
+IOS_APP_PLIST="${ROOT_DIR}/ios/WxIOS/Info.plist"
+IOS_WIDGET_PLIST="${ROOT_DIR}/ios/WxWidget/Info.plist"
 README_FILE="${ROOT_DIR}/README.md"
+
+set_short_version() {
+  local file="$1"
+  local version="$2"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${version}" "$file" 2>/dev/null || \
+    /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string ${version}" "$file"
+}
+
+set_build_number() {
+  local file="$1"
+  local build="$2"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${build}" "$file" 2>/dev/null || \
+    /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string ${build}" "$file"
+}
 
 CURRENT_VERSION="1.0.0"
 if [[ -f "$VERSION_FILE" ]]; then
@@ -91,13 +108,30 @@ if [[ -f "$PLIST_FILE" ]]; then
   else
     NEW_BUILD="${CURRENT_BUILD}"
   fi
-  /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${NEW_VERSION}" "$PLIST_FILE" 2>/dev/null || \
-    /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string ${NEW_VERSION}" "$PLIST_FILE"
-  /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${NEW_BUILD}" "$PLIST_FILE" 2>/dev/null || \
-    /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string ${NEW_BUILD}" "$PLIST_FILE"
+  set_short_version "$PLIST_FILE" "${NEW_VERSION}"
+  set_build_number "$PLIST_FILE" "${NEW_BUILD}"
 fi
 
-# 4. Update README.md release download links and badges
+# 4. iOS app and widget: same marketing version, same build number.
+for ios_plist in "$IOS_APP_PLIST" "$IOS_WIDGET_PLIST"; do
+  if [[ ! -f "$ios_plist" ]]; then
+    echo "error: missing ${ios_plist}" >&2
+    exit 1
+  fi
+done
+CURRENT_IOS_BUILD="$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$IOS_APP_PLIST" 2>/dev/null || echo "0")"
+if [[ "$INCREMENT_BUILD" == "true" ]]; then
+  NEW_IOS_BUILD=$((CURRENT_IOS_BUILD + 1))
+else
+  NEW_IOS_BUILD="${CURRENT_IOS_BUILD}"
+fi
+for ios_plist in "$IOS_APP_PLIST" "$IOS_WIDGET_PLIST"; do
+  set_short_version "$ios_plist" "${NEW_VERSION}"
+  set_build_number "$ios_plist" "${NEW_IOS_BUILD}"
+done
+echo "==> iOS app and widget set to ${NEW_VERSION} (${NEW_IOS_BUILD})"
+
+# 5. Update README.md release download links and badges
 if [[ -f "$README_FILE" ]]; then
   # Replace download links for versioned dmg
   sed -i '' -E "s|wx-[0-9]+\.[0-9]+\.[0-9]+\.dmg|wx-${NEW_VERSION}.dmg|g" "$README_FILE"

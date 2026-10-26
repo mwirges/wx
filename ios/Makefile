@@ -1,4 +1,6 @@
-# wx iOS shell (SwiftUI). Simulator only. No team or certs.
+# wx iOS shell (SwiftUI). No team ID or certs in the repo.
+# Debug build / ui-test: pinned simulator, signing off.
+# archive: unsigned Release device .xcarchive (generic/platform=iOS). Does not export or upload.
 # Local App Group entitlements live in WxIOS.entitlements and WxWidget.entitlements.
 XCODEGEN ?= /opt/homebrew/bin/xcodegen
 SCHEME   := WxIOS
@@ -17,10 +19,12 @@ IOS_SIM_ID := $(patsubst id=%,%,$(filter id=%,$(subst $(comma),$(space),$(IOS_SI
 
 APP := $(DERIVED)/Build/Products/$(CONFIG)-iphonesimulator/wx.app
 SIGN_OVERRIDES := CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= DEVELOPMENT_TEAM=
+ARCHIVE := $(DERIVED)/WxIOS.xcarchive
+ARCHIVE_DERIVED := $(DERIVED)/archive-derived
 
 .DEFAULT_GOAL := build
 
-.PHONY: project build sim ui-test check-app
+.PHONY: project build sim ui-test check-app archive
 
 ## project: Regenerate the Xcode project via xcodegen
 project:
@@ -105,3 +109,21 @@ ui-test: build
 	  -maximum-concurrent-test-simulator-destinations 1 \
 	  -only-testing:WxIOSUITests/WxPadSplitUITests \
 	  $(SIGN_OVERRIDES) test
+
+## archive: Unsigned Release device xcarchive, then check bundle contents. No export.
+archive: project
+	@test -f ../build/WxCore.xcframework/ios-arm64/libwxcore.a || \
+	  (echo "ios: missing device slice ../build/WxCore.xcframework/ios-arm64/libwxcore.a" >&2; exit 1)
+	@sed -i '' 's/revealArchiveInOrganizer = "YES"/revealArchiveInOrganizer = "NO"/' \
+	  WxIOS.xcodeproj/xcshareddata/xcschemes/WxIOS.xcscheme
+	rm -rf "$(ARCHIVE)"
+	xcodebuild -project WxIOS.xcodeproj -scheme $(SCHEME) -configuration Release \
+	  -destination 'generic/platform=iOS' \
+	  -archivePath "$(ARCHIVE)" \
+	  -derivedDataPath "$(ARCHIVE_DERIVED)" \
+	  $(SIGN_OVERRIDES) \
+	  ENABLE_BITCODE=NO \
+	  DEBUG_INFORMATION_FORMAT=dwarf-with-dsym \
+	  VALIDATE_PRODUCT=NO \
+	  archive
+	@../scripts/ios-archive-check.sh "$(CURDIR)/$(ARCHIVE)"
