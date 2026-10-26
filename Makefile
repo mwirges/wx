@@ -174,6 +174,11 @@ linux-desk:
 linux-test:
 	$(MAKE) -C linux test
 
+## tls-smoke: Dial each upstream HTTPS host with the system trust store. Live network. Not part of `make test`.
+.PHONY: tls-smoke
+tls-smoke:
+	go test -tags tlssmoke -count=1 -timeout 180s -v ./internal/tlssmoke
+
 ## linux-run: Build and launch the Fyne desk
 .PHONY: linux-run
 linux-run:
