@@ -2,9 +2,11 @@ import Darwin
 import XCTest
 
 /// Release and Debug both run this. It does not set WX_FIXTURE, so WxRunJSON
-/// is the live bridge. It locks HOME/.cache first. Without the cache fix the
-/// forecast command returns command_error cache init and the temperature stays
-/// an em dash.
+/// is the live bridge. It locks HOME/.cache first and cold-clears
+/// Library/Caches/wx. Without the cache fix the forecast command returns
+/// command_error cache init and the temperature stays an em dash. After a
+/// good launch the Go cache must have written at least one .json under
+/// Library/Caches/wx and must not have created HOME/.cache/wx.
 final class WxIOSLiveBridgeUITests: XCTestCase {
     private let capturePointer = "/Users/mwirges/code/tmp/wx-iosdevice-shots/capture-dir.txt"
 
@@ -15,6 +17,7 @@ final class WxIOSLiveBridgeUITests: XCTestCase {
     func testUnwritableHomeCacheStillLoads() throws {
         let container = try appContainer()
         try lockDotCache(container)
+        try coldClearLibraryCachesWx(container)
 
         let app = XCUIApplication()
         app.launchEnvironment = [
@@ -50,6 +53,7 @@ final class WxIOSLiveBridgeUITests: XCTestCase {
             XCTAssertFalse(app.staticTexts["NONE"].exists, "dry nowcast still tagged NONE. \(dump(app))")
         }
 
+        try assertCacheLandedInLibraryCaches(container)
         try captureIfRequested(app)
     }
 
@@ -83,6 +87,42 @@ final class WxIOSLiveBridgeUITests: XCTestCase {
         }
     }
 
+    /// Remove any prior Go cache under Library/Caches/wx so a post-launch
+    /// file proves this run wrote through WxSetCacheDir.
+    private func coldClearLibraryCachesWx(_ container: String) throws {
+        let fm = FileManager.default
+        let dir = libraryCachesWx(container)
+        if fm.fileExists(atPath: dir) {
+            try fm.removeItem(atPath: dir)
+        }
+        XCTAssertFalse(fm.fileExists(atPath: dir), "Library/Caches/wx still present after cold clear")
+    }
+
+    private func libraryCachesWx(_ container: String) -> String {
+        ((container as NSString)
+            .appendingPathComponent("Library") as NSString)
+            .appendingPathComponent("Caches/wx")
+    }
+
+    private func assertCacheLandedInLibraryCaches(_ container: String) throws {
+        let fm = FileManager.default
+        let dotWx = ((container as NSString).appendingPathComponent(".cache") as NSString)
+            .appendingPathComponent("wx")
+        XCTAssertFalse(fm.fileExists(atPath: dotWx), "HOME/.cache/wx exists after launch at \(dotWx)")
+
+        let dir = libraryCachesWx(container)
+        let deadline = Date().addingTimeInterval(15)
+        var jsonFiles: [String] = []
+        while Date() < deadline {
+            if let files = try? fm.contentsOfDirectory(atPath: dir) {
+                jsonFiles = files.filter { $0.hasSuffix(".json") }
+                if !jsonFiles.isEmpty { break }
+            }
+            Thread.sleep(forTimeInterval: 0.5)
+        }
+        XCTAssertFalse(jsonFiles.isEmpty, "no .json cache files under \(dir) after live forecast")
+    }
+
     private func appContainer() throws -> String {
         if let dir = try container(restrictToPreferredUDID: true) {
             return dir
@@ -95,7 +135,9 @@ final class WxIOSLiveBridgeUITests: XCTestCase {
     }
 
     /// UI tests run inside the simulator container, so NSHomeDirectory is not
-    /// the Mac user. The container path still sits under CoreSimulator/Devices.
+    /// the Mac user. The path is .../CoreSimulator/Devices/<UDID>/data/... —
+    /// bind that UDID as the primary device filter so we never pick another
+    /// simulator's container when SIMULATOR_UDID is unset.
     private func simulatorDevicesRoot() -> String {
         let marker = "/Library/Developer/CoreSimulator/Devices"
         let home = NSHomeDirectory()
@@ -105,6 +147,27 @@ final class WxIOSLiveBridgeUITests: XCTestCase {
         return (home as NSString).appendingPathComponent("Library/Developer/CoreSimulator/Devices")
     }
 
+    /// UDID of the simulator hosting this UITest process, taken from
+    /// NSHomeDirectory(). Falls back to SIMULATOR_UDID when the home path
+    /// is not under CoreSimulator/Devices.
+    private func boundSimulatorUDID() -> String? {
+        let marker = "/Library/Developer/CoreSimulator/Devices/"
+        let home = NSHomeDirectory()
+        guard let range = home.range(of: marker) else {
+            let env = ProcessInfo.processInfo.environment["SIMULATOR_UDID"]
+            if let env, !env.isEmpty { return env }
+            return nil
+        }
+        let rest = home[range.upperBound...]
+        let udid = rest.split(separator: "/", maxSplits: 1, omittingEmptySubsequences: true).first
+        if let udid, !udid.isEmpty {
+            return String(udid)
+        }
+        let env = ProcessInfo.processInfo.environment["SIMULATOR_UDID"]
+        if let env, !env.isEmpty { return env }
+        return nil
+    }
+
     private func container(restrictToPreferredUDID: Bool) throws -> String? {
         let root = simulatorDevicesRoot()
         let fm = FileManager.default
@@ -112,7 +175,12 @@ final class WxIOSLiveBridgeUITests: XCTestCase {
             XCTFail("no simulator devices under \(root)")
             return nil
         }
-        let preferred = restrictToPreferredUDID ? ProcessInfo.processInfo.environment["SIMULATOR_UDID"] : nil
+        let preferred: String?
+        if restrictToPreferredUDID {
+            preferred = boundSimulatorUDID()
+        } else {
+            preferred = nil
+        }
         var matches: [(String, Date)] = []
         for device in devices {
             if let preferred, !preferred.isEmpty, device != preferred {

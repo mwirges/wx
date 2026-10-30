@@ -65,6 +65,9 @@ check_slice() {
   if ! grep -q 'WxRunJSON' "${headers}/libwxcore.h" || ! grep -q 'WxFreeString' "${headers}/libwxcore.h"; then
     fail "${id}: generated header does not declare WxRunJSON and WxFreeString"
   fi
+  if ! grep -q 'WxSetCacheDir' "${headers}/libwxcore.h"; then
+    fail "${id}: generated header does not declare WxSetCacheDir"
+  fi
   if ! grep -q '^module WxCore {$' "$map" || ! grep -q 'header "libwxcore.h"' "$map"; then
     fail "${id}: module.modulemap must declare module WxCore and header libwxcore.h"
   fi
@@ -79,6 +82,9 @@ check_slice() {
   fi
   if ! printf '%s\n' "$nm_out" | grep -E ' [TDS] _?WxFreeString$' >/dev/null; then
     fail "${id}: nm does not show WxFreeString exported"
+  fi
+  if ! printf '%s\n' "$nm_out" | grep -E ' [TDS] _?WxSetCacheDir$' >/dev/null; then
+    fail "${id}: nm does not show WxSetCacheDir exported"
   fi
   echo "ok ${id}"
 }

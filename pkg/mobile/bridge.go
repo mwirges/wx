@@ -6,12 +6,40 @@ package main
 import "C"
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"unsafe"
 )
 
 func init() {
 	// 40 MiB heap and a tighter GC keep this in-process runtime under iOS jetsam.
 	applyMobileLimits()
+}
+
+// WxSetCacheDir tells the Go cache where to store JSON files.
+// Call once at app startup before any WxRunJSON. Swift setenv is not
+// enough: the c-archive Go runtime snapshots the process environment at
+// dyld init, so libc setenv after load is invisible to os.Getenv. This
+// export calls os.Setenv on the Go side so resolveDir sees WX_CACHE_DIR.
+//
+// dir must be an absolute path. An empty or relative path is ignored and
+// the previous value (if any) is left alone. The function returns 0 on
+// success and -1 when the path is rejected.
+//
+//export WxSetCacheDir
+func WxSetCacheDir(dir *C.char) C.int {
+	if dir == nil {
+		return -1
+	}
+	path := strings.TrimSpace(C.GoString(dir))
+	if path == "" || !filepath.IsAbs(path) {
+		return -1
+	}
+	if err := os.Setenv("WX_CACHE_DIR", path); err != nil {
+		return -1
+	}
+	return 0
 }
 
 // WxRunJSON runs one allow-listed wx command.

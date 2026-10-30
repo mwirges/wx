@@ -14,7 +14,8 @@ import (
 // Cache is a file-based JSON cache.
 // On macOS and Linux, New stores it in ~/.cache/wx/.
 // On iOS the app container root rejects ~/.cache, so New uses WX_CACHE_DIR
-// when the shell sets it, otherwise the OS cache directory.
+// when the mobile bridge sets it via WxSetCacheDir (os.Setenv on the Go
+// side). Without that override, iOS falls back to UserCacheDir/wx.
 // Use New() for a real cache, NewNoOp() to disable caching.
 type Cache struct {
 	dir  string
@@ -27,8 +28,8 @@ type envelope struct {
 }
 
 // New returns a Cache, creating the directory if needed.
-// WX_CACHE_DIR, when set to an absolute path, wins. That is how the iOS
-// shell passes FileManager's Caches directory into the bridge.
+// WX_CACHE_DIR, when set to an absolute path, wins. The iOS app sets it
+// through WxSetCacheDir at startup (not libc setenv alone).
 // Without it, iOS uses UserCacheDir/wx. Other systems keep ~/.cache/wx.
 func New() (*Cache, error) {
 	dir, err := resolveDir(runtime.GOOS)
