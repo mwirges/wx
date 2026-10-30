@@ -2,11 +2,12 @@ import Darwin
 import XCTest
 
 /// Release and Debug both run this. It does not set WX_FIXTURE, so WxRunJSON
-/// is the live bridge. It locks HOME/.cache first and cold-clears
-/// Library/Caches/wx. Without the cache fix the forecast command returns
-/// command_error cache init and the temperature stays an em dash. After a
-/// good launch the Go cache must have written at least one .json under
-/// Library/Caches/wx and must not have created HOME/.cache/wx.
+/// is the live bridge. Launch once so the data container exists, lock
+/// HOME/.cache and cold-clear Library/Caches/wx, then relaunch. Without the
+/// cache fix the forecast command returns command_error cache init and the
+/// temperature stays an em dash. After a good launch the Go cache must have
+/// written at least one .json under Library/Caches/wx and must not have
+/// created HOME/.cache/wx.
 final class WxIOSLiveBridgeUITests: XCTestCase {
     private let capturePointer = "/Users/mwirges/code/tmp/wx-iosdevice-shots/capture-dir.txt"
 
@@ -15,15 +16,21 @@ final class WxIOSLiveBridgeUITests: XCTestCase {
     }
 
     func testUnwritableHomeCacheStillLoads() throws {
-        let container = try appContainer()
-        try lockDotCache(container)
-        try coldClearLibraryCachesWx(container)
-
         let app = XCUIApplication()
         app.launchEnvironment = [
             "WX_SKIP_LOCATION": "1",
             "WX_DEFAULT_LOCATION": "New Haven, IN",
         ]
+        // First launch creates the data container (xcodebuild may also
+        // reinstall into a fresh Application UUID on this step).
+        app.launch()
+        _ = app.wait(for: .runningForeground, timeout: 10)
+        app.terminate()
+
+        let container = try appContainer()
+        try lockDotCache(container)
+        try coldClearLibraryCachesWx(container)
+
         app.launch()
 
         let temp = app.descendants(matching: .any)["surface.temp"]
@@ -53,7 +60,9 @@ final class WxIOSLiveBridgeUITests: XCTestCase {
             XCTAssertFalse(app.staticTexts["NONE"].exists, "dry nowcast still tagged NONE. \(dump(app))")
         }
 
-        try assertCacheLandedInLibraryCaches(container)
+        // Re-resolve in case terminate/launch swapped the Application UUID.
+        let after = try appContainer()
+        try assertCacheLandedInLibraryCaches(after)
         try captureIfRequested(app)
     }
 
