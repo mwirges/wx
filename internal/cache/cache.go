@@ -6,10 +6,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"time"
 )
 
-// Cache is a file-based JSON cache stored in ~/.cache/wx/.
+// Cache is a file-based JSON cache.
+// On macOS and Linux, New stores it in ~/.cache/wx/.
+// On iOS the app container root rejects ~/.cache, so New uses WX_CACHE_DIR
+// when the mobile bridge sets it via WxSetCacheDir (os.Setenv on the Go
+// side). Without that override, iOS falls back to UserCacheDir/wx.
 // Use New() for a real cache, NewNoOp() to disable caching.
 type Cache struct {
 	dir  string
@@ -21,17 +27,38 @@ type envelope struct {
 	Data    json.RawMessage `json:"data"`
 }
 
-// New returns a Cache rooted at ~/.cache/wx/, creating the directory if needed.
+// New returns a Cache, creating the directory if needed.
+// WX_CACHE_DIR, when set to an absolute path, wins. The iOS app sets it
+// through WxSetCacheDir at startup (not libc setenv alone).
+// Without it, iOS uses UserCacheDir/wx. Other systems keep ~/.cache/wx.
 func New() (*Cache, error) {
+	dir, err := resolveDir(runtime.GOOS)
+	if err != nil {
+		return nil, err
+	}
+	return NewWithDir(dir)
+}
+
+// resolveDir picks the cache root. goos is runtime.GOOS except in tests.
+func resolveDir(goos string) (string, error) {
+	if dir := strings.TrimSpace(os.Getenv("WX_CACHE_DIR")); dir != "" {
+		if !filepath.IsAbs(dir) {
+			return "", fmt.Errorf("cache: WX_CACHE_DIR must be absolute")
+		}
+		return dir, nil
+	}
+	if goos == "ios" {
+		base, err := os.UserCacheDir()
+		if err != nil {
+			return "", fmt.Errorf("cache: cache dir: %w", err)
+		}
+		return filepath.Join(base, "wx"), nil
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return nil, fmt.Errorf("cache: home dir: %w", err)
+		return "", fmt.Errorf("cache: home dir: %w", err)
 	}
-	dir := filepath.Join(home, ".cache", "wx")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return nil, fmt.Errorf("cache: mkdir %s: %w", dir, err)
-	}
-	return &Cache{dir: dir}, nil
+	return filepath.Join(home, ".cache", "wx"), nil
 }
 
 // NewWithDir returns a Cache rooted at the given directory (useful in tests).

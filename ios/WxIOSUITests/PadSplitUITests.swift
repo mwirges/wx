@@ -1,7 +1,7 @@
 import XCTest
 
 /// iPad regular width shows radar beside the telemetry. Fixtures only. No live NWS.
-/// Skips on iPhone, where the TabView stays the shell.
+/// Skips on iPhone, where the custom tab bar stays the shell.
 final class WxPadSplitUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false

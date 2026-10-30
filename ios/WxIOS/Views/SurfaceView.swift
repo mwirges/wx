@@ -52,8 +52,20 @@ struct SurfaceView: View {
         }
     }
 
+    /// Phase "none" uppercases to NONE, which reads as missing data next to a
+    /// real dry headline such as "Clear". Hide that sentinel. A failed nowcast
+    /// leaves the headline as an em dash.
+    private var nowcastPhaseTag: String? {
+        let phase = store.nowcast?.nowcast?.primaryPhase?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if phase.isEmpty || phase.caseInsensitiveCompare("none") == .orderedSame {
+            return nil
+        }
+        return phase
+    }
+
     private var nowcastCard: some View {
-        SNWConsoleCard(title: "Nowcast", tag: store.nowcast?.nowcast?.primaryPhase, statusColor: WxTheme.snwGold) {
+        SNWConsoleCard(title: "Nowcast", tag: nowcastPhaseTag, statusColor: WxTheme.snwGold) {
             Text(store.nowcastHeadline ?? "—")
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(WxTheme.text)

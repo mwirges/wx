@@ -40,6 +40,8 @@ cleanup() {
     kill "$STUB_PID" 2>/dev/null || true
     wait "$STUB_PID" 2>/dev/null || true
   fi
+  # Go module cache files are mode 0444; .cache may be 0555 from the E2E.
+  chmod -R u+w "$TMP_HOME" 2>/dev/null || true
   rm -rf "$TMP_HOME" "$ADDR_FILE"
 }
 trap cleanup EXIT
@@ -152,5 +154,67 @@ expect_error() {
 
 expect_error unknown '["chase","New Haven, IN"]' unknown_command
 expect_error bad-json 'this is not json' invalid_json
+
+
+# Prove WxSetCacheDir reaches Go across the c-archive boundary. HOME/.cache
+# is locked the way the iOS sandbox locks it. The harness process starts
+# without WX_CACHE_DIR in its environment; only the C export sets it.
+# Relink the C harness only — do not re-run `go build` here while HOME is
+# the temp dir (that would dump a module cache under TMP_HOME and break cleanup).
+echo "==> WxSetCacheDir E2E"
+CACHE_OVERRIDE="$(mktemp -d)"
+DOT_CACHE="${TMP_HOME}/.cache"
+chmod -R u+w "${DOT_CACHE}" 2>/dev/null || true
+rm -rf "${DOT_CACHE}"
+mkdir -p "${DOT_CACHE}"
+chmod 0555 "${DOT_CACHE}"
+# Ensure libc environ does not already carry WX_CACHE_DIR into Go init.
+unset WX_CACHE_DIR || true
+export WX_BRIDGE_SET_CACHE_DIR="${CACHE_OVERRIDE}"
+cc_cmd=(cc -I build -o build/mobile-bridge-harness \
+  pkg/mobile/testdata/harness.c build/libwxmobile.a)
+case "$(uname -s)" in
+  Darwin) cc_cmd+=(-framework CoreFoundation -framework Security) ;;
+  Linux) cc_cmd+=(-lpthread -ldl) ;;
+esac
+"${cc_cmd[@]}"
+CACHE_OUT="$(mktemp)"
+CACHE_ERR="$(mktemp)"
+if ! "$HARNESS" '["forecast","New Haven, IN"]' >"$CACHE_OUT" 2>"$CACHE_ERR"; then
+  echo "WxSetCacheDir E2E: harness crashed" >&2
+  cat "$CACHE_ERR" >&2
+  cat "$CACHE_OUT" >&2
+  chmod 0755 "${DOT_CACHE}" || true
+  exit 1
+fi
+if grep -q '"code"' "$CACHE_OUT"; then
+  echo "WxSetCacheDir E2E: forecast returned an error JSON:" >&2
+  cat "$CACHE_OUT" >&2
+  chmod 0755 "${DOT_CACHE}" || true
+  exit 1
+fi
+if ! grep -q "New Haven" "$CACHE_OUT"; then
+  echo "WxSetCacheDir E2E: location missing from forecast" >&2
+  cat "$CACHE_OUT" >&2
+  chmod 0755 "${DOT_CACHE}" || true
+  exit 1
+fi
+json_count="$(find "${CACHE_OVERRIDE}" -type f -name '*.json' | wc -l | tr -d '[:space:]')"
+if [[ "${json_count}" -lt 1 ]]; then
+  echo "WxSetCacheDir E2E: no cache files under ${CACHE_OVERRIDE}" >&2
+  ls -la "${CACHE_OVERRIDE}" >&2 || true
+  chmod 0755 "${DOT_CACHE}" || true
+  exit 1
+fi
+if [[ -e "${DOT_CACHE}/wx" ]]; then
+  echo "WxSetCacheDir E2E: HOME/.cache/wx was created despite override" >&2
+  chmod 0755 "${DOT_CACHE}" || true
+  exit 1
+fi
+chmod 0755 "${DOT_CACHE}" || true
+unset WX_BRIDGE_SET_CACHE_DIR
+rm -f "$CACHE_OUT" "$CACHE_ERR"
+rm -rf "$CACHE_OVERRIDE"
+echo "ok set-cache-dir-e2e"
 
 echo "mobile-bridge-test passed"

@@ -114,7 +114,7 @@ ios-sim:
 	@test -d $(BUILD_DIR)/WxCore.xcframework || $(MAKE) ios-framework
 	$(MAKE) -C ios sim
 
-## ios-ui-test: XCUITest the iPhone shell and the iPad split pane against bundled fixtures
+## ios-ui-test: XCUITest the iPhone shell, the live cache bridge, and the iPad split pane
 .PHONY: ios-ui-test
 ios-ui-test:
 	@test -d $(BUILD_DIR)/WxCore.xcframework || $(MAKE) ios-framework

@@ -1,6 +1,9 @@
 package cache
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -68,6 +71,86 @@ func TestCacheOverwrite(t *testing.T) {
 	}
 	if got.Value != "second" {
 		t.Errorf("got %q, want %q", got.Value, "second")
+	}
+}
+
+func TestNewUnwritableHomeDotCache(t *testing.T) {
+	home := t.TempDir()
+	dot := filepath.Join(home, ".cache")
+	if err := os.Mkdir(dot, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dot, 0o755) })
+	t.Setenv("HOME", home)
+	t.Setenv("WX_CACHE_DIR", "")
+
+	_, err := New()
+	if err == nil {
+		t.Fatal("New succeeded with unwritable HOME/.cache")
+	}
+	if !strings.Contains(err.Error(), ".cache") {
+		t.Fatalf("error = %v, want the .cache path", err)
+	}
+}
+
+func TestNewWXCacheDirOverridesUnwritableHome(t *testing.T) {
+	home := t.TempDir()
+	dot := filepath.Join(home, ".cache")
+	if err := os.Mkdir(dot, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dot, 0o755) })
+	t.Setenv("HOME", home)
+	dir := t.TempDir()
+	t.Setenv("WX_CACHE_DIR", dir)
+
+	c, err := New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Set("k", payload{Value: "from-override"}, time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	var got payload
+	if !c.Get("k", &got) || got.Value != "from-override" {
+		t.Fatalf("got %+v", got)
+	}
+	if _, err := os.Stat(filepath.Join(dot, "wx")); !os.IsNotExist(err) {
+		t.Fatalf("HOME/.cache/wx stat = %v, want not exist", err)
+	}
+}
+
+func TestNewRejectsRelativeCacheDir(t *testing.T) {
+	t.Setenv("WX_CACHE_DIR", "relative/wx")
+	_, err := New()
+	if err == nil || !strings.Contains(err.Error(), "absolute") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestResolveDirIOSSkipsHomeDotCache(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("WX_CACHE_DIR", "")
+
+	dir, err := resolveDir("ios")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(home, "Library", "Caches", "wx")
+	if dir != want {
+		t.Fatalf("ios dir = %s, want %s", dir, want)
+	}
+	if strings.Contains(dir, ".cache") {
+		t.Fatalf("ios dir still uses .cache: %s", dir)
+	}
+
+	desktop, err := resolveDir("darwin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if desktop != filepath.Join(home, ".cache", "wx") {
+		t.Fatalf("darwin dir = %s", desktop)
 	}
 }
 

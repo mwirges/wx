@@ -93,7 +93,7 @@ sim: build
 	SIMCTL_CHILD_WX_DEFAULT_LOCATION="New Haven, IN" \
 	xcrun simctl launch --terminate-running-process "$(IOS_SIM_ID)" com.mwirges.wx.ios
 
-## ui-test: iPhone widget + shell UI tests, then the iPad split-pane UI test. Fixtures only.
+## ui-test: iPhone widget + shell UI tests (fixtures and the live cache bridge), then the iPad split.
 ui-test: build
 	xcodebuild -project WxIOS.xcodeproj -scheme $(SCHEME) -configuration $(CONFIG) \
 	  -destination '$(IOS_SIMULATOR)' -derivedDataPath $(DERIVED) \
