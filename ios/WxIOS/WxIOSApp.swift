@@ -10,7 +10,10 @@ struct WxIOSApp: App {
             IOSRootView()
                 .environmentObject(store)
                 .preferredColorScheme(.dark)
-                .task { await store.boot() }
+                .task {
+                    WxBridge.prepareCacheDir()
+                    await store.boot()
+                }
                 .onChange(of: scenePhase) { _, phase in
                     store.noteForeground(phase == .active)
                 }

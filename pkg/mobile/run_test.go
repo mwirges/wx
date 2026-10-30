@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -377,6 +378,23 @@ func TestRunJSON_CommandErrorDoesNotDispatchUnknown(t *testing.T) {
 	assertErrorCode(t, RunJSON(`["outlook"]`), "unknown_command")
 	if called {
 		t.Fatal("unknown command was dispatched")
+	}
+}
+
+func TestRunJSON_UnwritableHomeCacheIsCommandError(t *testing.T) {
+	home := t.TempDir()
+	dot := filepath.Join(home, ".cache")
+	if err := os.Mkdir(dot, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dot, 0o755) })
+	t.Setenv("HOME", home)
+	t.Setenv("WX_CACHE_DIR", "")
+
+	out := RunJSON(`["forecast","--location","New Haven, IN"]`)
+	assertErrorCode(t, out, "command_error")
+	if !strings.Contains(out, "cache init") {
+		t.Fatalf("bridge hid the cache failure: %s", out)
 	}
 }
 

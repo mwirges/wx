@@ -61,29 +61,25 @@ struct IOSRootView: View {
         }
     }
 
+    /// One custom bar. A TabView plus that bar draws a second, faded system
+    /// bar on iPhone, and the extra tabs collapse into More.
     private var phoneTabs: some View {
-        TabView(selection: $store.tab) {
-            SurfaceView()
-                .tag(IOSTab.surface)
-                .tabItem { Label("Surface", systemImage: IOSTab.surface.symbol) }
-            TacticalView()
-                .tag(IOSTab.tactical)
-                .tabItem { Label("Tactical", systemImage: IOSTab.tactical.symbol) }
-            RadarTabView()
-                .tag(IOSTab.radar)
-                .tabItem { Label("Radar", systemImage: IOSTab.radar.symbol) }
-            SevereView()
-                .tag(IOSTab.severe)
-                .tabItem { Label("Severe", systemImage: IOSTab.severe.symbol) }
-            TropicsTabView()
-                .tag(IOSTab.tropics)
-                .tabItem { Label("Tropics", systemImage: IOSTab.tropics.symbol) }
-            ConfigView()
-                .tag(IOSTab.config)
-                .tabItem { Label("Config", systemImage: IOSTab.config.symbol) }
+        Group {
+            switch store.tab {
+            case .surface:
+                SurfaceView()
+            case .tactical:
+                TacticalView()
+            case .radar:
+                RadarTabView()
+            case .severe:
+                SevereView()
+            case .tropics:
+                TropicsTabView()
+            case .config:
+                ConfigView()
+            }
         }
-        .tint(WxTheme.snwCyan)
-        .toolbar(.hidden, for: .tabBar)
     }
 
     @ViewBuilder
@@ -227,6 +223,8 @@ struct IOSRootView: View {
             }
         }
         .background(WxTheme.snwPanel.ignoresSafeArea(edges: .bottom))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("tabbar.custom")
         .overlay(alignment: .top) {
             Rectangle()
                 .fill(WxTheme.snwCyan.opacity(0.25))

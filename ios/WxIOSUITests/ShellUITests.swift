@@ -18,6 +18,9 @@ final class WxIOSShellUITests: XCTestCase {
         app.launch()
 
         assertSurface(app)
+        XCTAssertEqual(app.tabBars.count, 0, "system tab bar is visible. \(dump(app))")
+        XCTAssertTrue(app.descendants(matching: .any)["tabbar.custom"].exists, dump(app))
+        XCTAssertFalse(app.tabBars.buttons["More"].exists, "system More tab is visible. \(dump(app))")
         XCTAssertFalse(app.descendants(matching: .any)["desk.split"].exists, "iPhone showed the iPad split. \(dump(app))")
         open(app, "Tactical")
         XCTAssertTrue(text(app, "Tactical sensors").waitForExistence(timeout: 5), dump(app))
