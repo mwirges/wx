@@ -27,7 +27,7 @@ func outlookCommand() *cli.Command {
 			&cli.StringFlag{
 				Name:    "location",
 				Aliases: []string{"l"},
-				Usage:   "zip code, 'City, ST', or blank for auto-detect",
+				Usage:   "zip, 'City, ST', lat,lon, or blank for auto-detect",
 			},
 			&cli.BoolFlag{
 				Name:    "spc",
@@ -69,7 +69,7 @@ func spcCommand() *cli.Command {
 			&cli.StringFlag{
 				Name:    "location",
 				Aliases: []string{"l"},
-				Usage:   "zip code, 'City, ST', or blank for auto-detect",
+				Usage:   "zip, 'City, ST', lat,lon, or blank for auto-detect",
 			},
 			&cli.BoolFlag{
 				Name:    "json",

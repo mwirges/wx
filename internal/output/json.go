@@ -182,6 +182,13 @@ func jsonPeriods(periods []models.Period, imperial bool) []jsonPeriod {
 }
 
 func renderJSON(data RenderData, opts RenderOptions) error {
+	out := buildJSONOutput(data, opts)
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	return enc.Encode(out)
+}
+
+func buildJSONOutput(data RenderData, opts RenderOptions) jsonOutput {
 	imperial := opts.Units != "metric"
 
 	out := jsonOutput{}
@@ -419,7 +426,5 @@ func renderJSON(data RenderData, opts RenderOptions) error {
 		out.Alerts = alerts
 	}
 
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	return enc.Encode(out)
+	return out
 }

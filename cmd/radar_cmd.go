@@ -31,7 +31,7 @@ func radarCommand() *cli.Command {
 			&cli.StringFlag{
 				Name:    "location",
 				Aliases: []string{"l"},
-				Usage:   "zip code, 'City, ST', or blank for auto-detect",
+				Usage:   "zip, 'City, ST', lat,lon, or blank for auto-detect",
 			},
 			&cli.StringFlag{
 				Name:    "station",

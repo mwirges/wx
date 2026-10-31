@@ -65,9 +65,11 @@ type ServerInfo struct {
 
 // Server is a loopback Streamable HTTP MCP server.
 type Server struct {
-	opts Options
-	mcp  *sdkmcp.Server
-	hits atomic.Int64
+	opts    Options
+	mcp     *sdkmcp.Server
+	hits    atomic.Int64
+	slots   chan struct{}
+	weather weatherFunc
 }
 
 // ResolveListenPort picks the listen port. An explicit flag, including an
@@ -125,6 +127,7 @@ func New(opts Options) (*Server, error) {
 		Name:        "wx_server_info",
 		Description: "Return this wx MCP server's version, loopback bind, port, enabled flag, and configured default location.",
 	}, s.serverInfo)
+	s.addWeatherTools()
 	return s, nil
 }
 

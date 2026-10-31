@@ -4,7 +4,9 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestClientGet_UserAgent(t *testing.T) {
@@ -45,6 +47,81 @@ func TestClientGet_HTTPError(t *testing.T) {
 	err := c.get(context.Background(), srv.URL, &v)
 	if err == nil {
 		t.Fatal("expected error for HTTP 503, got nil")
+	}
+}
+
+func TestClientGet_Retry429ThenOK(t *testing.T) {
+	var n int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n++
+		if r.Header.Get("User-Agent") != userAgent {
+			t.Errorf("User-Agent = %q", r.Header.Get("User-Agent"))
+		}
+		if n < 3 {
+			w.WriteHeader(http.StatusTooManyRequests)
+			_, _ = w.Write([]byte(`{"detail":"slow down"}`))
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer srv.Close()
+
+	c := newClient()
+	c.backoff = func(int) time.Duration { return time.Millisecond }
+	var v map[string]bool
+	if err := c.get(context.Background(), srv.URL, &v); err != nil {
+		t.Fatal(err)
+	}
+	if n != 3 {
+		t.Fatalf("attempts = %d, want 3", n)
+	}
+	if !v["ok"] {
+		t.Fatalf("body = %v", v)
+	}
+}
+
+func TestClientGet_Persistent429(t *testing.T) {
+	var n int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n++
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write([]byte(`{"detail":"slow down"}`))
+	}))
+	defer srv.Close()
+
+	c := newClient()
+	c.backoff = func(int) time.Duration { return time.Millisecond }
+	var v any
+	err := c.get(context.Background(), srv.URL, &v)
+	if err == nil || !strings.Contains(err.Error(), "HTTP 429") {
+		t.Fatalf("err = %v, want HTTP 429", err)
+	}
+	if n != 3 {
+		t.Fatalf("attempts = %d, want 3", n)
+	}
+}
+
+func TestClientGet_503ThenOK(t *testing.T) {
+	var n int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n++
+		if n == 1 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer srv.Close()
+	c := newClient()
+	c.backoff = func(int) time.Duration { return time.Millisecond }
+	var v map[string]bool
+	if err := c.get(context.Background(), srv.URL, &v); err != nil {
+		t.Fatal(err)
+	}
+	if n != 2 || !v["ok"] {
+		t.Fatalf("n=%d v=%v", n, v)
 	}
 }
 

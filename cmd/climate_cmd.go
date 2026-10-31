@@ -26,7 +26,7 @@ func climateCommand() *cli.Command {
 			&cli.StringFlag{
 				Name:    "location",
 				Aliases: []string{"l"},
-				Usage:   "zip code, 'City, ST', or blank to use config/auto-detect",
+				Usage:   "zip, 'City, ST', lat,lon, or blank to use config/auto-detect",
 			},
 			&cli.StringFlag{
 				Name:    "date",

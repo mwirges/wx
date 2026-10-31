@@ -11,6 +11,10 @@ import (
 	"time"
 )
 
+// nominatimDo dials Nominatim. Production uses http.DefaultClient.
+// Tests replace it to prove invalid coordinates never leave the process.
+var nominatimDo = http.DefaultClient.Do
+
 const geocodeTTL = 24 * time.Hour
 
 type nominatimResult struct {
@@ -103,18 +107,12 @@ func nominatimSearch(ctx context.Context, params url.Values) ([]nominatimResult,
 	req.Header.Set("User-Agent", "wx/1.0 (github.com/mwirges/wx)")
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	body, err := readRetry(ctx, nominatimDo, req)
 	if err != nil {
-		return nil, fmt.Errorf("request: %w", err)
+		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
-	}
-
 	var results []nominatimResult
-	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
+	if err := json.Unmarshal(body, &results); err != nil {
 		return nil, fmt.Errorf("decode: %w", err)
 	}
 	return results, nil

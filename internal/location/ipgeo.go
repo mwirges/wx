@@ -10,6 +10,9 @@ import (
 	"time"
 )
 
+// ipgeoDo dials ipinfo.io. Production uses http.DefaultClient.
+var ipgeoDo = http.DefaultClient.Do
+
 type ipInfoResponse struct {
 	IP      string `json:"ip"`
 	City    string `json:"city"`
@@ -34,19 +37,15 @@ func resolveByIP(ctx context.Context, c Cacher) (Location, error) {
 		return Location{}, fmt.Errorf("location: ipgeo: build request: %w", err)
 	}
 	req.Header.Set("User-Agent", "wx/1.0 (github.com/mwirges/wx)")
+	req.Header.Set("Accept", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	body, err := readRetry(ctx, ipgeoDo, req)
 	if err != nil {
-		return Location{}, fmt.Errorf("location: ipgeo: request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return Location{}, fmt.Errorf("location: ipgeo: HTTP %d", resp.StatusCode)
+		return Location{}, fmt.Errorf("location: ipgeo: %w", err)
 	}
 
 	var info ipInfoResponse
-	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+	if err := json.Unmarshal(body, &info); err != nil {
 		return Location{}, fmt.Errorf("location: ipgeo: decode: %w", err)
 	}
 
