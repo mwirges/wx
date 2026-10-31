@@ -54,6 +54,18 @@ type Config struct {
 
 	// MenuBarFormat specifies the macOS menu bar format: "compact", "standard", or "tactical".
 	MenuBarFormat string `json:"menu_bar_format,omitempty"`
+
+	// MCP is the optional loopback MCP server (wx mcp serve).
+	// JSON object "mcp" is the design's mcp.enabled and mcp.port.
+	// Both fields are optional. Missing enabled means off. Missing or zero
+	// port means 9742. Save stays atomic (temp file plus rename).
+	MCP MCPSettings `json:"mcp,omitempty"`
+}
+
+// MCPSettings is the "mcp" object in ~/.config/wx/config.json.
+type MCPSettings struct {
+	Enabled bool `json:"enabled,omitempty"`
+	Port    int  `json:"port,omitempty"`
 }
 
 // GetFavorite looks up a favorite location by name (case-insensitive).

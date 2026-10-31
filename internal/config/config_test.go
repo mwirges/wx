@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
@@ -166,6 +167,66 @@ func TestSaveClearsField(t *testing.T) {
 	got, _ := LoadFrom(path)
 	if got.DefaultLocation != "" {
 		t.Errorf("DefaultLocation = %q, want empty", got.DefaultLocation)
+	}
+}
+
+func TestMCPSettingsRoundTrip(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	cfg := &Config{
+		DefaultLocation: "New Haven, IN",
+		Units:           "imperial",
+		Favorites:       []LocationEntry{{Name: "Home", Value: "Fort Wayne, IN"}},
+		MCP:             MCPSettings{Enabled: true, Port: 9742},
+	}
+	if err := Save(path, cfg); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(data, []byte(`"mcp"`)) || !bytes.Contains(data, []byte(`"enabled"`)) {
+		t.Fatalf("saved config missing mcp object: %s", data)
+	}
+	got, err := LoadFrom(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.MCP.Enabled || got.MCP.Port != 9742 {
+		t.Fatalf("mcp = %+v", got.MCP)
+	}
+	if got.DefaultLocation != "New Haven, IN" || len(got.Favorites) != 1 {
+		t.Fatalf("existing fields dropped: %+v", got)
+	}
+}
+
+func TestLoadFrom_MCPAbsent(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	os.WriteFile(path, []byte(`{"default_location":"New Haven, IN","units":"imperial"}`), 0o644)
+	got, err := LoadFrom(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.MCP.Enabled || got.MCP.Port != 0 {
+		t.Fatalf("missing mcp should be zero, got %+v", got.MCP)
+	}
+	if got.DefaultLocation != "New Haven, IN" {
+		t.Fatalf("DefaultLocation = %q", got.DefaultLocation)
+	}
+}
+
+func TestLoadFrom_MCPEnabledOnly(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	os.WriteFile(path, []byte(`{"mcp":{"enabled":false,"port":9750}}`), 0o644)
+	got, err := LoadFrom(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.MCP.Enabled {
+		t.Fatal("enabled false was loaded as true")
+	}
+	if got.MCP.Port != 9750 {
+		t.Fatalf("port = %d", got.MCP.Port)
 	}
 }
 
@@ -368,4 +429,3 @@ func TestConfig_Provider(t *testing.T) {
 		t.Errorf("GetEffectiveProvider(Chicago) = %q, want %q", p, "nws")
 	}
 }
-
