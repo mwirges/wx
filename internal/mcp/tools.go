@@ -68,21 +68,22 @@ func (s *Server) addWeatherTools() {
 	if s.slots == nil {
 		s.slots = make(chan struct{}, toolSlots)
 	}
+	const polite = " Be polite to Nominatim and NWS: these calls share a small in-process cap."
 	sdkmcp.AddTool(s.mcp, &sdkmcp.Tool{
 		Name:        "wx_conditions",
-		Description: "Current conditions for the default location or a location argument. JSON matches wx --json conditions. City and ZIP use the shared geocoder; lat,lon does not.",
+		Description: "Current conditions for the default location or a location argument. JSON matches wx --json conditions. City and ZIP use the shared geocoder; lat,lon does not." + polite,
 	}, s.wxConditions)
 	sdkmcp.AddTool(s.mcp, &sdkmcp.Tool{
 		Name:        "wx_forecast",
-		Description: "Daily forecast periods for the default location or a location argument. JSON matches wx --forecast --json forecast.",
+		Description: "Daily forecast periods for the default location or a location argument. JSON matches wx --forecast --json forecast." + polite,
 	}, s.wxForecast)
 	sdkmcp.AddTool(s.mcp, &sdkmcp.Tool{
 		Name:        "wx_hourly",
-		Description: "Hourly forecast periods. hours defaults to 24. JSON periods match wx hourly --json, capped to hours.",
+		Description: "Hourly forecast periods. hours defaults to 24. JSON periods match wx hourly --json, capped to hours." + polite,
 	}, s.wxHourly)
 	sdkmcp.AddTool(s.mcp, &sdkmcp.Tool{
 		Name:        "wx_alerts",
-		Description: "Active weather alerts for the location. Returns a JSON array. An empty array means none are active.",
+		Description: "Active weather alerts for the location. Returns a JSON array. An empty array means none are active." + polite,
 	}, s.wxAlerts)
 }
 
@@ -143,6 +144,12 @@ func (s *Server) fetchLive(ctx context.Context, kind, locArg, unitsArg string, h
 	if err != nil {
 		ch = cache.NewNoOp()
 	}
+	// Slot covers Nominatim, ipinfo, and the live fetch. Fail fast when full.
+	if err := s.acquire(); err != nil {
+		return nil, err
+	}
+	defer s.release()
+
 	loc, query, err := resolveToolLocation(ctx, cfg, locArg, ch)
 	if err != nil {
 		return nil, err
@@ -155,10 +162,6 @@ func (s *Server) fetchLive(ctx context.Context, kind, locArg, unitsArg string, h
 	if err != nil {
 		return nil, err
 	}
-	if err := s.acquire(); err != nil {
-		return nil, err
-	}
-	defer s.release()
 
 	if s.weather != nil {
 		return s.weather(ctx, kind, loc, units, hours)

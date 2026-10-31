@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -50,10 +51,20 @@ func TestWeatherRateLimitAndUpstream(t *testing.T) {
 	started := make(chan struct{})
 	release := make(chan struct{})
 	var once sync.Once
-	var calls int
+	// holding is true only while the first conditions call is inside weather.
+	// A second entry sets slipped and returns success, not HTTP 429, so the
+	// overlap assertion fails if acquire is removed or the slot is unbounded.
+	var holding atomic.Bool
+	var slipped atomic.Bool
 	s.weather = func(ctx context.Context, kind string, loc location.Location, units string, hours int) (json.RawMessage, error) {
-		calls++
-		if kind == "conditions" && calls == 1 {
+		if holding.Load() {
+			slipped.Store(true)
+			return json.RawMessage(`{"slipped":true}`), nil
+		}
+		switch kind {
+		case "conditions":
+			holding.Store(true)
+			defer holding.Store(false)
 			once.Do(func() { close(started) })
 			select {
 			case <-release:
@@ -61,20 +72,18 @@ func TestWeatherRateLimitAndUpstream(t *testing.T) {
 				return nil, ctx.Err()
 			}
 			return json.RawMessage(`{"ok":true}`), nil
-		}
-		if kind == "forecast" {
+		case "forecast":
 			return nil, errString("nws: forecast: HTTP 429: slow down")
-		}
-		if kind == "hourly" {
+		case "hourly":
 			if hours != 6 {
 				t.Errorf("hours = %d, want 6", hours)
 			}
 			return nil, errString("nws: forecast: HTTP 503")
-		}
-		if kind == "alerts" {
+		case "alerts":
 			return json.RawMessage(`[]`), nil
+		default:
+			return nil, errString("unexpected " + kind)
 		}
-		return nil, errString("unexpected " + kind)
 	}
 
 	_, cs1 := connectMCP(t, s)
@@ -101,7 +110,13 @@ func TestWeatherRateLimitAndUpstream(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if slipped.Load() {
+		t.Fatalf("overlap wx_forecast entered weather while the first call held the slot (cap did not reject before fetch); body=%s", resultText(res))
+	}
 	assertCode(t, res, "rate_limited")
+	if !strings.Contains(resultText(res), "tool concurrency limit reached") {
+		t.Fatalf("overlap rate_limited was not errBusy: %s", resultText(res))
+	}
 	close(release)
 	if err := <-errCh; err != nil {
 		t.Fatal(err)
@@ -109,8 +124,14 @@ func TestWeatherRateLimitAndUpstream(t *testing.T) {
 
 	res = call(t, cs2, "wx_forecast", map[string]any{"location": "41.07,-85.14"})
 	assertCode(t, res, "rate_limited")
+	if !strings.Contains(resultText(res), "HTTP 429") {
+		t.Fatalf("post-release forecast was not the HTTP 429 classify path: %s", resultText(res))
+	}
 	res = call(t, cs2, "wx_hourly", map[string]any{"location": "41.07,-85.14", "hours": 6})
 	assertCode(t, res, "upstream_http")
+	if !strings.Contains(resultText(res), "HTTP 503") {
+		t.Fatalf("hourly was not the HTTP 503 path: %s", resultText(res))
+	}
 	res = call(t, cs2, "wx_alerts", map[string]any{"location": "41.07,-85.14"})
 	if res.IsError {
 		t.Fatalf("alerts error: %s", resultText(res))
