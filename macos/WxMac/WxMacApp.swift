@@ -7,7 +7,7 @@ struct WxMacApp: App {
     var body: some Scene {
         // Desk window is owned by AppDelegate (NSWindow) so LSUIElement + status item stay primary.
         Settings {
-            EmptyView()
+            MCPSettingsView()
         }
     }
 }

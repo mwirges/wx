@@ -8,12 +8,15 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"sync/atomic"
 	"syscall"
 	"time"
 
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/mwirges/wx/internal/config"
 )
 
 const (
@@ -29,8 +32,13 @@ const (
 var ErrDisabled = errors.New("mcp serve is disabled; set mcp.enabled in config or pass --enable")
 
 // ErrPortInUse means the configured port is taken. The process must exit
-// rather than bind a different port.
+// rather than bind a different port. The holder is not signaled.
 var ErrPortInUse = errors.New("mcp port already in use; refusing to pick another port")
+
+// ErrAlreadyRunning means a live wx mcp serve holds the pidfile or lock.
+// The caller must not start a second listener and must not signal that pid
+// unless it is the recorded child and MaySignal allows it.
+var ErrAlreadyRunning = errors.New("another wx mcp serve is already running; refusing to start a second listener")
 
 // Options configures one serve process.
 type Options struct {
@@ -39,7 +47,25 @@ type Options struct {
 	Version         string
 	DefaultLocation string
 	// Log receives the ready line. Nil writes to stderr.
+	// The bearer token is never written here.
 	Log io.Writer
+	// RequireToken applies to /mcp and /healthz. There is no healthz bypass.
+	RequireToken bool
+	// Token is the expected bearer. It is compared in constant time and
+	// never logged. Empty with RequireToken is a startup error.
+	Token string
+	// ParentPID, when > 1, cancels the server after that process exits.
+	// The Mac app passes its own pid. 0 means do not watch.
+	ParentPID int
+	// ExitOnStdinClose cancels the server when Stdin returns EOF.
+	// The Mac app holds the write end of that pipe. Off for a normal CLI
+	// so a closed or /dev/null stdin does not kill a headless serve.
+	ExitOnStdinClose bool
+	// Stdin is the pipe to watch. Nil uses os.Stdin when ExitOnStdinClose.
+	Stdin io.Reader
+	// RuntimeDir holds mcp.pid and mcp.lock. Empty uses the directory of
+	// the default config file (~/.config/wx). Tests pass a temp directory.
+	RuntimeDir string
 }
 
 // ServeConfig is the CLI view of config plus flags. FlagPort is used only
@@ -162,7 +188,9 @@ func (s *Server) Handler() http.Handler {
 		s.hits.Add(1)
 		return s.mcp
 	}, nil))
-	return guard(s.opts.Port, mux)
+	// Host/Origin first (403), then bearer (401). A rejected bearer never
+	// reaches a tool. /healthz uses the same bearer check when required.
+	return guard(s.opts.Port, tokenGuard(s.opts.RequireToken, s.opts.Token, mux))
 }
 
 func (s *Server) serveHealth(w http.ResponseWriter, r *http.Request) {
@@ -179,12 +207,55 @@ func (s *Server) serveHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListenAndServe binds 127.0.0.1 only. A busy port returns ErrPortInUse and
-// does not try another port. A disabled server returns ErrDisabled and does
-// not open a socket.
+// does not try another port or signal the holder. A disabled server returns
+// ErrDisabled and does not open a socket. A second serve against the same
+// runtime directory returns ErrAlreadyRunning.
+//
+// ParentPID and ExitOnStdinClose are how the Mac supervisor reaps an orphan:
+// the app passes its pid and holds the child stdin pipe. Either watch
+// cancels ctx, Serve shuts down, and the lock is released.
 func ListenAndServe(ctx context.Context, opts Options) error {
 	if !opts.Enabled {
 		return ErrDisabled
 	}
+	if opts.ParentPID != 0 && opts.ParentPID <= 1 {
+		return fmt.Errorf("mcp: refusing --parent-pid %d", opts.ParentPID)
+	}
+	if opts.ParentPID > 1 && !processAlive(opts.ParentPID) {
+		return fmt.Errorf("mcp: parent pid %d is not running; exiting", opts.ParentPID)
+	}
+	if opts.RequireToken {
+		if err := validateToken(opts.Token); err != nil {
+			return err
+		}
+	}
+	dir := opts.RuntimeDir
+	if dir == "" {
+		cfgPath, err := config.Path()
+		if err != nil {
+			return err
+		}
+		dir = filepath.Dir(cfgPath)
+	}
+	lock, err := Acquire(dir)
+	if err != nil {
+		return err
+	}
+	defer lock.Release()
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	if opts.ParentPID > 1 {
+		go watchParent(ctx, opts.ParentPID, cancel)
+	}
+	if opts.ExitOnStdinClose {
+		stdin := opts.Stdin
+		if stdin == nil {
+			stdin = os.Stdin
+		}
+		go watchStdin(ctx, stdin, cancel)
+	}
+
 	s, err := New(opts)
 	if err != nil {
 		return err
@@ -193,7 +264,7 @@ func ListenAndServe(ctx context.Context, opts Options) error {
 	ln, err := net.Listen("tcp4", addr)
 	if err != nil {
 		if errors.Is(err, syscall.EADDRINUSE) {
-			return fmt.Errorf("%w: %s: %w", ErrPortInUse, addr, err)
+			return fmt.Errorf("%w: %s: not killing an unverified process: %w", ErrPortInUse, addr, err)
 		}
 		return fmt.Errorf("mcp: listen %s: %w", addr, err)
 	}

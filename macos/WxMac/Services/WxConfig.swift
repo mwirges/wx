@@ -1,4 +1,5 @@
 import Foundation
+import Security
 
 struct WxLocationEntry: Codable, Identifiable, Hashable, Sendable {
     var id: String { name }
@@ -22,6 +23,20 @@ struct WxPerLocationSettings: Codable, Sendable {
     }
 }
 
+struct WxMCPSettings: Codable, Sendable, Equatable {
+    var enabled: Bool?
+    var port: Int?
+    var requireToken: Bool?
+    var tokenFile: String?
+
+    enum CodingKeys: String, CodingKey {
+        case enabled
+        case port
+        case requireToken = "require_token"
+        case tokenFile = "token_file"
+    }
+}
+
 struct WxConfigFile: Codable, Sendable {
     var defaultLocation: String?
     var units: String?
@@ -31,6 +46,7 @@ struct WxConfigFile: Codable, Sendable {
     var favorites: [WxLocationEntry]?
     var recentLocations: [String]?
     var perLocation: [String: WxPerLocationSettings]?
+    var mcp: WxMCPSettings?
 
     enum CodingKeys: String, CodingKey {
         case defaultLocation = "default_location"
@@ -41,6 +57,27 @@ struct WxConfigFile: Codable, Sendable {
         case favorites
         case recentLocations = "recent_locations"
         case perLocation = "per_location"
+        case mcp
+    }
+}
+
+enum WxMCPTokenError: LocalizedError {
+    case symlink
+    case unreadable
+    case mode
+    case random
+
+    var errorDescription: String? {
+        switch self {
+        case .symlink:
+            return "The MCP token file is a symlink. Refusing to use it."
+        case .unreadable:
+            return "The MCP token file is missing or empty."
+        case .mode:
+            return "The MCP token file must be mode 0600."
+        case .random:
+            return "Could not generate an MCP token."
+        }
     }
 }
 
@@ -144,5 +181,76 @@ enum WxConfig {
         }
         save(cfg)
         return "saved"
+    }
+
+    static func updateMCP(_ mutate: (inout WxMCPSettings) -> Void) {
+        var cfg = load()
+        var mcp = cfg.mcp ?? WxMCPSettings()
+        mutate(&mcp)
+        cfg.mcp = mcp
+        save(cfg)
+    }
+
+    static func mcpTokenURL() -> URL {
+        let cfg = load()
+        if let custom = cfg.mcp?.tokenFile?.trimmingCharacters(in: .whitespacesAndNewlines), !custom.isEmpty {
+            if custom.hasPrefix("/") {
+                return URL(fileURLWithPath: custom)
+            }
+            return configURL.deletingLastPathComponent().appendingPathComponent(custom)
+        }
+        return configURL.deletingLastPathComponent().appendingPathComponent("mcp.token")
+    }
+
+    /// Creates mcp.token (mode 0600) when it is missing. Does not print the token.
+    static func ensureMCPToken() throws -> String {
+        let url = mcpTokenURL()
+        if let existing = try? readTokenFile(url), !existing.isEmpty {
+            return existing
+        }
+        var bytes = [UInt8](repeating: 0, count: 32)
+        let status = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+        guard status == errSecSuccess else { throw WxMCPTokenError.random }
+        let token = bytes.map { String(format: "%02x", $0) }.joined()
+        try writeTokenFile(url, token: token)
+        return token
+    }
+
+    static func readMCPToken() throws -> String {
+        let token = try readTokenFile(mcpTokenURL())
+        if token.isEmpty { throw WxMCPTokenError.unreadable }
+        return token
+    }
+
+    private static func readTokenFile(_ url: URL) throws -> String {
+        let values = try url.resourceValues(forKeys: [.isSymbolicLinkKey])
+        if values.isSymbolicLink == true {
+            throw WxMCPTokenError.symlink
+        }
+        let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
+        let mode = (attrs[.posixPermissions] as? NSNumber)?.uint16Value ?? 0
+        if mode & 0o077 != 0 {
+            throw WxMCPTokenError.mode
+        }
+        let text = try String(contentsOf: url, encoding: .utf8)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if text.isEmpty || text.contains(" ") || text.contains("\n") {
+            throw WxMCPTokenError.unreadable
+        }
+        return text
+    }
+
+    private static func writeTokenFile(_ url: URL, token: String) throws {
+        if let values = try? url.resourceValues(forKeys: [.isSymbolicLinkKey]), values.isSymbolicLink == true {
+            throw WxMCPTokenError.symlink
+        }
+        let dir = url.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let data = Data((token + "\n").utf8)
+        try data.write(to: url, options: .atomic)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: NSNumber(value: Int16(0o600))],
+            ofItemAtPath: url.path
+        )
     }
 }

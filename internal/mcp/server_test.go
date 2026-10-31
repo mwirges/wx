@@ -257,10 +257,11 @@ func TestListenPortConflictFailsClosed(t *testing.T) {
 	port := ln.Addr().(*net.TCPAddr).Port
 	var log strings.Builder
 	err = ListenAndServe(context.Background(), Options{
-		Enabled: true,
-		Port:    port,
-		Version: "1.2.0",
-		Log:     &log,
+		Enabled:    true,
+		Port:       port,
+		Version:    "1.2.0",
+		Log:        &log,
+		RuntimeDir: t.TempDir(),
 	})
 	if !errors.Is(err, ErrPortInUse) {
 		t.Fatalf("err = %v, want ErrPortInUse", err)
