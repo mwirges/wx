@@ -1,0 +1,256 @@
+package mcp
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"net"
+	"net/http"
+	"os"
+	"strconv"
+	"sync/atomic"
+	"syscall"
+	"time"
+
+	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
+)
+
+const (
+	// DefaultPort is the documented grok mcp add port.
+	DefaultPort = 9742
+	// BindHost is the only address wx mcp serve will listen on.
+	BindHost = "127.0.0.1"
+	// Path is the Streamable HTTP endpoint.
+	Path = "/mcp"
+)
+
+// ErrDisabled means serve was asked to run while MCP is off.
+var ErrDisabled = errors.New("mcp serve is disabled; set mcp.enabled in config or pass --enable")
+
+// ErrPortInUse means the configured port is taken. The process must exit
+// rather than bind a different port.
+var ErrPortInUse = errors.New("mcp port already in use; refusing to pick another port")
+
+// Options configures one serve process.
+type Options struct {
+	Enabled         bool
+	Port            int
+	Version         string
+	DefaultLocation string
+	// Log receives the ready line. Nil writes to stderr.
+	Log io.Writer
+}
+
+// ServeConfig is the CLI view of config plus flags. FlagPort is used only
+// when FlagPortSet is true. CLI wins over config, then the built-in default.
+type ServeConfig struct {
+	ConfigEnabled   bool
+	FlagEnable      bool
+	ConfigPort      int
+	FlagPort        int
+	FlagPortSet     bool
+	Version         string
+	DefaultLocation string
+}
+
+// ServerInfo is the wx_server_info tool result.
+type ServerInfo struct {
+	Version         string `json:"version"`
+	Port            int    `json:"port"`
+	Enabled         bool   `json:"enabled"`
+	DefaultLocation string `json:"default_location"`
+	Bind            string `json:"bind"`
+}
+
+// Server is a loopback Streamable HTTP MCP server.
+type Server struct {
+	opts Options
+	mcp  *sdkmcp.Server
+	hits atomic.Int64
+}
+
+// ResolveListenPort picks the listen port. An explicit flag, including an
+// invalid one, replaces the config value. Zero config port means DefaultPort.
+func ResolveListenPort(cfgPort, flagPort int, flagSet bool) (int, error) {
+	var p int
+	switch {
+	case flagSet:
+		p = flagPort
+	case cfgPort != 0:
+		p = cfgPort
+	default:
+		return DefaultPort, nil
+	}
+	if p < 1 || p > 65535 {
+		return 0, fmt.Errorf("mcp port %d is invalid (want 1-65535)", p)
+	}
+	return p, nil
+}
+
+// Prepare turns config and flags into serve options. It does not listen.
+// Disabled is reported before an invalid port so a refused process never
+// opens a socket.
+func Prepare(in ServeConfig) (Options, error) {
+	if !in.ConfigEnabled && !in.FlagEnable {
+		return Options{}, ErrDisabled
+	}
+	port, err := ResolveListenPort(in.ConfigPort, in.FlagPort, in.FlagPortSet)
+	if err != nil {
+		return Options{}, err
+	}
+	return Options{
+		Enabled:         true,
+		Port:            port,
+		Version:         in.Version,
+		DefaultLocation: in.DefaultLocation,
+	}, nil
+}
+
+// New builds a server. Port 0 becomes DefaultPort. The server does not listen
+// until ListenAndServe or Serve.
+func New(opts Options) (*Server, error) {
+	if opts.Port == 0 {
+		opts.Port = DefaultPort
+	}
+	if opts.Port < 1 || opts.Port > 65535 {
+		return nil, fmt.Errorf("mcp port %d is invalid (want 1-65535)", opts.Port)
+	}
+	s := &Server{opts: opts}
+	s.mcp = sdkmcp.NewServer(&sdkmcp.Implementation{
+		Name:    "wx",
+		Version: opts.Version,
+	}, nil)
+	sdkmcp.AddTool(s.mcp, &sdkmcp.Tool{
+		Name:        "wx_server_info",
+		Description: "Return this wx MCP server's version, loopback bind, port, enabled flag, and configured default location.",
+	}, s.serverInfo)
+	return s, nil
+}
+
+type serverInfoIn struct{}
+
+func (s *Server) serverInfo(context.Context, *sdkmcp.CallToolRequest, serverInfoIn) (*sdkmcp.CallToolResult, ServerInfo, error) {
+	return nil, s.Info(), nil
+}
+
+// Info returns the tool payload for this process.
+func (s *Server) Info() ServerInfo {
+	return ServerInfo{
+		Version:         s.opts.Version,
+		Port:            s.opts.Port,
+		Enabled:         s.opts.Enabled,
+		DefaultLocation: s.opts.DefaultLocation,
+		Bind:            BindHost,
+	}
+}
+
+// Hits counts inner /mcp and /healthz dispatches. The Host/Origin guard
+// returns before either handler, so a rejected request leaves Hits unchanged.
+func (s *Server) Hits() int64 {
+	return s.hits.Load()
+}
+
+// Handler is the guarded HTTP handler. Tests call it without listening.
+func (s *Server) Handler() http.Handler {
+	mux := http.NewServeMux()
+	mux.Handle("/healthz", http.HandlerFunc(s.serveHealth))
+	mux.Handle(Path, sdkmcp.NewStreamableHTTPHandler(func(*http.Request) *sdkmcp.Server {
+		s.hits.Add(1)
+		return s.mcp
+	}, nil))
+	return guard(s.opts.Port, mux)
+}
+
+func (s *Server) serveHealth(w http.ResponseWriter, r *http.Request) {
+	s.hits.Add(1)
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", http.MethodGet)
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = io.WriteString(w, s.opts.Version)
+	_, _ = io.WriteString(w, "\n")
+}
+
+// ListenAndServe binds 127.0.0.1 only. A busy port returns ErrPortInUse and
+// does not try another port. A disabled server returns ErrDisabled and does
+// not open a socket.
+func ListenAndServe(ctx context.Context, opts Options) error {
+	if !opts.Enabled {
+		return ErrDisabled
+	}
+	s, err := New(opts)
+	if err != nil {
+		return err
+	}
+	addr := net.JoinHostPort(BindHost, strconv.Itoa(s.opts.Port))
+	ln, err := net.Listen("tcp4", addr)
+	if err != nil {
+		if errors.Is(err, syscall.EADDRINUSE) {
+			return fmt.Errorf("%w: %s: %w", ErrPortInUse, addr, err)
+		}
+		return fmt.Errorf("mcp: listen %s: %w", addr, err)
+	}
+	return s.Serve(ctx, ln)
+}
+
+// Serve takes ownership of ln. The listener must already be 127.0.0.1 and
+// the configured port. ctx cancel shuts the server down.
+func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
+	if ln == nil {
+		return errors.New("mcp: nil listener")
+	}
+	if !s.opts.Enabled {
+		_ = ln.Close()
+		return ErrDisabled
+	}
+	tcp, ok := ln.Addr().(*net.TCPAddr)
+	if !ok || tcp == nil || tcp.IP == nil || !tcp.IP.Equal(net.ParseIP(BindHost)) {
+		_ = ln.Close()
+		return fmt.Errorf("mcp: refusing to serve on %s; bind is %s only", ln.Addr(), BindHost)
+	}
+	if tcp.Port != s.opts.Port {
+		_ = ln.Close()
+		return fmt.Errorf("mcp: listener port %d does not match configured port %d", tcp.Port, s.opts.Port)
+	}
+
+	fmt.Fprintf(s.log(), "wx mcp serve: listening on http://%s%s\n", ln.Addr().String(), Path)
+
+	hs := &http.Server{
+		Handler:           s.Handler(),
+		ReadHeaderTimeout: 5 * time.Second,
+		BaseContext: func(net.Listener) context.Context {
+			return ctx
+		},
+	}
+	errCh := make(chan error, 1)
+	go func() {
+		err := hs.Serve(ln)
+		if errors.Is(err, http.ErrServerClosed) {
+			err = nil
+		}
+		errCh <- err
+	}()
+
+	select {
+	case err := <-errCh:
+		return err
+	case <-ctx.Done():
+		shutCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		if err := hs.Shutdown(shutCtx); err != nil {
+			_ = hs.Close()
+		}
+		return <-errCh
+	}
+}
+
+func (s *Server) log() io.Writer {
+	if s.opts.Log != nil {
+		return s.opts.Log
+	}
+	return os.Stderr
+}
