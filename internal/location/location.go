@@ -31,11 +31,17 @@ func isZip(s string) bool {
 
 // Resolve returns a Location from the input string.
 //   - Empty input → auto-detect via IP geolocation (ipinfo.io)
+//   - lat,lon (comma, optional ASCII whitespace) → coordinates, no geocoder
+//   - Failed coordinate attempts (out of range, NaN/Inf, "lat lon", "foo,bar")
+//     return ErrInvalidLocation and do not call Nominatim
 //   - 5-digit zip (optionally +4) → Nominatim postal code lookup
 //   - Anything else → treated as "City, ST" free-text Nominatim lookup
 func Resolve(ctx context.Context, input string, c Cacher) (Location, error) {
 	if input == "" {
 		return resolveByIP(ctx, c)
+	}
+	if loc, handled, err := parseCoordinates(input); handled {
+		return loc, err
 	}
 	if isZip(input) {
 		return resolveByZip(ctx, input, c)

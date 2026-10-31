@@ -13,7 +13,7 @@ func hourlyCommand() *cli.Command {
 			&cli.StringFlag{
 				Name:    "location",
 				Aliases: []string{"l"},
-				Usage:   "zip code, 'City, ST', or blank to use config/auto-detect",
+				Usage:   "zip, 'City, ST', lat,lon, or blank to use config/auto-detect",
 			},
 			&cli.StringFlag{
 				Name:    "units",
@@ -45,9 +45,9 @@ func hourlyCommand() *cli.Command {
 				Usage:   "show active weather alerts",
 			},
 			&cli.IntFlag{
-				Name:    "hours",
-				Value:   24,
-				Usage:   "number of hours to show in hourly forecast",
+				Name:  "hours",
+				Value: 24,
+				Usage: "number of hours to show in hourly forecast",
 			},
 			&cli.BoolFlag{
 				Name:  "exit-code-on-alerts",
