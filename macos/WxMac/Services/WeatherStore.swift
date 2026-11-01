@@ -927,4 +927,6 @@ extension Notification.Name {
     static let wxWeatherDidUpdate = Notification.Name("wxWeatherDidUpdate")
     static let wxOpenDeskWindow = Notification.Name("wxOpenDeskWindow")
     static let wxOpenDeskRadar = Notification.Name("wxOpenDeskRadar")
+    /// Posted by the status-menu Settings… item. AppDelegate presents Settings.
+    static let wxOpenSettings = Notification.Name("wxOpenSettings")
 }

@@ -5,7 +5,8 @@ struct WxMacApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
-        // Desk window is owned by AppDelegate (NSWindow) so LSUIElement + status item stay primary.
+        // Desk and Settings are AppDelegate NSWindows. This Settings scene does not
+        // present on the status-item shell (issue #81). ⌘, is the wx menu item.
         Settings {
             MCPSettingsView()
         }
