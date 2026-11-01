@@ -96,6 +96,7 @@ type Server struct {
 	hits    atomic.Int64
 	slots   chan struct{}
 	weather weatherFunc
+	radar   radarFunc
 }
 
 // ResolveListenPort picks the listen port. An explicit flag, including an

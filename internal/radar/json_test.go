@@ -7,7 +7,11 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"math"
 	"testing"
+	"time"
+
+	"github.com/mwirges/wx/internal/location"
 )
 
 func TestEncodePNGAndBase64(t *testing.T) {
@@ -102,5 +106,35 @@ func TestRenderJSON(t *testing.T) {
 	}
 	if len(decoded.Frames) != 1 {
 		t.Errorf("len(frames) = %d, want 1", len(decoded.Frames))
+	}
+}
+
+func TestDescribeFrameOmitsImage(t *testing.T) {
+	loc := location.Location{DisplayName: "Fort Wayne, IN", Lat: 41, Lon: -85}
+	box := &BBox{MinLat: 40, MinLon: -85.001, MaxLat: 42, MaxLon: -85}
+	frame := &Frame{
+		ValidTime:   time.Date(2026, 10, 31, 18, 0, 0, 0, time.UTC),
+		Product:     ProductCompositeReflectivity,
+		IsComposite: true,
+		BBox:        box,
+	}
+	opts := Options{Product: ProductCompositeReflectivity, RadiusKM: 200}
+	out := DescribeFrame(loc, opts, "KIWX", frame)
+	if out.ImageBase64 != "" || len(out.Frames) != 0 {
+		t.Fatalf("image leaked: image %q frames %d", out.ImageBase64, len(out.Frames))
+	}
+	if out.RadiusKM != 200 || out.Station != "KIWX" || out.ProductLabel != "Composite Reflectivity" {
+		t.Fatalf("meta = %+v", out)
+	}
+	if !out.IsComposite || out.ValidTime != "2026-10-31T18:00:00Z" {
+		t.Fatalf("flags/time = %+v", out)
+	}
+	opts.BBox = box
+	out = DescribeFrame(loc, opts, "", frame)
+	if math.Abs(out.RadiusKM-111) > 0.01 {
+		t.Fatalf("bbox radius = %v, want 111", out.RadiusKM)
+	}
+	if out.Center == nil || math.Abs(out.Center.Lat-41) > 0.0001 {
+		t.Fatalf("center = %+v", out.Center)
 	}
 }
