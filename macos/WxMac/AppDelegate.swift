@@ -68,6 +68,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         if ProcessInfo.processInfo.environment["WX_QA_POPOVER"] == "1" {
             showPopoverQAWindow()
         }
+        MCPServerSupervisor.shared.startIfEnabled()
     }
 
     // ── UNUserNotificationCenterDelegate ──────────────────────────────────────────
@@ -94,6 +95,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        MCPServerSupervisor.shared.stopForQuit()
         store.stop()
         statusController?.tearDown()
         if let openObserver {
@@ -300,6 +302,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     }
 
     @objc private func openSettings(_ sender: Any?) {
+        NSApp.activate(ignoringOtherApps: true)
+        if NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil) {
+            return
+        }
         showDeskWindow()
     }
 

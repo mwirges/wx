@@ -176,7 +176,12 @@ func TestMCPSettingsRoundTrip(t *testing.T) {
 		DefaultLocation: "New Haven, IN",
 		Units:           "imperial",
 		Favorites:       []LocationEntry{{Name: "Home", Value: "Fort Wayne, IN"}},
-		MCP:             MCPSettings{Enabled: true, Port: 9742},
+		MCP: MCPSettings{
+			Enabled:      true,
+			Port:         9742,
+			RequireToken: true,
+			TokenFile:    "mcp.token",
+		},
 	}
 	if err := Save(path, cfg); err != nil {
 		t.Fatalf("Save: %v", err)
@@ -192,8 +197,11 @@ func TestMCPSettingsRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !got.MCP.Enabled || got.MCP.Port != 9742 {
+	if !got.MCP.Enabled || got.MCP.Port != 9742 || !got.MCP.RequireToken || got.MCP.TokenFile != "mcp.token" {
 		t.Fatalf("mcp = %+v", got.MCP)
+	}
+	if bytes.Contains(data, []byte("Bearer")) {
+		t.Fatalf("config stored a bearer: %s", data)
 	}
 	if got.DefaultLocation != "New Haven, IN" || len(got.Favorites) != 1 {
 		t.Fatalf("existing fields dropped: %+v", got)

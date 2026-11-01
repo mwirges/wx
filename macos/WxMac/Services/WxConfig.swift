@@ -1,4 +1,6 @@
+import Darwin
 import Foundation
+import Security
 
 struct WxLocationEntry: Codable, Identifiable, Hashable, Sendable {
     var id: String { name }
@@ -22,6 +24,20 @@ struct WxPerLocationSettings: Codable, Sendable {
     }
 }
 
+struct WxMCPSettings: Codable, Sendable, Equatable {
+    var enabled: Bool?
+    var port: Int?
+    var requireToken: Bool?
+    var tokenFile: String?
+
+    enum CodingKeys: String, CodingKey {
+        case enabled
+        case port
+        case requireToken = "require_token"
+        case tokenFile = "token_file"
+    }
+}
+
 struct WxConfigFile: Codable, Sendable {
     var defaultLocation: String?
     var units: String?
@@ -31,6 +47,7 @@ struct WxConfigFile: Codable, Sendable {
     var favorites: [WxLocationEntry]?
     var recentLocations: [String]?
     var perLocation: [String: WxPerLocationSettings]?
+    var mcp: WxMCPSettings?
 
     enum CodingKeys: String, CodingKey {
         case defaultLocation = "default_location"
@@ -41,6 +58,30 @@ struct WxConfigFile: Codable, Sendable {
         case favorites
         case recentLocations = "recent_locations"
         case perLocation = "per_location"
+        case mcp
+    }
+}
+
+enum WxMCPTokenError: LocalizedError {
+    case symlink
+    case unreadable
+    case mode
+    case random
+    case io
+
+    var errorDescription: String? {
+        switch self {
+        case .symlink:
+            return "The MCP token file is a symlink. Refusing to use it."
+        case .unreadable:
+            return "The MCP token file is missing or empty."
+        case .mode:
+            return "The MCP token file must be mode 0600."
+        case .random:
+            return "Could not generate an MCP token."
+        case .io:
+            return "Could not write the MCP token file."
+        }
     }
 }
 
@@ -144,5 +185,176 @@ enum WxConfig {
         }
         save(cfg)
         return "saved"
+    }
+
+    static func updateMCP(_ mutate: (inout WxMCPSettings) -> Void) {
+        var cfg = load()
+        var mcp = cfg.mcp ?? WxMCPSettings()
+        mutate(&mcp)
+        cfg.mcp = mcp
+        save(cfg)
+    }
+
+    static func mcpTokenURL() -> URL {
+        let cfg = load()
+        if let custom = cfg.mcp?.tokenFile?.trimmingCharacters(in: .whitespacesAndNewlines), !custom.isEmpty {
+            if custom.hasPrefix("/") {
+                return URL(fileURLWithPath: custom)
+            }
+            return configURL.deletingLastPathComponent().appendingPathComponent(custom)
+        }
+        return configURL.deletingLastPathComponent().appendingPathComponent("mcp.token")
+    }
+
+    /// Creates mcp.token (mode 0600) when it is missing. Does not print the token.
+    static func ensureMCPToken() throws -> String {
+        let url = mcpTokenURL()
+        if let existing = try? readTokenFile(url), !existing.isEmpty {
+            return existing
+        }
+        var bytes = [UInt8](repeating: 0, count: 32)
+        let status = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+        guard status == errSecSuccess else { throw WxMCPTokenError.random }
+        let token = bytes.map { String(format: "%02x", $0) }.joined()
+        try writeTokenFile(url, token: token)
+        return token
+    }
+
+    static func readMCPToken() throws -> String {
+        let token = try readTokenFile(mcpTokenURL())
+        if token.isEmpty { throw WxMCPTokenError.unreadable }
+        return token
+    }
+
+    private static func readTokenFile(_ url: URL) throws -> String {
+        let values = try url.resourceValues(forKeys: [.isSymbolicLinkKey])
+        if values.isSymbolicLink == true {
+            throw WxMCPTokenError.symlink
+        }
+        let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
+        let mode = (attrs[.posixPermissions] as? NSNumber)?.uint16Value ?? 0
+        if mode & 0o077 != 0 {
+            throw WxMCPTokenError.mode
+        }
+        let text = try String(contentsOf: url, encoding: .utf8)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if text.isEmpty || text.contains(" ") || text.contains("\n") {
+            throw WxMCPTokenError.unreadable
+        }
+        return text
+    }
+
+    /// Replaces `url` with `token` plus a trailing newline.
+    ///
+    /// A temp file in the same directory is created with
+    /// `open(O_CREAT|O_EXCL|O_WRONLY, 0o600)` so mode 0600 is set before
+    /// rename publishes the destination name. The mode is not adjusted
+    /// after open. On failure the temp is removed. A destination whose
+    /// mode is not 0600 after rename is removed. The token is not logged.
+    ///
+    /// `beforeRename`, when set, runs while the temp is still unpublished.
+    static func writeTokenFile(
+        _ url: URL,
+        token: String,
+        beforeRename: ((URL) -> Void)? = nil
+    ) throws {
+        if let values = try? url.resourceValues(forKeys: [.isSymbolicLinkKey]), values.isSymbolicLink == true {
+            throw WxMCPTokenError.symlink
+        }
+        let dir = url.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+
+        let tmpURL = dir.appendingPathComponent(".\(url.lastPathComponent).\(UUID().uuidString).tmp")
+        let tmpPath = tmpURL.path
+        let fd = tmpPath.withCString { Darwin.open($0, O_CREAT | O_EXCL | O_WRONLY | O_CLOEXEC, mode_t(0o600)) }
+        if fd < 0 {
+            throw WxMCPTokenError.io
+        }
+        var fdOpen = true
+        func closeTemp() throws {
+            guard fdOpen else { return }
+            while true {
+                if Darwin.close(fd) == 0 {
+                    fdOpen = false
+                    return
+                }
+                if errno == EINTR { continue }
+                fdOpen = false
+                throw WxMCPTokenError.io
+            }
+        }
+        func discardTemp() {
+            if fdOpen {
+                fdOpen = false
+                while Darwin.close(fd) != 0 && errno == EINTR {}
+            }
+            _ = tmpPath.withCString { unlink($0) }
+        }
+
+        var created = stat()
+        if Darwin.fstat(fd, &created) != 0 || !isMode0600(created.st_mode) {
+            discardTemp()
+            throw WxMCPTokenError.mode
+        }
+        do {
+            try writeFully(fd, Data((token + "\n").utf8))
+            try closeTemp()
+        } catch {
+            discardTemp()
+            throw error
+        }
+        guard isMode0600(tmpURL) else {
+            discardTemp()
+            throw WxMCPTokenError.mode
+        }
+
+        beforeRename?(tmpURL)
+
+        guard isMode0600(tmpURL) else {
+            discardTemp()
+            throw WxMCPTokenError.mode
+        }
+        let renamed = tmpPath.withCString { tmp in
+            url.path.withCString { dest in
+                Darwin.rename(tmp, dest)
+            }
+        }
+        if renamed != 0 {
+            discardTemp()
+            throw WxMCPTokenError.io
+        }
+        if !isMode0600(url) {
+            _ = url.path.withCString { unlink($0) }
+            throw WxMCPTokenError.mode
+        }
+    }
+
+    private static func writeFully(_ fd: Int32, _ data: Data) throws {
+        try data.withUnsafeBytes { raw in
+            guard raw.count > 0, let base = raw.baseAddress else { return }
+            var off = 0
+            while off < raw.count {
+                let n = Darwin.write(fd, base.advanced(by: off), raw.count - off)
+                if n < 0 {
+                    if errno == EINTR { continue }
+                    throw WxMCPTokenError.io
+                }
+                if n == 0 {
+                    throw WxMCPTokenError.io
+                }
+                off += n
+            }
+        }
+    }
+
+    private static func isMode0600(_ mode: mode_t) -> Bool {
+        (mode & mode_t(0o777)) == mode_t(0o600)
+    }
+
+    private static func isMode0600(_ url: URL) -> Bool {
+        var st = stat()
+        let rc = url.path.withCString { lstat($0, &st) }
+        if rc != 0 { return false }
+        return isMode0600(st.st_mode)
     }
 }

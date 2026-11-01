@@ -56,16 +56,26 @@ type Config struct {
 	MenuBarFormat string `json:"menu_bar_format,omitempty"`
 
 	// MCP is the optional loopback MCP server (wx mcp serve).
-	// JSON object "mcp" is the design's mcp.enabled and mcp.port.
-	// Both fields are optional. Missing enabled means off. Missing or zero
-	// port means 9742. Save stays atomic (temp file plus rename).
+	// JSON object "mcp" is mcp.enabled, mcp.port, and the optional bearer.
+	// Missing enabled means off. Missing or zero port means 9742.
+	// require_token defaults off. The token itself is not stored here;
+	// it lives in a separate mode-0600 file (see mcp.token_file).
+	// Save stays atomic (temp file plus rename).
 	MCP MCPSettings `json:"mcp,omitempty"`
 }
 
 // MCPSettings is the "mcp" object in ~/.config/wx/config.json.
+// The raw bearer token is never a field of this struct.
 type MCPSettings struct {
 	Enabled bool `json:"enabled,omitempty"`
 	Port    int  `json:"port,omitempty"`
+	// RequireToken makes wx mcp serve reject /mcp and /healthz without a
+	// matching Authorization: Bearer header. Off when missing.
+	RequireToken bool `json:"require_token,omitempty"`
+	// TokenFile is an optional path to the bearer file. Empty means
+	// mcp.token beside this config file. The file must be mode 0600
+	// (no group or world bits) and must not be a symlink.
+	TokenFile string `json:"token_file,omitempty"`
 }
 
 // GetFavorite looks up a favorite location by name (case-insensitive).
