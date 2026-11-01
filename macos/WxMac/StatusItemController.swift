@@ -41,10 +41,25 @@ final class StatusItemController: NSObject {
                 self?.updatePopoverSize()
             }
         }
+        // UI tests cannot click the status item without XCTest activating the app,
+        // and that activation orders the desk forward by itself. The test posts
+        // this name instead, which runs the same togglePopover path.
+        if ProcessInfo.processInfo.environment["WX_UI_TEST"] == "1" {
+            DistributedNotificationCenter.default().addObserver(
+                self,
+                selector: #selector(uiTestTogglePopover(_:)),
+                name: .wxUITestTogglePopover,
+                object: nil,
+                suspensionBehavior: .deliverImmediately
+            )
+        }
         refreshButton()
     }
 
     func tearDown() {
+        if ProcessInfo.processInfo.environment["WX_UI_TEST"] == "1" {
+            DistributedNotificationCenter.default().removeObserver(self)
+        }
         if let updateObserver {
             NotificationCenter.default.removeObserver(updateObserver)
         }
@@ -246,6 +261,10 @@ final class StatusItemController: NSObject {
         menu.popUp(positioning: nil, at: point, in: button)
     }
 
+    @objc private func uiTestTogglePopover(_ notification: Notification) {
+        togglePopover(nil)
+    }
+
     @objc private func togglePopover(_ sender: Any?) {
         guard let button = statusItem?.button, let popover else { return }
         if popover.isShown {
@@ -253,7 +272,8 @@ final class StatusItemController: NSObject {
         } else {
             updatePopoverSize()
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-            NSApp.activate()
+            // Do not activate. The desk stays AXMain while another app is frontmost,
+            // and activating the app orders that desk forward. The HUD is the status item only.
         }
     }
 
@@ -314,6 +334,11 @@ final class StatusItemController: NSObject {
     @objc private func quitWx(_ sender: Any?) {
         NSApp.terminate(nil)
     }
+}
+
+extension Notification.Name {
+    /// WX_UI_TEST only. Posted cross-process so the HUD opens without XCTest activating wx.
+    static let wxUITestTogglePopover = Notification.Name("wx.uitest.togglePopover")
 }
 
 // ── Dropdown Menu Quick Preview Card ──────────────────────────────────────────

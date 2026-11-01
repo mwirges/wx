@@ -2,6 +2,15 @@ import AppKit
 import SwiftUI
 import UserNotifications
 
+/// Whether ordering the desk may take keyboard focus from another app.
+enum DeskFocus {
+    /// Launch, Dock reopen, and any path that is not an explicit desk request.
+    /// Uses `orderFront` and never `activate(ignoringOtherApps:)`.
+    case passive
+    /// Status-menu Open Desk, app menus, notification click, and other explicit requests.
+    case userRequested
+}
+
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNotificationCenterDelegate {
     let store = WeatherStore()
@@ -43,7 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in self?.showDeskWindow() }
+            Task { @MainActor in self?.showDeskWindow(focus: .userRequested) }
         }
 
         openRadarObserver = NotificationCenter.default.addObserver(
@@ -53,7 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         ) { [weak self] _ in
             Task { @MainActor in
                 self?.store.selectedDeskTab = .radar
-                self?.showDeskWindow()
+                self?.showDeskWindow(focus: .userRequested)
                 if self?.store.radarImage == nil {
                     await self?.store.refreshRadar()
                 }
@@ -75,8 +84,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             store.selectedDeskTab = .radar
             Task { await store.refreshRadar() }
         }
-        // Open desk window on launch as a full Mac app.
-        showDeskWindow()
+        // Launch shows the desk without ignoringOtherApps. A frontmost app keeps the keyboard.
+        showDeskWindow(focus: .passive)
         if ProcessInfo.processInfo.environment["WX_QA_POPOVER"] == "1" {
             showPopoverQAWindow()
         }
@@ -100,7 +109,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         Task { @MainActor [weak self] in
-            self?.showDeskWindow()
+            self?.showDeskWindow(focus: .userRequested)
             self?.store.selectedDeskTab = .weather
         }
         completionHandler()
@@ -123,7 +132,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if !flag {
-            showDeskWindow()
+            // Dock reopen. The system already decided activation. Do not steal with ignoringOtherApps.
+            showDeskWindow(focus: .passive)
         }
         return true
     }
@@ -331,7 +341,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     }
 
     @objc private func showDeskWindowAction(_ sender: Any?) {
-        showDeskWindow()
+        showDeskWindow(focus: .userRequested)
     }
 
     @objc private func refreshAction(_ sender: Any?) {
@@ -343,7 +353,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
 
     @objc private func selectDualTab(_ sender: Any?) {
         store.selectedDeskTab = .dual
-        showDeskWindow()
+        showDeskWindow(focus: .userRequested)
         if store.radarImage == nil && !store.isRadarLoading {
             Task { await store.refreshRadar() }
         }
@@ -351,12 +361,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
 
     @objc private func selectWeatherTab(_ sender: Any?) {
         store.selectedDeskTab = .weather
-        showDeskWindow()
+        showDeskWindow(focus: .userRequested)
     }
 
     @objc private func selectRadarTab(_ sender: Any?) {
         store.selectedDeskTab = .radar
-        showDeskWindow()
+        showDeskWindow(focus: .userRequested)
         if store.radarImage == nil && !store.isRadarLoading {
             Task { await store.refreshRadar() }
         }
@@ -364,7 +374,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
 
     @objc private func selectOutlooksTab(_ sender: Any?) {
         store.selectedDeskTab = .outlooks
-        showDeskWindow()
+        showDeskWindow(focus: .userRequested)
         if store.cpcPayload == nil && !store.isCPCLoading {
             Task { await store.refreshCPC() }
         }
@@ -372,7 +382,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
 
     @objc private func selectChaseTab(_ sender: Any?) {
         store.selectedDeskTab = .chase
-        showDeskWindow()
+        showDeskWindow(focus: .userRequested)
         if store.chasePayload == nil && !store.isChaseLoading {
             Task { await store.refreshChase() }
         }
@@ -390,7 +400,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
 
     @objc private func recenterRadarAction(_ sender: Any?) {
         store.selectedDeskTab = .radar
-        showDeskWindow()
+        showDeskWindow(focus: .userRequested)
         NotificationCenter.default.post(name: .wxOpenDeskRadar, object: nil)
     }
 
@@ -423,12 +433,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
 
     // ── Window Management ─────────────────────────────────────────────────────────
 
-    func showDeskWindow() {
-        NSApp.setActivationPolicy(.regular)
+    func showDeskWindow(focus: DeskFocus = .passive) {
+        // Activation policy is set once at launch. Repeating it here can activate the app.
         store.deskWindowOpen = true
         if let deskWindow {
-            deskWindow.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+            orderDesk(deskWindow, focus: focus)
             return
         }
         let hosting = NSHostingController(rootView: DeskWindowView().environmentObject(store))
@@ -451,16 +460,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         window.setFrameAutosaveName("wxDeskWindow")
         window.center()
         window.isReleasedWhenClosed = true
-        window.makeKeyAndOrderFront(nil)
         deskWindow = window
         // isReleasedWhenClosed sends an extra -release on close. Without this
         // retain the window frees while deskWindow still points at it.
         _ = Unmanaged.passRetained(window)
-        NSApp.activate(ignoringOtherApps: true)
+        orderDesk(window, focus: focus)
 
         if store.selectedDeskTab == .dual || store.selectedDeskTab == .radar {
             if store.radarImage == nil && !store.isRadarLoading {
                 Task { await store.refreshRadar() }
+            }
+        }
+    }
+
+    /// User requests take key focus. Launch, reopen, and background orders do not.
+    private func orderDesk(_ window: NSWindow, focus: DeskFocus) {
+        switch focus {
+        case .userRequested:
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+        case .passive:
+            // Visible in our window list only. No ignoringOtherApps, so another
+            // frontmost app keeps the keyboard and stays in front.
+            // makeKey only when we are already active (the user launched us, or
+            // the Dock click already focused us) so ⌘W works without a steal.
+            window.orderFront(nil)
+            if NSApp.isActive {
+                window.makeKey()
             }
         }
     }
