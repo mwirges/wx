@@ -28,6 +28,7 @@ func TestWeatherToolCatalog(t *testing.T) {
 	for _, name := range []string{
 		"wx_server_info", "wx_conditions", "wx_forecast", "wx_hourly", "wx_alerts",
 		"wx_nowcast", "wx_aqi", "wx_astro", "wx_radar",
+		"wx_climate", "wx_sounding", "wx_outlook", "wx_spc",
 	} {
 		if !got[name] {
 			t.Errorf("missing tool %s in %v", name, got)

@@ -24,4 +24,10 @@
 // wx_radar defaults to metadata and never returns a multi-frame loop.
 // include_image adds one frame. RadarImageMaxBytes (256 KiB) applies to
 // the PNG and to its base64 form; over that, the code is payload_too_large.
+//
+// wx_climate, wx_sounding, wx_outlook, and wx_spc return the same JSON
+// objects as wx climate --json, wx sounding --json, wx outlook --json,
+// and wx spc --json. skewt_image_url stays an http(s) URL. Skew-T image
+// bytes are not embedded. ToolJSONMaxBytes (256 KiB) applies to each
+// serialized tool JSON; over that, the code is payload_too_large.
 package mcp

@@ -102,6 +102,7 @@ func (s *Server) addWeatherTools() {
 		Description: "Sun, moon, and twilight. JSON matches wx astro --json, including astronomy. date is YYYY-MM-DD; omit it for today." + polite,
 	}, s.wxAstro)
 	s.addRadarTool()
+	s.addSliceETools()
 }
 
 func (s *Server) wxConditions(ctx context.Context, _ *sdkmcp.CallToolRequest, in wxArgs) (*sdkmcp.CallToolResult, any, error) {
