@@ -69,6 +69,8 @@ struct LocationBarView: View {
             }
             .buttonStyle(.plain)
             .disabled(store.isLocating)
+            .accessibilityIdentifier("wx.use-current-location")
+            .accessibilityLabel("Use Current Location")
             .help("Acquire current location via CoreLocation")
 
             // Saved Locations & Recents Menu
@@ -144,6 +146,7 @@ struct LocationsDropdownMenu: View {
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
+        .accessibilityIdentifier("wx.locations-menu")
         .help("Favorite and Recent Locations")
     }
 }

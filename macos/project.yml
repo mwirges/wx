@@ -39,6 +39,11 @@ targets:
       configs:
         Debug:
           ENABLE_HARDENED_RUNTIME: false
+          # Same location entitlement as Release. The app stays non-sandboxed on
+          # purpose: do not add com.apple.security.app-sandbox here (issue #78).
+          # com.apple.security.personal-information.location in WxMac.entitlements
+          # is the CoreLocation signing requirement for this ad-hoc model.
+          CODE_SIGN_ENTITLEMENTS: WxMac/WxMac.entitlements
         Release:
           ENABLE_HARDENED_RUNTIME: true
           CODE_SIGN_ENTITLEMENTS: WxMac/WxMac.entitlements

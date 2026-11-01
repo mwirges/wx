@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import CoreLocation
 import AppKit
 import UserNotifications
 
@@ -128,6 +129,40 @@ final class WeatherStore: ObservableObject {
         recentLocations = cfg.recentLocations ?? []
         refreshInterval = Self.secondsOverride("WX_REFRESH_SECONDS", fallback: 5 * 60)
         radarRefreshInterval = Self.secondsOverride("WX_RADAR_REFRESH_SECONDS", fallback: 2 * 60)
+        locationManager.onAuthorizationStatusChange = { [weak self] status in
+            self?.clearStaleLocationDenial(status)
+        }
+    }
+
+    /// Drop the location-off banner once access is granted again. A later GPS tap
+    /// must not sit under a leftover denial alert.
+    private func clearStaleLocationDenial(_ status: CLAuthorizationStatus) {
+        // macOS has no .authorizedWhenInUse. Raw value 4 is that case if it ever appears.
+        guard status == .authorizedAlways || status.rawValue == 4 else { return }
+        guard errorMessage == LocationManagerError.accessOffMessage else { return }
+        errorMessage = nil
+        updateStatusItemChrome()
+    }
+
+    func openLocationSettings() {
+        let url = LocationManagerError.settingsURL
+        if let log = ProcessInfo.processInfo.environment["WX_OPEN_URL_LOG"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines), !log.isEmpty {
+            let line = Data((url.absoluteString + "\n").utf8)
+            if FileManager.default.fileExists(atPath: log),
+               let handle = FileHandle(forWritingAtPath: log) {
+                do {
+                    try handle.seekToEnd()
+                    try handle.write(contentsOf: line)
+                    try handle.close()
+                } catch {
+                    try? handle.close()
+                }
+            } else {
+                FileManager.default.createFile(atPath: log, contents: line)
+            }
+        }
+        NSWorkspace.shared.open(url)
     }
 
     /// Test-only. Unset, zero, or junk keeps the production interval.
@@ -204,7 +239,7 @@ final class WeatherStore: ObservableObject {
             case .success(let loc):
                 self.selectLocation(loc)
             case .failure(let err):
-                self.errorMessage = err.localizedDescription
+                self.errorMessage = LocationManagerError.message(for: err)
             }
         }
     }
@@ -718,11 +753,18 @@ final class WeatherStore: ObservableObject {
 
     func refresh(priority: TaskPriority = .userInitiated) async {
         isLoading = true
-        errorMessage = nil
+        // A weather refresh must not wipe the location-off notice. That banner
+        // stays until authorization becomes allowed.
+        let keepLocationOff = errorMessage == LocationManagerError.accessOffMessage
+        if !keepLocationOff {
+            errorMessage = nil
+        }
         defer { isLoading = false }
 
         guard backend.isAvailable else {
-            errorMessage = WxCLIError.binaryMissing.errorDescription
+            if !keepLocationOff {
+                errorMessage = WxCLIError.binaryMissing.errorDescription
+            }
             updateStatusItemChrome()
             return
         }
@@ -740,7 +782,9 @@ final class WeatherStore: ObservableObject {
             updateStatusItemChrome()
             notifySevereAlertsIfNeeded(result.alerts)
         } catch {
-            errorMessage = error.localizedDescription
+            if !keepLocationOff {
+                errorMessage = error.localizedDescription
+            }
             updateStatusItemChrome()
         }
     }

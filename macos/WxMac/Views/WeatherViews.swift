@@ -520,16 +520,47 @@ struct ControlsBar: View {
             }
 
             if let err = store.errorMessage {
-                Text("// ALERT: \(err)")
-                    .font(.system(size: 9.5, weight: .medium, design: .monospaced))
-                    .foregroundStyle(WxTheme.snwRed)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                if err == LocationManagerError.accessOffMessage {
+                    locationAccessOffNotice
+                } else {
+                    Text("// ALERT: \(err)")
+                        .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+                        .foregroundStyle(WxTheme.snwRed)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityIdentifier("wx.location-alert")
+                        .accessibilityLabel("// ALERT: \(err)")
+                }
             } else if let warn = store.payload?.warning, !warn.isEmpty {
                 Text("// ADVISORY: \(warn)")
                     .font(.system(size: 9, weight: .medium, design: .monospaced))
                     .foregroundStyle(WxTheme.snwAmber)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+        }
+    }
+
+    /// Denied and restricted share this copy on the desk and the popover. Both use ControlsBar.
+    private var locationAccessOffNotice: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(LocationManagerError.accessOffMessage)
+                .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+                .foregroundStyle(WxTheme.snwRed)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityElement(children: .ignore)
+                .accessibilityIdentifier("wx.location-denied")
+                .accessibilityLabel(LocationManagerError.accessOffMessage)
+            Button {
+                store.openLocationSettings()
+            } label: {
+                Text("Open Location Services Settings")
+                    .font(.system(size: 9.5, weight: .semibold, design: .monospaced))
+                    .underline()
+                    .foregroundStyle(WxTheme.snwCyan)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("wx.open-location-settings")
+            .accessibilityLabel("Open Location Services Settings")
         }
     }
 
