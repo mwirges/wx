@@ -59,6 +59,7 @@ targets:
           fi
     scheme:
       testTargets:
+        - WxMacTests
         - WxMacUITests
   WxMacUITests:
     type: bundle.ui-testing
@@ -89,3 +90,20 @@ targets:
           mkdir -p "${DEST}"
           cp -f "${SRCROOT}/WxMacUITests/Fixtures/wx-stub" "${DEST}/wx-stub"
           chmod +x "${DEST}/wx-stub"
+  WxMacTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: WxMacTests
+      - path: WxMac/Services/MCPSpawnGuard.swift
+      - path: WxMac/Services/WxConfig.swift
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.mwirges.wx.tests
+        SDKROOT: macosx
+        SUPPORTED_PLATFORMS: macosx
+        SUPPORTS_MACCATALYST: NO
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGNING_ALLOWED: "YES"
+        CODE_SIGNING_REQUIRED: "NO"

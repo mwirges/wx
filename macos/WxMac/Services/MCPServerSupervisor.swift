@@ -11,7 +11,8 @@ import Darwin
 /// Stop signals only the pid this supervisor spawned, or a pidfile child
 /// whose parent pid is already dead, and only after `verify` matches
 /// wx/wx-cli plus `mcp serve`. pid 0, pid -1, and any other pid are not
-/// signaled. There is no process-group kill.
+/// signaled. spawn throws when `processIdentifier` is <= 1 and does not
+/// signal that pid. There is no process-group kill.
 @MainActor
 final class MCPServerSupervisor: ObservableObject {
     static let shared = MCPServerSupervisor()
@@ -181,10 +182,9 @@ final class MCPServerSupervisor: ObservableObject {
         }
         try proc.run()
         let pid = proc.processIdentifier
-        guard pid > 1 else {
-            proc.terminate()
-            throw MCPServeError.refused("wx-cli returned pid \(pid)")
-        }
+        // pid <= 1 throws inside rejectInvalidSpawnPID. That function does not
+        // run the terminate closure, and this call passes an empty one.
+        try MCPSpawnGuard.rejectInvalidSpawnPID(pid, terminate: {})
         process = proc
         stdinPipe = stdin
         stdoutPipe = stdout
@@ -420,17 +420,6 @@ final class MCPServerSupervisor: ObservableObject {
             "not running",
         ]
         return keys.contains { lowered.contains($0) }
-    }
-}
-
-private enum MCPServeError: LocalizedError {
-    case refused(String)
-
-    var errorDescription: String? {
-        switch self {
-        case .refused(let message):
-            return message
-        }
     }
 }
 
