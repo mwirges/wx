@@ -97,6 +97,9 @@ type Server struct {
 	slots   chan struct{}
 	weather weatherFunc
 	radar   radarFunc
+	// sliceE replaces live climate, sounding, outlook, and SPC fetches.
+	// Nil uses the CLI fetch path. The byte cap still applies.
+	sliceE sliceEFunc
 }
 
 // ResolveListenPort picks the listen port. An explicit flag, including an
