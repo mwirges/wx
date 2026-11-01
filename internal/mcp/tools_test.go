@@ -25,7 +25,10 @@ func TestWeatherToolCatalog(t *testing.T) {
 	for _, tool := range res.Tools {
 		got[tool.Name] = true
 	}
-	for _, name := range []string{"wx_server_info", "wx_conditions", "wx_forecast", "wx_hourly", "wx_alerts"} {
+	for _, name := range []string{
+		"wx_server_info", "wx_conditions", "wx_forecast", "wx_hourly", "wx_alerts",
+		"wx_nowcast", "wx_aqi", "wx_astro", "wx_radar",
+	} {
 		if !got[name] {
 			t.Errorf("missing tool %s in %v", name, got)
 		}

@@ -12,10 +12,13 @@ import (
 
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/mwirges/wx/internal/airquality"
 	"github.com/mwirges/wx/internal/astro"
 	"github.com/mwirges/wx/internal/cache"
 	"github.com/mwirges/wx/internal/config"
 	"github.com/mwirges/wx/internal/location"
+	"github.com/mwirges/wx/internal/models"
+	"github.com/mwirges/wx/internal/nowcast"
 	"github.com/mwirges/wx/internal/output"
 	"github.com/mwirges/wx/internal/provider"
 	_ "github.com/mwirges/wx/internal/provider/nws"
@@ -33,7 +36,8 @@ const (
 // errBusy is the local concurrency limit. It is not an upstream 429.
 var errBusy = errors.New("tool concurrency limit reached")
 
-var httpStatusRe = regexp.MustCompile(`HTTP (\d{3})\b`)
+// HTTP 429 from NWS, and nowcast's "upstream error 502", both count.
+var httpStatusRe = regexp.MustCompile(`(?:HTTP |upstream error )(\d{3})\b`)
 
 // weatherFunc replaces the live provider path in tests.
 type weatherFunc func(ctx context.Context, kind string, loc location.Location, units string, hours int) (json.RawMessage, error)
@@ -85,6 +89,19 @@ func (s *Server) addWeatherTools() {
 		Name:        "wx_alerts",
 		Description: "Active weather alerts for the location. Returns a JSON array. An empty array means none are active." + polite,
 	}, s.wxAlerts)
+	sdkmcp.AddTool(s.mcp, &sdkmcp.Tool{
+		Name:        "wx_nowcast",
+		Description: "Quantitative precipitation nowcast. JSON matches wx nowcast --json, including the nowcast object." + polite,
+	}, s.wxNowcast)
+	sdkmcp.AddTool(s.mcp, &sdkmcp.Tool{
+		Name:        "wx_aqi",
+		Description: "Air quality, smoke, and the EPA health advisory. JSON matches wx aqi --json, including air_quality." + polite,
+	}, s.wxAQI)
+	sdkmcp.AddTool(s.mcp, &sdkmcp.Tool{
+		Name:        "wx_astro",
+		Description: "Sun, moon, and twilight. JSON matches wx astro --json, including astronomy. date is YYYY-MM-DD; omit it for today." + polite,
+	}, s.wxAstro)
+	s.addRadarTool()
 }
 
 func (s *Server) wxConditions(ctx context.Context, _ *sdkmcp.CallToolRequest, in wxArgs) (*sdkmcp.CallToolResult, any, error) {
@@ -101,6 +118,45 @@ func (s *Server) wxHourly(ctx context.Context, _ *sdkmcp.CallToolRequest, in hou
 
 func (s *Server) wxAlerts(ctx context.Context, _ *sdkmcp.CallToolRequest, in wxArgs) (*sdkmcp.CallToolResult, any, error) {
 	return s.finish(s.fetchLive(ctx, "alerts", in.Location, in.Units, 0))
+}
+
+type astroArgs struct {
+	Location string `json:"location,omitempty" jsonschema:"Optional place. Omit, empty, or default uses the configured default. Otherwise a favorite, ZIP, City ST, or lat,lon."`
+	Units    string `json:"units,omitempty" jsonschema:"imperial or metric. Omit to use the configured units. Astronomy JSON includes both and does not change with units."`
+	Date     string `json:"date,omitempty" jsonschema:"Calculation date YYYY-MM-DD in local time. Omit for today, matching wx astro --json."`
+}
+
+func (s *Server) wxNowcast(ctx context.Context, _ *sdkmcp.CallToolRequest, in wxArgs) (*sdkmcp.CallToolResult, any, error) {
+	return s.finish(s.fetchLive(ctx, "nowcast", in.Location, in.Units, 0))
+}
+
+func (s *Server) wxAQI(ctx context.Context, _ *sdkmcp.CallToolRequest, in wxArgs) (*sdkmcp.CallToolResult, any, error) {
+	return s.finish(s.fetchLive(ctx, "aqi", in.Location, in.Units, 0))
+}
+
+func (s *Server) wxAstro(ctx context.Context, _ *sdkmcp.CallToolRequest, in astroArgs) (*sdkmcp.CallToolResult, any, error) {
+	when, err := parseAstroDate(in.Date)
+	if err != nil {
+		return s.finish(nil, err)
+	}
+	return s.finish(s.fetchProduct(ctx, productReq{
+		kind:  "astro",
+		loc:   in.Location,
+		units: in.Units,
+		when:  when,
+	}))
+}
+
+func parseAstroDate(dateStr string) (time.Time, error) {
+	dateStr = strings.TrimSpace(dateStr)
+	if dateStr == "" {
+		return time.Time{}, nil
+	}
+	parsed, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("invalid date format %q, use YYYY-MM-DD: %w", dateStr, err)
+	}
+	return parsed, nil
 }
 
 func (s *Server) finish(raw json.RawMessage, err error) (*sdkmcp.CallToolResult, any, error) {
@@ -132,7 +188,21 @@ func (s *Server) release() {
 	<-s.slots
 }
 
+// productReq is one weather-tool fetch. when is the astro calculation time.
+// The zero time means wx astro with no --date: calculate for time.Now().
+type productReq struct {
+	kind  string
+	loc   string
+	units string
+	hours int
+	when  time.Time
+}
+
 func (s *Server) fetchLive(ctx context.Context, kind, locArg, unitsArg string, hours int) (json.RawMessage, error) {
+	return s.fetchProduct(ctx, productReq{kind: kind, loc: locArg, units: unitsArg, hours: hours})
+}
+
+func (s *Server) fetchProduct(ctx context.Context, req productReq) (json.RawMessage, error) {
 	ctx, cancel := context.WithTimeout(ctx, toolTimeout)
 	defer cancel()
 
@@ -150,35 +220,104 @@ func (s *Server) fetchLive(ctx context.Context, kind, locArg, unitsArg string, h
 	}
 	defer s.release()
 
-	loc, query, err := resolveToolLocation(ctx, cfg, locArg, ch)
+	loc, query, err := resolveToolLocation(ctx, cfg, req.loc, ch)
 	if err != nil {
 		return nil, err
 	}
-	units, err := normalizeUnits(cfg, unitsArg, query, locArg, loc.DisplayName)
+	units, err := normalizeUnits(cfg, req.units, query, req.loc, loc.DisplayName)
 	if err != nil {
 		return nil, err
 	}
-	hours, err = normalizeHours(hours)
+	hours, err := normalizeHours(req.hours)
 	if err != nil {
 		return nil, err
 	}
 
 	if s.weather != nil {
-		return s.weather(ctx, kind, loc, units, hours)
+		return s.weather(ctx, req.kind, loc, units, hours)
 	}
 
-	pref := cfg.GetEffectiveProvider(query, strings.TrimSpace(locArg), loc.DisplayName)
+	switch req.kind {
+	case "nowcast", "aqi", "astro":
+		return fetchDirect(ctx, req.kind, loc, ch, req.when)
+	}
+
+	pref := cfg.GetEffectiveProvider(query, strings.TrimSpace(req.loc), loc.DisplayName)
 	prov, err := provider.ForLocationWithPreference(loc, pref)
 	if err != nil {
 		return nil, err
 	}
-	raw, ferr := fetchFrom(ctx, kind, prov, loc, ch, units, hours)
+	raw, ferr := fetchFrom(ctx, req.kind, prov, loc, ch, units, hours)
 	if ferr != nil {
 		if fb, fbErr := provider.FallbackForLocation(loc, prov.Name()); fbErr == nil && !strings.EqualFold(fb.Name(), prov.Name()) {
-			raw, ferr = fetchFrom(ctx, kind, fb, loc, ch, units, hours)
+			raw, ferr = fetchFrom(ctx, req.kind, fb, loc, ch, units, hours)
 		}
 	}
 	return raw, ferr
+}
+
+// fetchDirect is wx nowcast / wx aqi / wx astro. Those commands do not go
+// through WeatherProvider. The JSON is the same struct the CLI renders.
+func fetchDirect(ctx context.Context, kind string, loc location.Location, ch *cache.Cache, when time.Time) (json.RawMessage, error) {
+	switch kind {
+	case "nowcast":
+		nc, err := nowcast.Fetch(ctx, loc.Lat, loc.Lon, loc.DisplayName, ch)
+		if err != nil {
+			return nil, err
+		}
+		if nc == nil {
+			return nil, errors.New("weather: empty nowcast")
+		}
+		return mustJSON(&models.NowcastPayload{Location: loc.DisplayName, Nowcast: nc})
+	case "aqi":
+		aq, err := airquality.Fetch(ctx, loc.Lat, loc.Lon, ch)
+		if err != nil {
+			return nil, err
+		}
+		if aq == nil {
+			return nil, errors.New("weather: empty air quality")
+		}
+		payload := &models.AirQualityPayload{
+			Location:   loc.DisplayName,
+			Latitude:   loc.Lat,
+			Longitude:  loc.Lon,
+			FetchedAt:  time.Now().UTC(),
+			AirQuality: aq,
+		}
+		if aq.AQI != nil {
+			payload.HealthAdvisory = models.EPAHealthAdvisory(*aq.AQI)
+		}
+		if aq.PM25 != nil {
+			payload.SmokeAdvisory = models.SmokeAdvisory(*aq.PM25)
+		}
+		return mustJSON(payload)
+	case "astro":
+		calcTime := when
+		if calcTime.IsZero() {
+			calcTime = time.Now()
+		}
+		astronomy, err := astro.Calculate(loc.Lat, loc.Lon, calcTime)
+		if err != nil {
+			return nil, fmt.Errorf("calculating astronomical ephemeris: %w", err)
+		}
+		return mustJSON(&models.AstroPayload{
+			Location:     loc.DisplayName,
+			Latitude:     loc.Lat,
+			Longitude:    loc.Lon,
+			CalculatedAt: calcTime,
+			Astronomy:    astronomy,
+		})
+	default:
+		return nil, fmt.Errorf("unknown product %q", kind)
+	}
+}
+
+func mustJSON(v any) (json.RawMessage, error) {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	return json.RawMessage(b), nil
 }
 
 func resolveToolLocation(ctx context.Context, cfg *config.Config, arg string, ch location.Cacher) (location.Location, string, error) {

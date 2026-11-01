@@ -18,4 +18,10 @@
 // Weather tools share location.Resolve with the CLI, including lat,lon
 // validation. Tool failures return isError with a JSON code and message.
 // In-flight weather calls are capped per process. wx_server_info is not.
+//
+// wx_nowcast, wx_aqi, and wx_astro return the same JSON objects as
+// wx nowcast --json, wx aqi --json, and wx astro --json.
+// wx_radar defaults to metadata and never returns a multi-frame loop.
+// include_image adds one frame. RadarImageMaxBytes (256 KiB) applies to
+// the PNG and to its base64 form; over that, the code is payload_too_large.
 package mcp
