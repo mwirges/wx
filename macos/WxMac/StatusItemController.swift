@@ -196,6 +196,17 @@ final class StatusItemController: NSObject {
         refreshItem.target = self
         menu.addItem(refreshItem)
 
+        // ⌘, stays on the app menu. This popup only opens Settings on click.
+        let settings = NSMenuItem(
+            title: "Settings…",
+            action: #selector(openSettings(_:)),
+            keyEquivalent: ""
+        )
+        settings.target = self
+        settings.identifier = NSUserInterfaceItemIdentifier("wx.status.settings")
+        settings.setAccessibilityIdentifier("wx.status.settings")
+        menu.addItem(settings)
+
         menu.addItem(.separator())
 
         // 6. Quit
@@ -292,6 +303,12 @@ final class StatusItemController: NSObject {
     @objc private func openDesk(_ sender: Any?) {
         popover?.performClose(nil)
         NotificationCenter.default.post(name: .wxOpenDeskWindow, object: nil)
+    }
+
+    @objc private func openSettings(_ sender: Any?) {
+        statusMenu?.cancelTracking()
+        popover?.performClose(nil)
+        NotificationCenter.default.post(name: .wxOpenSettings, object: nil)
     }
 
     @objc private func quitWx(_ sender: Any?) {

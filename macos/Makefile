@@ -55,7 +55,7 @@ notarize:
 
 
 
-## ui-test: XCUITest the Mac app (not the Go suite)
+## ui-test: XCUITest the Mac app (not the Go suite). Release: make ui-test CONFIG=Release
 ui-test: build
 	xcodebuild -project WxMac.xcodeproj -scheme $(SCHEME) -configuration $(CONFIG) \
 	  -destination '$(DEST)' -derivedDataPath $(DERIVED) test

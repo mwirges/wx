@@ -63,8 +63,13 @@ final class MCPServerSupervisor: ObservableObject {
 
     private init() {}
 
+    /// XCUI launches with WX_UI_TEST=1. Those runs must not bind the MCP port.
+    private static var isUITest: Bool {
+        ProcessInfo.processInfo.environment["WX_UI_TEST"] == "1"
+    }
+
     func startIfEnabled() {
-        if ProcessInfo.processInfo.environment["WX_UI_TEST"] == "1" {
+        if Self.isUITest {
             phase = .stopped
             statusDetail = "Stopped"
             return
@@ -82,6 +87,14 @@ final class MCPServerSupervisor: ObservableObject {
     }
 
     func setEnabled(_ on: Bool) {
+        if Self.isUITest {
+            // The Settings UI test flips the toggle and reads config JSON.
+            // Do not spawn wx mcp serve; that binds 127.0.0.1:9742.
+            wantsRun = false
+            phase = .stopped
+            statusDetail = "Stopped"
+            return
+        }
         if !on {
             wantsRun = false
             stopOwnedChild()
@@ -97,6 +110,9 @@ final class MCPServerSupervisor: ObservableObject {
 
     /// Toggle stayed on. The child must reload require_token from config.
     func restartForConfigChange() {
+        if Self.isUITest {
+            return
+        }
         guard wantsRun else { return }
         stopOwnedChild()
         stopIntentional = false

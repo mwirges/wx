@@ -196,7 +196,7 @@ linux-run:
 linux-deb:
 	$(MAKE) -C linux deb VERSION=$(VERSION)
 
-## mac-ui-test: XCUITest the Mac app. Not part of `make test`.
+## mac-ui-test: XCUITest the Mac app. Not part of `make test`. Release E2E: make mac-ui-test CONFIG=Release
 .PHONY: mac-ui-test
 mac-ui-test:
 	$(MAKE) -C macos ui-test

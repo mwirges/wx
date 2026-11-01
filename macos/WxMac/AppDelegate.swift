@@ -10,6 +10,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     private var popoverQAWindow: NSWindow?
     private var openObserver: NSObjectProtocol?
     private var openRadarObserver: NSObjectProtocol?
+    private var settingsObserver: NSObjectProtocol?
+    private var settingsController: SettingsWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Full Mac app activation policy: displays system menu bar and Dock icon.
@@ -58,6 +60,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
         }
 
+        settingsObserver = NotificationCenter.default.addObserver(
+            forName: .wxOpenSettings,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.presentSettingsForUserAction()
+            }
+        }
+
         store.start()
         if ProcessInfo.processInfo.environment["WX_DESK_TAB"] == "radar" {
             store.selectedDeskTab = .radar
@@ -103,6 +115,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         }
         if let openRadarObserver {
             NotificationCenter.default.removeObserver(openRadarObserver)
+        }
+        if let settingsObserver {
+            NotificationCenter.default.removeObserver(settingsObserver)
         }
     }
 
@@ -301,12 +316,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         alert.runModal()
     }
 
+    /// wx → Settings… and ⌘,. `showSettingsWindow:` does not present on this shell.
     @objc private func openSettings(_ sender: Any?) {
-        NSApp.activate(ignoringOtherApps: true)
-        if NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil) {
-            return
+        presentSettingsForUserAction()
+    }
+
+    /// Status-menu Settings… posts `.wxOpenSettings`, which also lands here.
+    /// Activation happens only inside this user-action path.
+    private func presentSettingsForUserAction() {
+        if settingsController == nil {
+            settingsController = SettingsWindowController()
         }
-        showDeskWindow()
+        settingsController?.presentForUserAction()
     }
 
     @objc private func showDeskWindowAction(_ sender: Any?) {

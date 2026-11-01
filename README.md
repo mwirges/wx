@@ -452,6 +452,27 @@ A native SwiftUI application for macOS 14+ (`macos/`):
 
 ---
 
+## MCP
+
+The local MCP server is off until you turn it on. It listens on this Mac only (`127.0.0.1`, port `9742`, path `/mcp`, transport `http`) and stops when you turn it off or quit wx.
+
+1. Open **Settings…** from the wx status menu (right-click the menu-bar item), or press **⌘,** while wx is active or has a key window. The wx menu item **Settings…** uses the same shortcut.
+2. Turn on **Local MCP server**.
+
+Register that endpoint with Grok:
+
+```bash
+grok mcp add --transport http wx http://127.0.0.1:9742/mcp
+```
+
+`localhost` is the same loopback server:
+
+```bash
+grok mcp add --transport http wx http://localhost:9742/mcp
+```
+
+---
+
 ## Cache
 
 Responses are cached in `~/.cache/wx/` to avoid unnecessary API round-trips:
