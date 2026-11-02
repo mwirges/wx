@@ -30,6 +30,7 @@ struct PopoverView: View {
             }
         }
         .frame(width: currentSize.width, height: currentSize.height)
+        .accessibilityIdentifier("wx.hud")
         .background(WarpGlassBackground())
         .clipShape(RoundedRectangle(cornerRadius: WxTheme.corner, style: .continuous))
         .preferredColorScheme(.dark)
