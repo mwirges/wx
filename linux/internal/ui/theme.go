@@ -32,11 +32,11 @@ func (t *Theme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color
 	case theme.ColorNameButton:
 		return color.NRGBA{R: 0x0E, G: 0x1A, B: 0x2D, A: 0xFF}
 	case theme.ColorNameForeground:
-		return color.NRGBA{R: 0xF0, G: 0xF6, B: 0xFF, A: 0xFF}
+		return color.NRGBA{R: 0xF3, G: 0xF8, B: 0xFF, A: 0xFF}
 	case theme.ColorNamePrimary, theme.ColorNameFocus, theme.ColorNameHyperlink:
 		return color.NRGBA{R: 0x38, G: 0xE1, B: 0xFF, A: 0xFF}
 	case theme.ColorNameDisabled, theme.ColorNamePlaceHolder:
-		return color.NRGBA{R: 0x94, G: 0xA7, B: 0xC5, A: 0xFF}
+		return color.NRGBA{R: 0xB4, G: 0xC5, B: 0xDF, A: 0xFF}
 	case theme.ColorNameError:
 		return color.NRGBA{R: 0xFF, G: 0x3B, B: 0x56, A: 0xFF}
 	case theme.ColorNameWarning:
@@ -44,7 +44,7 @@ func (t *Theme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color
 	case theme.ColorNameSuccess:
 		return color.NRGBA{R: 0x30, G: 0xD1, B: 0x58, A: 0xFF}
 	case theme.ColorNameSeparator, theme.ColorNameInputBorder:
-		return color.NRGBA{R: 0x38, G: 0xE1, B: 0xFF, A: 0x59}
+		return color.NRGBA{R: 0x38, G: 0xE1, B: 0xFF, A: 0x42}
 	case theme.ColorNameScrollBar:
 		return color.NRGBA{R: 0x38, G: 0xE1, B: 0xFF, A: 0x88}
 	case theme.ColorNameScrollBarBackground:
@@ -76,6 +76,8 @@ func (t *Theme) Size(name fyne.ThemeSizeName) float32 {
 		return 42
 	case theme.SizeNameCaptionText:
 		return 11
+	case theme.SizeNameInputRadius, theme.SizeNameSelectionRadius:
+		return 12
 	default:
 		return t.Theme.Size(name)
 	}

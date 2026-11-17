@@ -7,88 +7,33 @@ struct DeskWindowView: View {
         store.lastRefreshed.map { $0.formatted(date: .omitted, time: .shortened) }
     }
 
+    private var currentRegime: WxAtmosphereRegime {
+        WxAtmosphereRegime.resolve(
+            conditions: store.payload?.conditions,
+            alerts: store.activeAlerts,
+            astronomy: store.payload?.conditions?.astronomy ?? store.payload?.astronomy,
+            nowcast: store.nowcastPayload?.nowcast ?? store.payload?.conditions?.nowcast ?? store.payload?.nowcast,
+            forecast: store.payload?.forecast
+        )
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            // Window Traffic Light Safe Space & Console Bridge Header
-            VStack(spacing: 8) {
-                HStack(alignment: .center) {
-                    // Traffic lights clear space
-                    Color.clear
-                        .frame(width: 68, height: 16)
-
-                    if let loc = store.payload?.conditions?.location {
-                        Text(loc.uppercased())
-                            .font(.system(size: 8.5, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(WxTheme.snwCyan.opacity(0.8))
-                            .lineLimit(1)
-                    }
-
-                    Spacer()
-
-                    HStack(spacing: 5) {
-                        Circle()
-                            .fill(WxTheme.snwGreen)
-                            .frame(width: 5, height: 5)
-                            .shadow(color: WxTheme.snwGreen.opacity(0.9), radius: 3)
-                        Text("METEOROLOGICAL SENSOR NETWORK // ACTIVE")
-                            .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                            .tracking(0.8)
-                            .foregroundStyle(WxTheme.snwSilver.opacity(0.9))
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(WxTheme.snwChassis.opacity(0.7), in: Capsule())
-                    .overlay(Capsule().strokeBorder(WxTheme.border.opacity(0.3), lineWidth: 0.5))
-                }
-                .padding(.top, 12)
-                .padding(.horizontal, 16)
-
-                SNWHeaderPill(
-                    title: "ATMOSPHERIC TELEMETRY CONSOLE",
-                    subtitle: updatedSubtitle.map { "SYNC // \($0)" },
-                    badge: "WX.DESK"
-                )
-                .padding(.horizontal, 16)
-
-                modeSelector
-                    .padding(.horizontal, 16)
-                    .padding(.top, 2)
-            }
-            .padding(.bottom, 10)
-            .background(
-                LinearGradient(
-                    colors: [WxTheme.snwChassis.opacity(0.95), WxTheme.bg.opacity(0.85)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
-
-            Rectangle()
-                .fill(
-                    LinearGradient(
-                        colors: [WxTheme.snwCyan.opacity(0.55), WxTheme.snwCyan.opacity(0.1), .clear],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .frame(height: 1)
+            unifiedBridgeToolbar
 
             AlertBannerView()
 
             GeometryReader { geo in
                 let isWide = geo.size.width >= 760
                 if store.selectedDeskTab == .dual && isWide {
-                    // Wide Dual-Pane Command Console
-                    let leftWidth = max(380, min(480, geo.size.width * 0.40))
+                    let leftWidth = max(380, min(470, geo.size.width * 0.40))
                     HStack(alignment: .top, spacing: 14) {
-                        // Left Pane: Controls, Surface Conditions (Atmospheric Telemetry), Alerts, Signals, Synoptic Forecast
                         ScrollView {
                             VStack(alignment: .leading, spacing: 12) {
-                                SNWConsoleCard(title: "Tactical Sensor Control", tag: "SYS.01") {
-                                    ControlsBar(showOpenWindow: false, compact: false)
-                                }
-
-                                SNWConsoleCard(title: "Atmospheric Telemetry", tag: "GRID.OBS") {
+                                WxGlassCard(
+                                    title: "Atmospheric Telemetry",
+                                    tag: store.payload?.conditions?.station ?? "GRID.OBS"
+                                ) {
                                     NowBlockView(compact: false, popoverMetrics: false)
                                 }
 
@@ -102,65 +47,60 @@ struct DeskWindowView: View {
 
                                 tacticalSignalsCard
 
-                                HourlyStripView()
+                                if !(store.payload?.forecast?.hourly ?? []).isEmpty {
+                                    WxGlassCard(title: "Hourly Forecast", tag: "24H") {
+                                        HourlyStripView()
+                                    }
+                                }
 
-                                SNWConsoleCard(title: "Synoptic Forecast Log", tag: "NOAA.NWS") {
+                                WxGlassCard(title: "Synoptic Forecast Log", tag: "NOAA.NWS") {
                                     PeriodsListView(limit: nil, compactRows: false)
                                 }
                             }
-                            .padding(.vertical, 12)
+                            .padding(.vertical, 10)
                             .padding(.leading, 14)
                             .padding(.trailing, 2)
                         }
                         .frame(width: leftWidth, height: geo.size.height)
 
-                        // Right Pane: Live Doppler Radar Array (Expands to fill full right-hand space)
                         VStack(alignment: .leading, spacing: 0) {
-                            SNWConsoleCard(title: "Doppler Radar Array", tag: "NOAA.MRMS") {
+                            WxGlassCard(title: "Doppler Radar Array", tag: "NOAA.MRMS") {
                                 RadarPanelView(fullScreen: false, flexibleHeight: true)
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                             }
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
-                        .padding(.vertical, 12)
+                        .padding(.vertical, 10)
                         .padding(.leading, 2)
                         .padding(.trailing, 14)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                     .frame(width: geo.size.width, height: geo.size.height)
                 } else if store.selectedDeskTab == .radar {
-                    // Full Screen Edge-to-Edge Doppler Radar Array
                     RadarPanelView(fullScreen: true)
                         .frame(width: geo.size.width, height: geo.size.height)
                 } else if store.selectedDeskTab == .outlooks {
-                    // CPC Climate Prediction Center Long-Range Outlooks
                     CPCOutlookView()
                         .frame(width: geo.size.width, height: geo.size.height)
                 } else if store.selectedDeskTab == .chase {
-                    // Remote Storm Chasing and Active Alert Clusters
                     StormChaseView()
                         .frame(width: geo.size.width, height: geo.size.height)
                 } else if store.selectedDeskTab == .climate {
-                    // Climate & Historical Observations Archive
                     ClimateTrendsView()
                         .frame(width: geo.size.width, height: geo.size.height)
                 } else if store.selectedDeskTab == .tropics {
-                    // NOAA National Hurricane Center Tropical Tracker
                     TropicsView()
                         .frame(width: geo.size.width, height: geo.size.height)
                 } else if store.selectedDeskTab == .grid {
-                    // Multi-Location Command Grid Matrix
                     CommandGridView()
                         .frame(width: geo.size.width, height: geo.size.height)
                 } else {
-                    // Single Column Responsive Layout (.weather or narrow .dual)
                     ScrollView {
                         VStack(alignment: .leading, spacing: 12) {
-                            SNWConsoleCard(title: "Tactical Sensor Control", tag: "SYS.01") {
-                                ControlsBar(showOpenWindow: false, compact: false)
-                            }
-
-                            SNWConsoleCard(title: "Atmospheric Telemetry", tag: "GRID.OBS") {
+                            WxGlassCard(
+                                title: "Atmospheric Telemetry",
+                                tag: store.payload?.conditions?.station ?? "GRID.OBS"
+                            ) {
                                 NowBlockView(compact: false, popoverMetrics: false)
                             }
 
@@ -174,14 +114,18 @@ struct DeskWindowView: View {
 
                             tacticalSignalsCard
 
-                            HourlyStripView()
+                            if !(store.payload?.forecast?.hourly ?? []).isEmpty {
+                                WxGlassCard(title: "Hourly Forecast", tag: "24H") {
+                                    HourlyStripView()
+                                }
+                            }
 
-                            SNWConsoleCard(title: "Synoptic Forecast Log", tag: "NOAA.NWS") {
+                            WxGlassCard(title: "Synoptic Forecast Log", tag: "NOAA.NWS") {
                                 PeriodsListView(limit: nil, compactRows: false)
                             }
 
                             if store.selectedDeskTab == .dual {
-                                SNWConsoleCard(title: "Doppler Radar Array", tag: "NOAA.MRMS") {
+                                WxGlassCard(title: "Doppler Radar Array", tag: "NOAA.MRMS") {
                                     RadarPanelView(fullScreen: false)
                                 }
                             }
@@ -190,34 +134,9 @@ struct DeskWindowView: View {
                     }
                 }
             }
-
-            // Cyan Gradient Hairline
-            Rectangle()
-                .fill(
-                    LinearGradient(
-                        colors: [WxTheme.snwCyan.opacity(0.1), WxTheme.snwCyan.opacity(0.45), .clear],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .frame(height: 1)
-
-            // Pinned Technical Console Footer
-            HStack {
-                Text("NOAA.NWS SENSOR ARRAY · GRID 1KM")
-                    .font(.system(size: 8.5, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(WxTheme.snwSilver.opacity(0.7))
-                Spacer()
-                Text("SEC.01 // TACTICAL")
-                    .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                    .foregroundStyle(WxTheme.snwCyan.opacity(0.65))
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 6)
-            .background(WxTheme.snwChassis.opacity(0.5))
         }
         .frame(minWidth: 520, idealWidth: 940, maxWidth: .infinity, minHeight: 600, idealHeight: 760, maxHeight: .infinity)
-        .background(WarpGlassBackground())
+        .background(WarpGlassBackground(regime: currentRegime))
         .preferredColorScheme(.dark)
         .onAppear {
             if (store.selectedDeskTab == .dual || store.selectedDeskTab == .radar) && store.radarImage == nil && !store.isRadarLoading {
@@ -226,76 +145,375 @@ struct DeskWindowView: View {
         }
     }
 
+    // MARK: - Single-Row 54pt Unified Bridge Glass Toolbar
+
+    private var unifiedBridgeToolbar: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            ViewThatFits(in: .horizontal) {
+                // 1. Expanded wide layout (>= 1060pt): single ~54pt row with icons + labels on all 8 modes
+                HStack(alignment: .center, spacing: 10) {
+                    Color.clear.frame(width: 58, height: 28)
+
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("TACTICAL SENSOR CONTROL")
+                            .font(.system(size: 7.5, weight: .bold, design: .rounded))
+                            .tracking(0.6)
+                            .foregroundStyle(WxGlassTheme.textMuted)
+                            .lineLimit(1)
+                        LocationBarView(isHUD: true)
+                            .frame(minWidth: 185, idealWidth: 215, maxWidth: 260)
+                    }
+
+                    Spacer(minLength: 4)
+
+                    modeSelectorPill(showAllIcons: true, compactPadding: false)
+
+                    Spacer(minLength: 4)
+
+                    toolbarRightControls
+                }
+
+                // 2. Default 940pt Desk window layout (~850pt–1059pt): single ~54pt row with active-mode icon + all 8 labels
+                HStack(alignment: .center, spacing: 8) {
+                    Color.clear.frame(width: 58, height: 28)
+
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("TACTICAL SENSOR CONTROL")
+                            .font(.system(size: 7.5, weight: .bold, design: .rounded))
+                            .tracking(0.6)
+                            .foregroundStyle(WxGlassTheme.textMuted)
+                            .lineLimit(1)
+                        LocationBarView(isHUD: true)
+                            .frame(minWidth: 165, idealWidth: 185, maxWidth: 230)
+                    }
+
+                    Spacer(minLength: 4)
+
+                    modeSelectorPill(showAllIcons: false, compactPadding: true)
+
+                    Spacer(minLength: 4)
+
+                    toolbarRightControls
+                }
+
+                // 3. Compact responsive fallback when window resized below ~850pt (down to 520pt minWidth)
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(alignment: .center, spacing: 8) {
+                        Color.clear.frame(width: 58, height: 24)
+
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("TACTICAL SENSOR CONTROL")
+                                .font(.system(size: 7.5, weight: .bold, design: .rounded))
+                                .tracking(0.6)
+                                .foregroundStyle(WxGlassTheme.textMuted)
+                                .lineLimit(1)
+                            LocationBarView(isHUD: true)
+                        }
+
+                        Spacer(minLength: 4)
+
+                        toolbarRightControls
+                    }
+
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        modeSelectorPill(showAllIcons: true, compactPadding: false)
+                    }
+                }
+            }
+
+            if !store.favorites.isEmpty {
+                FavoritesQuickBarView()
+                    .padding(.leading, 4)
+            }
+
+            toolbarLocationNotice
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 7)
+        .padding(.bottom, 7)
+        .background {
+            ZStack {
+                Rectangle().fill(.ultraThinMaterial)
+                Rectangle().fill(Color(red: 0.04, green: 0.09, blue: 0.18).opacity(0.62))
+            }
+        }
+        .overlay(alignment: .bottom) {
+            LinearGradient(
+                colors: [.clear, WxGlassTheme.cyan.opacity(0.45), Color.white.opacity(0.28), WxGlassTheme.cyan.opacity(0.45), .clear],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+            .frame(height: 1)
+        }
+    }
+
+    private var toolbarRightControls: some View {
+        HStack(spacing: 6) {
+            Picker("Units", selection: $store.units) {
+                Text("°F").tag("imperial")
+                Text("°C").tag("metric")
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .frame(width: 62)
+            .onChange(of: store.units) { _, _ in
+                Task { await store.applyLocationAndUnits() }
+            }
+
+            Menu {
+                Text("MENU BAR & HUD MODE")
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                Divider()
+                ForEach(MenuBarFormat.allCases) { fmt in
+                    Button {
+                        store.setMenuBarFormat(fmt)
+                    } label: {
+                        HStack {
+                            Text(fmt.displayName)
+                            if store.menuBarFormat == fmt {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+            } label: {
+                Image(systemName: "menubar.arrow.up.rectangle")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(WxGlassTheme.cyan)
+                    .frame(width: 28, height: 26)
+                    .wxFrostedCapsule(accent: WxGlassTheme.cyan)
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("Configure Menu Bar & HUD Popover Mode")
+
+            Button {
+                Task {
+                    await store.refresh()
+                    await store.refreshCPC()
+                    await store.refreshChase()
+                }
+            } label: {
+                HStack(spacing: 5) {
+                    if store.isLoading {
+                        ProgressView()
+                            .controlSize(.mini)
+                            .tint(WxGlassTheme.cyan)
+                    } else {
+                        Circle()
+                            .fill(WxGlassTheme.nominalGreen)
+                            .frame(width: 5.5, height: 5.5)
+                            .shadow(color: WxGlassTheme.nominalGreen.opacity(0.8), radius: 2)
+                    }
+                    Text(updatedSubtitle ?? "SYNC")
+                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(WxGlassTheme.textSecondary)
+                }
+                .padding(.horizontal, 9)
+                .padding(.vertical, 5)
+                .wxFrostedCapsule(accent: WxGlassTheme.cyan)
+            }
+            .buttonStyle(.plain)
+            .disabled(store.isLoading)
+            .help("Refresh Sensor Telemetry (⌘R)")
+        }
+    }
+
+    @ViewBuilder
+    private var toolbarLocationNotice: some View {
+        if let err = store.errorMessage {
+            if err == LocationManagerError.accessOffMessage {
+                HStack(spacing: 10) {
+                    Image(systemName: "location.slash.fill")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(WxGlassTheme.conditionRed)
+                    Text(LocationManagerError.accessOffMessage)
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundStyle(WxGlassTheme.conditionRed)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityIdentifier("wx.location-denied")
+                        .accessibilityLabel(LocationManagerError.accessOffMessage)
+                    Button {
+                        store.openLocationSettings()
+                    } label: {
+                        Text("Open Location Services Settings")
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .underline()
+                            .foregroundStyle(WxGlassTheme.cyan)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("wx.open-location-settings")
+                    .accessibilityLabel("Open Location Services Settings")
+                    Spacer()
+                }
+                .padding(.horizontal, 6)
+            } else {
+                Text("// ALERT: \(err)")
+                    .font(.system(size: 10.5, weight: .medium, design: .monospaced))
+                    .foregroundStyle(WxGlassTheme.conditionRed)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 6)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityIdentifier("wx.location-alert")
+                    .accessibilityLabel("// ALERT: \(err)")
+            }
+        } else if let warn = store.payload?.warning, !warn.isEmpty {
+            Text(warn)
+                .font(.system(size: 10.5, weight: .medium, design: .rounded))
+                .foregroundStyle(WxGlassTheme.amber)
+                .lineLimit(1)
+                .help(warn)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 6)
+        }
+    }
+
+    private func modeSelectorPill(showAllIcons: Bool, compactPadding: Bool) -> some View {
+        HStack(spacing: compactPadding ? 1.5 : 2) {
+            modeButton(tab: .dual, label: "Tactical", icon: "rectangle.split.2x1.fill", showAllIcons: showAllIcons, compactPadding: compactPadding)
+            modeButton(tab: .weather, label: "Surface", icon: "thermometer.sun.fill", showAllIcons: showAllIcons, compactPadding: compactPadding)
+            modeButton(tab: .radar, label: "Radar", icon: "dot.radiowaves.left.and.right", showAllIcons: showAllIcons, compactPadding: compactPadding)
+            modeButton(tab: .outlooks, label: "Outlooks", icon: "chart.line.uptrend.xyaxis", showAllIcons: showAllIcons, compactPadding: compactPadding)
+            modeButton(tab: .chase, label: "Chase", icon: "bolt.shield.fill", showAllIcons: showAllIcons, compactPadding: compactPadding)
+            modeButton(tab: .climate, label: "Climate", icon: "calendar.day.timeline.left", showAllIcons: showAllIcons, compactPadding: compactPadding)
+            modeButton(tab: .tropics, label: "Tropics", icon: "hurricane", showAllIcons: showAllIcons, compactPadding: compactPadding)
+            modeButton(tab: .grid, label: "Grid", icon: "square.grid.2x2.fill", showAllIcons: showAllIcons, compactPadding: compactPadding)
+        }
+        .padding(compactPadding ? 3 : 3.5)
+        .background {
+            ZStack {
+                Capsule().fill(.ultraThinMaterial)
+                Capsule().fill(Color.black.opacity(0.28))
+            }
+        }
+        .overlay(Capsule().strokeBorder(Color.white.opacity(0.16), lineWidth: 0.9))
+    }
+
+    private func modeButton(tab: DeskTab, label: String, icon: String, showAllIcons: Bool, compactPadding: Bool) -> some View {
+        let isSelected = (store.selectedDeskTab == tab)
+        return Button {
+            store.selectedDeskTab = tab
+            if (tab == .dual || tab == .radar) && store.radarImage == nil && !store.isRadarLoading {
+                Task { await store.refreshRadar() }
+            }
+            if tab == .outlooks && store.cpcPayload == nil && !store.isCPCLoading {
+                Task { await store.refreshCPC() }
+            }
+            if tab == .chase && store.chasePayload == nil && !store.isChaseLoading {
+                Task { await store.refreshChase() }
+            }
+            if tab == .climate && store.historyPayload == nil && !store.isHistoryLoading {
+                Task { await store.refreshHistory() }
+            }
+            if tab == .tropics && store.tropicsPayload == nil && !store.isTropicsLoading {
+                Task { await store.refreshTropics() }
+            }
+            if tab == .grid && store.gridCards.isEmpty && !store.isGridLoading {
+                Task { await store.refreshGrid() }
+            }
+        } label: {
+            HStack(spacing: compactPadding ? 3 : 4) {
+                if showAllIcons || isSelected {
+                    Image(systemName: icon)
+                        .font(.system(size: compactPadding ? 9.5 : 10, weight: .semibold))
+                }
+                Text(label)
+                    .font(.system(size: compactPadding ? 10 : 10.5, weight: .semibold, design: .rounded))
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, compactPadding ? 6.5 : 8)
+            .padding(.vertical, 5)
+            .background {
+                if isSelected {
+                    Capsule()
+                        .fill(WxGlassTheme.cyan.opacity(0.24))
+                        .overlay(Capsule().strokeBorder(WxGlassTheme.cyan.opacity(0.65), lineWidth: 0.9))
+                }
+            }
+            .foregroundStyle(isSelected ? WxGlassTheme.textPrimary : WxGlassTheme.textSecondary)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Sub-Cards
+
     @ViewBuilder
     private var tacticalSignalsCard: some View {
         let hasShift = store.cpcPayload?.patternShift.hasShift == true
         let hasChase = (store.chasePayload?.totalClusters ?? 0) > 0
 
         if hasShift || hasChase {
-            SNWConsoleCard(title: "Synoptic Signals & Active Hazards", tag: "NOAA.INTEL", statusColor: WxTheme.snwAmber) {
-                VStack(alignment: .leading, spacing: 9) {
+            WxGlassCard(title: "Synoptic Signals & Active Hazards", tag: "NOAA.INTEL", accent: WxGlassTheme.amber) {
+                VStack(alignment: .leading, spacing: 10) {
                     if let shift = store.cpcPayload?.patternShift, shift.hasShift {
                         HStack(alignment: .top, spacing: 8) {
                             Image(systemName: "exclamationmark.bubble.fill")
-                                .font(.system(size: 13))
-                                .foregroundStyle(WxTheme.snwAmber)
-                            VStack(alignment: .leading, spacing: 3) {
+                                .font(.system(size: 14))
+                                .foregroundStyle(WxGlassTheme.amber)
+                            VStack(alignment: .leading, spacing: 4) {
                                 HStack {
-                                    Text("REGIME SHIFT:")
-                                        .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                                        .foregroundStyle(WxTheme.snwAmber)
+                                    Text("Regime Shift")
+                                        .font(.system(size: 11.5, weight: .bold, design: .rounded))
+                                        .foregroundStyle(WxGlassTheme.amber)
                                     Spacer()
                                     Button {
                                         store.selectedDeskTab = .outlooks
                                     } label: {
                                         HStack(spacing: 3) {
-                                            Text("VIEW OUTLOOKS")
+                                            Text("Outlooks")
                                             Image(systemName: "arrow.right")
                                         }
-                                        .font(.system(size: 8, weight: .bold, design: .monospaced))
-                                        .foregroundStyle(WxTheme.snwCyan)
+                                        .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                                        .foregroundStyle(WxGlassTheme.cyan)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 3)
+                                        .background(WxGlassTheme.cyan.opacity(0.14), in: Capsule())
                                     }
                                     .buttonStyle(.plain)
                                 }
                                 Text(shift.summary)
-                                    .font(.system(size: 9.5, weight: .medium, design: .monospaced))
-                                    .foregroundStyle(WxTheme.text)
+                                    .font(.system(size: 11.5))
+                                    .foregroundStyle(WxGlassTheme.textPrimary)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                         }
                     }
 
                     if hasShift && hasChase {
-                        Divider().overlay(WxTheme.border.opacity(0.3))
+                        Divider().overlay(Color.white.opacity(0.12))
                     }
 
                     if let chase = store.chasePayload, chase.totalClusters > 0 {
                         HStack(alignment: .top, spacing: 8) {
                             Image(systemName: "bolt.shield.fill")
-                                .font(.system(size: 13))
-                                .foregroundStyle(WxTheme.snwAmber)
-                            VStack(alignment: .leading, spacing: 3) {
+                                .font(.system(size: 14))
+                                .foregroundStyle(WxGlassTheme.amber)
+                            VStack(alignment: .leading, spacing: 4) {
                                 HStack {
-                                    Text("STORM CHASE // \(chase.totalClusters) ACTIVE CLUSTERS")
-                                        .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                                        .foregroundStyle(WxTheme.snwAmber)
+                                    Text("Storm Chase · \(chase.totalClusters) Active Clusters")
+                                        .font(.system(size: 11.5, weight: .bold, design: .rounded))
+                                        .foregroundStyle(WxGlassTheme.amber)
                                     Spacer()
                                     Button {
                                         store.selectedDeskTab = .chase
                                     } label: {
                                         HStack(spacing: 3) {
-                                            Text("OPEN CHASE")
+                                            Text("Open Chase")
                                             Image(systemName: "arrow.right")
                                         }
-                                        .font(.system(size: 8, weight: .bold, design: .monospaced))
-                                        .foregroundStyle(WxTheme.snwCyan)
+                                        .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                                        .foregroundStyle(WxGlassTheme.cyan)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 3)
+                                        .background(WxGlassTheme.cyan.opacity(0.14), in: Capsule())
                                     }
                                     .buttonStyle(.plain)
                                 }
                                 if let top = chase.clusters.first {
-                                    Text("Top: \(top.name) (\(top.totalAlerts) warnings, score: \(top.score))")
-                                        .font(.system(size: 9.5, weight: .medium, design: .monospaced))
-                                        .foregroundStyle(WxTheme.snwSilver)
+                                    Text("Top: \(top.name) (\(top.totalAlerts) warnings, score \(top.score))")
+                                        .font(.system(size: 11.5))
+                                        .foregroundStyle(WxGlassTheme.textSecondary)
                                         .lineLimit(1)
                                 }
                             }
@@ -325,65 +543,5 @@ struct DeskWindowView: View {
         if let nc = store.nowcastPayload?.nowcast ?? store.payload?.conditions?.nowcast ?? store.payload?.nowcast {
             NowcastCardView(nowcast: nc)
         }
-    }
-
-    @ViewBuilder
-    private var modeSelector: some View {
-        HStack(spacing: 6) {
-            modeButton(tab: .dual, label: "TACTICAL", icon: "rectangle.split.2x1.fill")
-            modeButton(tab: .weather, label: "SURFACE", icon: "thermometer.sun.fill")
-            modeButton(tab: .radar, label: "RADAR", icon: "dot.radiowaves.left.and.right")
-            modeButton(tab: .outlooks, label: "CPC OUTLOOKS", icon: "chart.line.uptrend.xyaxis")
-            modeButton(tab: .chase, label: "STORM CHASE", icon: "bolt.shield.fill")
-            modeButton(tab: .climate, label: "CLIMATE", icon: "calendar.day.timeline.left")
-            modeButton(tab: .tropics, label: "TROPICS", icon: "tornado")
-            modeButton(tab: .grid, label: "GRID", icon: "square.grid.2x2.fill")
-        }
-    }
-
-    private func modeButton(tab: DeskTab, label: String, icon: String) -> some View {
-        Button {
-            store.selectedDeskTab = tab
-            if (tab == .dual || tab == .radar) && store.radarImage == nil && !store.isRadarLoading {
-                Task { await store.refreshRadar() }
-            }
-            if tab == .outlooks && store.cpcPayload == nil && !store.isCPCLoading {
-                Task { await store.refreshCPC() }
-            }
-            if tab == .chase && store.chasePayload == nil && !store.isChaseLoading {
-                Task { await store.refreshChase() }
-            }
-            if tab == .climate && store.historyPayload == nil && !store.isHistoryLoading {
-                Task { await store.refreshHistory() }
-            }
-            if tab == .tropics && store.tropicsPayload == nil && !store.isTropicsLoading {
-                Task { await store.refreshTropics() }
-            }
-            if tab == .grid && store.gridCards.isEmpty && !store.isGridLoading {
-                Task { await store.refreshGrid() }
-            }
-        } label: {
-            HStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 9.5))
-                Text(label)
-                    .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(store.selectedDeskTab == tab ? WxTheme.snwCyan.opacity(0.22) : WxTheme.snwChassis.opacity(0.6))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .strokeBorder(
-                        store.selectedDeskTab == tab ? WxTheme.snwCyan : WxTheme.border.opacity(0.25),
-                        lineWidth: store.selectedDeskTab == tab ? 1.2 : 0.6
-                    )
-            )
-            .foregroundStyle(store.selectedDeskTab == tab ? WxTheme.text : WxTheme.textSecondary)
-        }
-        .buttonStyle(.plain)
     }
 }

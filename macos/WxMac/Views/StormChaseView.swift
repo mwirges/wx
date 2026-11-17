@@ -13,9 +13,9 @@ struct StormChaseView: View {
                 // Top Header & Controls
                 HStack(alignment: .center, spacing: 8) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("REMOTE STORM CHASING // NATIONAL SEVERE CLUSTERS")
-                            .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .foregroundStyle(WxTheme.snwCyan)
+                        Text("REMOTE STORM CHASING · NATIONAL SEVERE CLUSTERS")
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .foregroundStyle(WxGlassTheme.cyan)
 
                         if let payload = store.chasePayload {
                             Text("\(payload.totalClusters) ACTIVE CLUSTERS · \(payload.totalAlerts) SEVERE CELLS DETECTED")
@@ -42,14 +42,13 @@ struct StormChaseView: View {
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "arrow.triangle.2.circlepath")
-                            Text("SCAN FOR STORMS")
+                            Text("Scan for Storms")
                         }
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
-                        .foregroundStyle(WxTheme.snwCyan)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 5)
-                        .background(WxTheme.snwCyan.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
-                        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwCyan.opacity(0.4), lineWidth: 0.8))
+                        .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                        .foregroundStyle(WxGlassTheme.cyan)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 5.5)
+                        .wxFrostedCapsule(accent: WxGlassTheme.cyan, active: true)
                     }
                     .buttonStyle(.plain)
                     .disabled(store.isChaseLoading)
@@ -60,14 +59,15 @@ struct StormChaseView: View {
                 if let err = store.chaseErrorMessage ?? store.spcErrorMessage {
                     HStack(spacing: 8) {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(WxTheme.snwRed)
-                        Text("// TELEMETRY FAULT: \(err)")
-                            .font(.system(size: 10, weight: .medium, design: .monospaced))
-                            .foregroundStyle(WxTheme.snwRed)
+                            .foregroundStyle(WxGlassTheme.conditionRed)
+                        Text(err)
+                            .font(.system(size: 11.5, weight: .medium))
+                            .foregroundStyle(WxGlassTheme.conditionRed)
                     }
-                    .padding(8)
-                    .background(WxTheme.snwRed.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
-                    .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(WxTheme.snwRed.opacity(0.3), lineWidth: 0.8))
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(WxGlassTheme.conditionRed.opacity(0.12), in: WxGlassTheme.nestedShape())
+                    .overlay(WxGlassTheme.nestedShape().strokeBorder(WxGlassTheme.conditionRed.opacity(0.35), lineWidth: 0.8))
                 }
 
                 // ── SPC Convective Outlook & Active Mesoscale Discussions ───────────
@@ -82,14 +82,15 @@ struct StormChaseView: View {
                     }
                 } else if store.isSoundingLoading {
                     HStack(spacing: 8) {
-                        ProgressView().controlSize(.small).tint(WxTheme.snwAmber)
-                        Text("RETRIEVING RADIOSONDE TELEMETRY & NSHARP PROFILE…")
-                            .font(.system(size: 9.5, weight: .bold, design: .monospaced))
-                            .foregroundStyle(WxTheme.snwAmber)
+                        ProgressView().controlSize(.small).tint(WxGlassTheme.amber)
+                        Text("Retrieving radiosonde telemetry & NSHARP profile…")
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .foregroundStyle(WxGlassTheme.amber)
                     }
                     .padding(10)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(WxTheme.snwAmber.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
+                    .background(WxGlassTheme.amber.opacity(0.10), in: WxGlassTheme.nestedShape())
+                    .overlay(WxGlassTheme.nestedShape().strokeBorder(WxGlassTheme.amber.opacity(0.30), lineWidth: 0.8))
                 }
 
                 // Cluster cards list
@@ -110,21 +111,21 @@ struct StormChaseView: View {
                     .padding(.vertical, 32)
                 } else {
                     // Empty quiet state
-                    SNWConsoleCard(title: "CONUS Hazard Intercept Status", tag: "NWS.QUIET", statusColor: WxTheme.snwGreen) {
+                    WxGlassCard(title: "CONUS Hazard Intercept Status", tag: "NWS.QUIET", accent: WxGlassTheme.nominalGreen) {
                         HStack(spacing: 12) {
                             Image(systemName: "shield.lefthalf.filled.badge.checkmark")
                                 .font(.system(size: 28))
-                                .foregroundStyle(WxTheme.snwGreen)
+                                .foregroundStyle(WxGlassTheme.nominalGreen)
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("CONUS SENSOR NETWORK QUIET")
-                                    .font(.system(size: 12, weight: .bold, design: .monospaced))
-                                    .foregroundStyle(WxTheme.text)
+                                Text("CONUS Sensor Network Quiet")
+                                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                                    .foregroundStyle(WxGlassTheme.textPrimary)
                                 Text("No severe weather clusters currently detected across the contiguous United States. Check back during active convective or winter storm cycles.")
-                                    .font(.system(size: 9.5, weight: .medium, design: .monospaced))
-                                    .foregroundStyle(WxTheme.textSecondary)
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(WxGlassTheme.textSecondary)
                             }
                         }
-                        .padding(.vertical, 8)
+                        .padding(.vertical, 6)
                     }
                 }
 
@@ -135,7 +136,7 @@ struct StormChaseView: View {
                         .foregroundStyle(WxTheme.snwSilver.opacity(0.6))
                     Spacer()
                     if let gen = store.chasePayload?.generatedAt {
-                        Text("UPDATED // \(gen.prefix(19))")
+                        Text("UPDATED · \(gen.prefix(19))")
                             .font(.system(size: 8, weight: .medium, design: .monospaced))
                             .foregroundStyle(WxTheme.snwSilver.opacity(0.6))
                     }
@@ -156,7 +157,7 @@ struct StormChaseView: View {
 
         SNWConsoleCard(
             title: "SPC Convective Outlook & Mesoscale Intelligence",
-            tag: "CEILING // \(ceilingCode)",
+            tag: "CEILING · \(ceilingCode)",
             statusColor: statusCol
         ) {
             VStack(alignment: .leading, spacing: 10) {
@@ -177,8 +178,8 @@ struct StormChaseView: View {
                 // Convective summary if available
                 if let summary = spc.convectiveSummary, !summary.isEmpty {
                     Text(summary)
-                        .font(.system(size: 9, weight: .medium, design: .monospaced))
-                        .foregroundStyle(WxTheme.snwSilver)
+                        .font(.system(size: 11.5))
+                        .foregroundStyle(WxGlassTheme.textSecondary)
                 }
 
                 // Active Watches alert banner if any
@@ -202,19 +203,20 @@ struct StormChaseView: View {
                                     Button {
                                         NSWorkspace.shared.open(url)
                                     } label: {
-                                        Text("DETAILS")
-                                            .font(.system(size: 8, weight: .bold, design: .monospaced))
-                                            .foregroundStyle(WxTheme.snwRed)
-                                            .padding(.horizontal, 5)
-                                            .padding(.vertical, 2)
-                                            .background(WxTheme.snwRed.opacity(0.15), in: RoundedRectangle(cornerRadius: 3))
+                                        Text("Details")
+                                            .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                                            .foregroundStyle(WxGlassTheme.conditionRed)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 3)
+                                            .background(WxGlassTheme.conditionRed.opacity(0.16), in: Capsule())
+                                            .overlay(Capsule().strokeBorder(WxGlassTheme.conditionRed.opacity(0.4), lineWidth: 0.8))
                                     }
                                     .buttonStyle(.plain)
                                 }
                             }
-                            .padding(6)
-                            .background(WxTheme.snwRed.opacity(0.1), in: RoundedRectangle(cornerRadius: 4))
-                            .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwRed.opacity(0.3), lineWidth: 0.8))
+                            .padding(8)
+                            .background(WxGlassTheme.conditionRed.opacity(0.10), in: WxGlassTheme.nestedShape())
+                            .overlay(WxGlassTheme.nestedShape().strokeBorder(WxGlassTheme.conditionRed.opacity(0.32), lineWidth: 0.8))
                         }
                     }
                 }
@@ -229,7 +231,7 @@ struct StormChaseView: View {
                                         Image(systemName: "bolt.fill")
                                             .font(.system(size: 9))
                                             .foregroundStyle(WxTheme.snwAmber)
-                                        Text("\(mcd.name.uppercased()) // \(mcd.concerning?.uppercased() ?? "MESOSCALE DISCUSSION")")
+                                        Text("\(mcd.name.uppercased()) · \(mcd.concerning?.uppercased() ?? "MESOSCALE DISCUSSION")")
                                             .font(.system(size: 9, weight: .bold, design: .monospaced))
                                             .foregroundStyle(WxTheme.snwAmber)
                                     }
@@ -247,14 +249,15 @@ struct StormChaseView: View {
                                             NSWorkspace.shared.open(url)
                                         } label: {
                                             HStack(spacing: 3) {
-                                                Text("OPEN MCD")
+                                                Text("Open MCD")
                                                 Image(systemName: "arrow.up.right.square")
                                             }
-                                            .font(.system(size: 8, weight: .bold, design: .monospaced))
-                                            .foregroundStyle(WxTheme.snwCyan)
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 2)
-                                            .background(WxTheme.snwCyan.opacity(0.12), in: RoundedRectangle(cornerRadius: 3))
+                                            .font(.system(size: 9.5, weight: .semibold, design: .rounded))
+                                            .foregroundStyle(WxGlassTheme.cyan)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 3)
+                                            .background(WxGlassTheme.cyan.opacity(0.14), in: Capsule())
+                                            .overlay(Capsule().strokeBorder(WxGlassTheme.cyan.opacity(0.35), lineWidth: 0.8))
                                         }
                                         .buttonStyle(.plain)
                                     }
@@ -268,14 +271,14 @@ struct StormChaseView: View {
 
                                 if let summary = mcd.summary, !summary.isEmpty {
                                     Text(summary)
-                                        .font(.system(size: 8.5, design: .monospaced))
-                                        .foregroundStyle(WxTheme.text)
+                                        .font(.system(size: 11.5))
+                                        .foregroundStyle(WxGlassTheme.textPrimary)
                                         .lineLimit(3)
                                 }
                             }
-                            .padding(8)
-                            .background(WxTheme.snwAmber.opacity(0.08), in: RoundedRectangle(cornerRadius: 5))
-                            .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(WxTheme.snwAmber.opacity(0.35), lineWidth: 0.8))
+                            .padding(10)
+                            .background(WxGlassTheme.amber.opacity(0.08), in: WxGlassTheme.nestedShape())
+                            .overlay(WxGlassTheme.nestedShape().strokeBorder(WxGlassTheme.amber.opacity(0.35), lineWidth: 0.8))
                         }
                     }
                 }
@@ -286,28 +289,25 @@ struct StormChaseView: View {
     @ViewBuilder
     private func dayRiskPill(day: String, item: SPCOutlookItemDTO) -> some View {
         let color = spcRiskColor(item.category.code)
-        VStack(alignment: .leading, spacing: 3) {
+        HStack(spacing: 6) {
             Text(day)
-                .font(.system(size: 7.5, weight: .bold, design: .monospaced))
-                .foregroundStyle(WxTheme.snwSilver)
-            HStack(spacing: 4) {
-                Text(item.category.code)
-                    .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                    .foregroundStyle(WxTheme.snwChassis)
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, 1)
-                    .background(color, in: RoundedRectangle(cornerRadius: 2))
-
-                Text(item.category.name)
-                    .font(.system(size: 8, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(WxTheme.text)
-                    .lineLimit(1)
-            }
+                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .foregroundStyle(WxGlassTheme.textSecondary)
+            Text(item.category.code)
+                .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                .foregroundStyle(Color(red: 0.03, green: 0.07, blue: 0.14))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(color, in: Capsule())
+            Text(item.category.name)
+                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                .foregroundStyle(WxGlassTheme.textPrimary)
+                .lineLimit(1)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 5)
-        .background(WxTheme.snwChassis.opacity(0.8), in: RoundedRectangle(cornerRadius: 4))
-        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(color.opacity(0.5), lineWidth: 0.8))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5.5)
+        .background(Color.white.opacity(0.06), in: Capsule())
+        .overlay(Capsule().strokeBorder(color.opacity(0.55), lineWidth: 0.9))
     }
 
     // ── Cluster Card ─────────────────────────────────────────────────────────────
@@ -319,7 +319,7 @@ struct StormChaseView: View {
 
         SNWConsoleCard(
             title: "#\(rank)  \(cluster.name.uppercased())",
-            tag: "SCORE // \(cluster.score)",
+            tag: "SCORE · \(cluster.score)",
             statusColor: cardColor
         ) {
             VStack(alignment: .leading, spacing: 10) {
@@ -333,22 +333,22 @@ struct StormChaseView: View {
                                 .foregroundStyle(WxTheme.snwSilver)
                             ForEach(cluster.states, id: \.self) { st in
                                 Text(st)
-                                    .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                                    .foregroundStyle(WxTheme.text)
-                                    .padding(.horizontal, 5)
-                                    .padding(.vertical, 2)
-                                    .background(WxTheme.snwChassis.opacity(0.9), in: RoundedRectangle(cornerRadius: 3))
-                                    .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(WxTheme.snwCyan.opacity(0.4), lineWidth: 0.6))
+                                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(WxGlassTheme.textPrimary)
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 2.5)
+                                    .background(Color.white.opacity(0.08), in: Capsule())
+                                    .overlay(Capsule().strokeBorder(WxGlassTheme.cyan.opacity(0.35), lineWidth: 0.7))
                             }
 
                             if let spcR = cluster.spcRisk, !spcR.isEmpty && spcR != "NONE" {
-                                Text("SPC // \(spcR)")
-                                    .font(.system(size: 8, weight: .bold, design: .monospaced))
+                                Text("SPC · \(spcR)")
+                                    .font(.system(size: 9, weight: .bold, design: .rounded))
                                     .foregroundStyle(spcRiskColor(spcR))
-                                    .padding(.horizontal, 4)
-                                    .padding(.vertical, 1)
-                                    .background(spcRiskColor(spcR).opacity(0.15), in: RoundedRectangle(cornerRadius: 2))
-                                    .overlay(RoundedRectangle(cornerRadius: 2).strokeBorder(spcRiskColor(spcR).opacity(0.5), lineWidth: 0.6))
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 2.5)
+                                    .background(spcRiskColor(spcR).opacity(0.15), in: Capsule())
+                                    .overlay(Capsule().strokeBorder(spcRiskColor(spcR).opacity(0.45), lineWidth: 0.7))
                             }
                         }
 
@@ -368,13 +368,13 @@ struct StormChaseView: View {
                                 .foregroundStyle(WxTheme.snwSilver)
 
                             if !cluster.nearestRadar.isEmpty {
-                                Text("·  RADAR // \(cluster.nearestRadar)")
+                                Text("·  RADAR \(cluster.nearestRadar)")
                                     .font(.system(size: 8.5, weight: .bold, design: .monospaced))
                                     .foregroundStyle(WxTheme.snwCyan)
                             }
 
                             if let stn = cluster.soundingStation, !stn.isEmpty {
-                                Text("·  UPPER-AIR // \(stn)")
+                                Text("·  UPPER-AIR \(stn)")
                                     .font(.system(size: 8.5, weight: .bold, design: .monospaced))
                                     .foregroundStyle(WxTheme.snwAmber)
                             }
@@ -400,29 +400,28 @@ struct StormChaseView: View {
                     Spacer()
 
                     VStack(alignment: .trailing, spacing: 6) {
-                        // Radar Intercept Jump Button
                         Button {
                             store.chaseCluster(cluster)
                         } label: {
                             HStack(spacing: 5) {
                                 Image(systemName: "scope")
                                     .font(.system(size: 11, weight: .bold))
-                                Text("INTERCEPT RADAR")
-                                    .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                                Text("Intercept Radar")
+                                    .font(.system(size: 10.5, weight: .bold, design: .rounded))
                             }
-                            .padding(.horizontal, 10)
+                            .padding(.horizontal, 12)
                             .padding(.vertical, 6)
                             .background(
                                 LinearGradient(
-                                    colors: [cardColor.opacity(0.25), cardColor.opacity(0.1)],
-                                    startPoint: .top,
-                                    endPoint: .bottom
+                                    colors: [cardColor.opacity(0.28), cardColor.opacity(0.12)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
                                 ),
-                                in: RoundedRectangle(cornerRadius: 5)
+                                in: Capsule()
                             )
-                            .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(cardColor, lineWidth: 1))
-                            .foregroundStyle(WxTheme.text)
-                            .shadow(color: cardColor.opacity(0.4), radius: 3)
+                            .overlay(Capsule().strokeBorder(cardColor.opacity(0.85), lineWidth: 1))
+                            .foregroundStyle(WxGlassTheme.textPrimary)
+                            .shadow(color: cardColor.opacity(0.35), radius: 4)
                         }
                         .buttonStyle(.plain)
                         .help("Jump to this storm cluster and load live Doppler Radar array")
@@ -435,15 +434,15 @@ struct StormChaseView: View {
                             } label: {
                                 HStack(spacing: 4) {
                                     Image(systemName: "wind")
-                                        .font(.system(size: 9, weight: .bold))
-                                    Text("LOAD SOUNDING (\(stn))")
-                                        .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                                        .font(.system(size: 9.5, weight: .bold))
+                                    Text("Load Sounding (\(stn))")
+                                        .font(.system(size: 10, weight: .semibold, design: .rounded))
                                 }
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(WxTheme.snwAmber.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
-                                .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwAmber.opacity(0.4), lineWidth: 0.8))
-                                .foregroundStyle(WxTheme.snwAmber)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(WxGlassTheme.amber.opacity(0.14), in: Capsule())
+                                .overlay(Capsule().strokeBorder(WxGlassTheme.amber.opacity(0.45), lineWidth: 0.8))
+                                .foregroundStyle(WxGlassTheme.amber)
                             }
                             .buttonStyle(.plain)
                             .help("Retrieve Upper-Air Sounding and Convective Profile for \(stn)")
@@ -503,26 +502,27 @@ struct StormChaseView: View {
         VStack(alignment: .leading, spacing: 3) {
             HStack {
                 Text(cell.event.uppercased())
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
-                    .foregroundStyle(WxTheme.text)
+                    .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                    .foregroundStyle(WxGlassTheme.textPrimary)
                 Spacer()
                 if let area = cell.areaDesc {
                     Text(area)
-                        .font(.system(size: 8, design: .monospaced))
-                        .foregroundStyle(WxTheme.snwSilver.opacity(0.8))
+                        .font(.system(size: 9.5, design: .monospaced))
+                        .foregroundStyle(WxGlassTheme.textMuted)
                         .lineLimit(1)
                 }
             }
 
             if let headline = cell.headline {
                 Text(headline)
-                    .font(.system(size: 8.5, design: .monospaced))
-                    .foregroundStyle(WxTheme.snwSilver)
+                    .font(.system(size: 11))
+                    .foregroundStyle(WxGlassTheme.textSecondary)
                     .lineLimit(2)
             }
         }
-        .padding(6)
-        .background(WxTheme.snwChassis.opacity(0.6), in: RoundedRectangle(cornerRadius: 4))
+        .padding(9)
+        .background(Color.white.opacity(0.05), in: WxGlassTheme.nestedShape())
+        .overlay(WxGlassTheme.nestedShape().strokeBorder(Color.white.opacity(0.10), lineWidth: 0.7))
     }
 
     private func clusterColor(score: Int) -> Color {
@@ -555,7 +555,7 @@ struct SoundingConsoleCard: View {
 
     private var cardTitle: String {
         let stn = sounding.stationId ?? sounding.location ?? "PROFILE"
-        return "UPPER-AIR SOUNDING // \(stn)"
+        return "UPPER-AIR SOUNDING · \(stn)"
     }
 
     private var cardTag: String {
@@ -636,14 +636,13 @@ struct SoundingConsoleCard: View {
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "chart.line.uptrend.xyaxis")
-                            Text("OPEN SKEW-T")
+                            Text("Open Skew-T")
                         }
-                        .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                        .foregroundStyle(WxTheme.snwCyan)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(WxTheme.snwCyan.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
-                        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwCyan.opacity(0.4), lineWidth: 0.8))
+                        .font(.system(size: 9.5, weight: .semibold, design: .rounded))
+                        .foregroundStyle(WxGlassTheme.cyan)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4.5)
+                        .wxFrostedCapsule(accent: WxGlassTheme.cyan)
                     }
                     .buttonStyle(.plain)
                 }
@@ -729,16 +728,11 @@ struct SoundingMetricCell: View {
     let highlight: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label)
-                .font(.system(size: 7.5, weight: .bold, design: .monospaced))
-                .foregroundStyle(WxTheme.snwSilver)
-            Text(val)
-                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                .foregroundStyle(highlight ? WxTheme.snwAmber : WxTheme.text)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(5)
-        .background(WxTheme.snwChassis.opacity(0.8), in: RoundedRectangle(cornerRadius: 3))
+        WxSensorCapsule(
+            label: label,
+            value: val,
+            accent: highlight ? WxGlassTheme.amber : WxGlassTheme.cyan,
+            compact: true
+        )
     }
 }

@@ -12,13 +12,13 @@ struct TropicsView: View {
                 // Header & Refresh Action
                 HStack(alignment: .center, spacing: 8) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("NOAA NATIONAL HURRICANE CENTER // TROPICAL TRACKER")
-                            .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .foregroundStyle(WxTheme.snwCyan)
+                        Text("NOAA NATIONAL HURRICANE CENTER · TROPICAL TRACKER")
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .foregroundStyle(WxGlassTheme.cyan)
 
                         if let payload = store.tropicsPayload?.tropics {
                             let count = payload.totalActive
-                            let text = count > 0 ? "\(count) ACTIVE TROPICAL CYCLONE\(count == 1 ? "" : "S") DETECTED" : "ALL BASINS QUIET // NO ACTIVE CYCLONES"
+                            let text = count > 0 ? "\(count) ACTIVE TROPICAL CYCLONE\(count == 1 ? "" : "S") DETECTED" : "ALL BASINS QUIET · NO ACTIVE CYCLONES"
                             Text(text)
                                 .font(.system(size: 9.5, weight: .semibold, design: .monospaced))
                                 .foregroundStyle(count > 0 ? WxTheme.snwAmber : WxTheme.snwGreen)
@@ -42,14 +42,13 @@ struct TropicsView: View {
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "arrow.triangle.2.circlepath")
-                            Text("SCAN BASINS")
+                            Text("Scan Basins")
                         }
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
-                        .foregroundStyle(WxTheme.snwCyan)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 5)
-                        .background(WxTheme.snwCyan.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
-                        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwCyan.opacity(0.4), lineWidth: 0.8))
+                        .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                        .foregroundStyle(WxGlassTheme.cyan)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 5.5)
+                        .wxFrostedCapsule(accent: WxGlassTheme.cyan, active: true)
                     }
                     .buttonStyle(.plain)
                     .disabled(store.isTropicsLoading)
@@ -60,14 +59,15 @@ struct TropicsView: View {
                 if let err = store.tropicsErrorMessage {
                     HStack(spacing: 8) {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(WxTheme.snwRed)
-                        Text("// NHC TELEMETRY FAULT: \(err)")
-                            .font(.system(size: 10, weight: .medium, design: .monospaced))
-                            .foregroundStyle(WxTheme.snwRed)
+                            .foregroundStyle(WxGlassTheme.conditionRed)
+                        Text(err)
+                            .font(.system(size: 11.5, weight: .medium))
+                            .foregroundStyle(WxGlassTheme.conditionRed)
                     }
-                    .padding(8)
-                    .background(WxTheme.snwRed.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
-                    .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(WxTheme.snwRed.opacity(0.3), lineWidth: 0.8))
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(WxGlassTheme.conditionRed.opacity(0.12), in: WxGlassTheme.nestedShape())
+                    .overlay(WxGlassTheme.nestedShape().strokeBorder(WxGlassTheme.conditionRed.opacity(0.35), lineWidth: 0.8))
                 }
 
                 // Active Storms List
@@ -88,21 +88,21 @@ struct TropicsView: View {
                     .padding(.vertical, 32)
                 } else {
                     // Empty quiet state
-                    SNWConsoleCard(title: "National Hurricane Center Status", tag: "NHC.QUIET", statusColor: WxTheme.snwGreen) {
+                    WxGlassCard(title: "National Hurricane Center Status", tag: "NHC.QUIET", accent: WxGlassTheme.nominalGreen) {
                         HStack(spacing: 12) {
                             Image(systemName: "shield.lefthalf.filled.badge.checkmark")
                                 .font(.system(size: 28))
-                                .foregroundStyle(WxTheme.snwGreen)
+                                .foregroundStyle(WxGlassTheme.nominalGreen)
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("ATLANTIC & PACIFIC BASINS QUIET")
-                                    .font(.system(size: 10.5, weight: .bold, design: .monospaced))
-                                    .foregroundStyle(WxTheme.snwGreen)
+                                Text("Atlantic & Pacific Basins Quiet")
+                                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                                    .foregroundStyle(WxGlassTheme.nominalGreen)
                                 Text("No active tropical depressions, storms, or hurricanes currently monitored.")
-                                    .font(.system(size: 9, design: .monospaced))
-                                    .foregroundStyle(WxTheme.textSecondary)
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(WxGlassTheme.textSecondary)
                             }
                         }
-                        .padding(10)
+                        .padding(.vertical, 6)
                     }
                 }
 
@@ -116,7 +116,6 @@ struct TropicsView: View {
             }
             .padding(14)
         }
-        .background(WxTheme.bg)
         .task {
             if store.tropicsPayload == nil && !store.isTropicsLoading {
                 await store.refreshTropics()
@@ -127,7 +126,7 @@ struct TropicsView: View {
     @ViewBuilder
     private func disturbancesSection(disturbances: [TropicalDisturbanceDTO]) -> some View {
         SNWConsoleCard(
-            title: "TROPICAL WEATHER OUTLOOK // INVEST DISTURBANCES",
+            title: "TROPICAL WEATHER OUTLOOK · INVEST DISTURBANCES",
             tag: "\(disturbances.count) ACTIVE INVESTS",
             statusColor: WxTheme.snwAmber
         ) {
@@ -154,13 +153,14 @@ struct TropicsView: View {
 
                         if let summary = d.summary, !summary.isEmpty {
                             Text(summary)
-                                .font(.system(size: 8.5, design: .monospaced))
-                                .foregroundStyle(WxTheme.snwSilver)
+                                .font(.system(size: 11.5))
+                                .foregroundStyle(WxGlassTheme.textSecondary)
                                 .lineLimit(3)
                         }
                     }
-                    .padding(8)
-                    .background(WxTheme.snwChassis.opacity(0.7), in: RoundedRectangle(cornerRadius: 4))
+                    .padding(10)
+                    .background(Color.white.opacity(0.05), in: WxGlassTheme.nestedShape())
+                    .overlay(WxGlassTheme.nestedShape().strokeBorder(Color.white.opacity(0.10), lineWidth: 0.7))
                 }
             }
         }
@@ -169,18 +169,18 @@ struct TropicsView: View {
     @ViewBuilder
     private func formationPill(label: String, chance: Int, cat: String) -> some View {
         let color = chanceColor(chance)
-        HStack(spacing: 4) {
+        HStack(spacing: 5) {
             Text(label)
-                .font(.system(size: 7.5, weight: .bold, design: .monospaced))
-                .foregroundStyle(WxTheme.snwSilver)
-            Text("\(chance)% [\(cat.uppercased())]")
-                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .foregroundStyle(WxGlassTheme.textSecondary)
+            Text("\(chance)% · \(cat.uppercased())")
+                .font(.system(size: 9.5, weight: .bold, design: .rounded))
                 .foregroundStyle(color)
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
-        .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 3))
-        .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(color.opacity(0.4), lineWidth: 0.6))
+        .padding(.horizontal, 9)
+        .padding(.vertical, 3.5)
+        .background(color.opacity(0.14), in: Capsule())
+        .overlay(Capsule().strokeBorder(color.opacity(0.42), lineWidth: 0.8))
     }
 
     private func chanceColor(_ chance: Int) -> Color {
@@ -198,16 +198,15 @@ struct TropicsView: View {
                     Button {
                         NSWorkspace.shared.open(url)
                     } label: {
-                        HStack(spacing: 4) {
+                        HStack(spacing: 5) {
                             Image(systemName: "map.fill")
-                            Text("ATLANTIC 7-DAY OUTLOOK")
+                            Text("Atlantic 7-Day Outlook")
                         }
-                        .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                        .foregroundStyle(WxTheme.snwCyan)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(WxTheme.snwCyan.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
-                        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwCyan.opacity(0.4), lineWidth: 0.8))
+                        .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                        .foregroundStyle(WxGlassTheme.cyan)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .wxFrostedCapsule(accent: WxGlassTheme.cyan)
                     }
                     .buttonStyle(.plain)
                 }
@@ -216,16 +215,15 @@ struct TropicsView: View {
                     Button {
                         NSWorkspace.shared.open(url)
                     } label: {
-                        HStack(spacing: 4) {
+                        HStack(spacing: 5) {
                             Image(systemName: "map.fill")
-                            Text("EAST PACIFIC 7-DAY OUTLOOK")
+                            Text("East Pacific 7-Day Outlook")
                         }
-                        .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                        .foregroundStyle(WxTheme.snwCyan)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(WxTheme.snwCyan.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
-                        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwCyan.opacity(0.4), lineWidth: 0.8))
+                        .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                        .foregroundStyle(WxGlassTheme.cyan)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .wxFrostedCapsule(accent: WxGlassTheme.cyan)
                     }
                     .buttonStyle(.plain)
                 }
@@ -301,15 +299,15 @@ struct TropicalStormCard: View {
                                 NSWorkspace.shared.open(url)
                             } label: {
                                 HStack(spacing: 4) {
-                                    Image(systemName: "tornado")
-                                        .font(.system(size: 9, weight: .bold))
-                                    Text("TRACK & CONE")
-                                        .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                                    Image(systemName: "hurricane")
+                                        .font(.system(size: 9.5, weight: .bold))
+                                    Text("Track & Cone")
+                                        .font(.system(size: 10, weight: .semibold, design: .rounded))
                                 }
-                                .padding(.horizontal, 8)
+                                .padding(.horizontal, 10)
                                 .padding(.vertical, 5)
-                                .background(statusColor.opacity(0.15), in: RoundedRectangle(cornerRadius: 4))
-                                .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(statusColor.opacity(0.5), lineWidth: 0.8))
+                                .background(statusColor.opacity(0.16), in: Capsule())
+                                .overlay(Capsule().strokeBorder(statusColor.opacity(0.5), lineWidth: 0.8))
                                 .foregroundStyle(statusColor)
                             }
                             .buttonStyle(.plain)
@@ -317,7 +315,6 @@ struct TropicalStormCard: View {
                         }
 
                         Button {
-                            // Intercept coordinates and jump to radar
                             let coord = String(format: "%.4f,%.4f", storm.latitude, storm.longitude)
                             store.selectLocation(coord)
                             store.selectedDeskTab = .radar
@@ -326,84 +323,97 @@ struct TropicalStormCard: View {
                         } label: {
                             HStack(spacing: 4) {
                                 Image(systemName: "scope")
-                                    .font(.system(size: 9, weight: .bold))
-                                Text("RADAR")
-                                    .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                                    .font(.system(size: 9.5, weight: .bold))
+                                Text("Radar")
+                                    .font(.system(size: 10, weight: .semibold, design: .rounded))
                             }
-                            .padding(.horizontal, 8)
+                            .padding(.horizontal, 10)
                             .padding(.vertical, 5)
-                            .background(WxTheme.snwCyan.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
-                            .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwCyan.opacity(0.4), lineWidth: 0.8))
-                            .foregroundStyle(WxTheme.snwCyan)
+                            .wxFrostedCapsule(accent: WxGlassTheme.cyan)
+                            .foregroundStyle(WxGlassTheme.cyan)
                         }
                         .buttonStyle(.plain)
                         .help("Focus Doppler Radar on cyclone coordinates")
                     }
                 }
 
-                // 4-cell Metric Grid
+                // 4-cell Metric Grid (respecting Imperial / Metric units)
+                let isMetric = (store.units == "metric")
+                let maxWindText = isMetric
+                    ? "\(storm.windSpeedKmh) km/h (\(storm.intensityKt) kt)"
+                    : "\(storm.windSpeedMph) mph (\(storm.intensityKt) kt)"
+                let moveText = isMetric
+                    ? "\(storm.movementCompass) @ \(storm.movementSpeedKmh) km/h"
+                    : "\(storm.movementCompass) @ \(storm.movementSpeedMph) mph"
+
                 LazyVGrid(columns: [
                     GridItem(.flexible()),
                     GridItem(.flexible()),
                     GridItem(.flexible()),
                     GridItem(.flexible())
                 ], spacing: 8) {
-                    tropicsMetricCell(label: "MAX WINDS", val: "\(storm.windSpeedMph) mph (\(storm.intensityKt) kt)", highlight: storm.intensityKt >= 64)
+                    tropicsMetricCell(label: "MAX WINDS", val: maxWindText, highlight: storm.intensityKt >= 64)
                     tropicsMetricCell(label: "PRESSURE", val: storm.pressureMb > 0 ? "\(storm.pressureMb) mb" : "N/A", highlight: storm.pressureMb > 0 && storm.pressureMb <= 980)
-                    tropicsMetricCell(label: "MOVEMENT", val: "\(storm.movementCompass) @ \(storm.movementSpeedMph) mph", highlight: false)
+                    tropicsMetricCell(label: "MOVEMENT", val: moveText, highlight: false)
                     tropicsMetricCell(label: "HEADING", val: "\(storm.movementDir)°", highlight: false)
                 }
 
                 // Headline if present
                 if let headline = storm.headline, !headline.isEmpty {
-                    HStack(spacing: 5) {
+                    HStack(spacing: 6) {
                         Image(systemName: "bolt.fill")
-                            .font(.system(size: 8.5))
-                            .foregroundStyle(WxTheme.snwAmber)
+                            .font(.system(size: 10))
+                            .foregroundStyle(WxGlassTheme.amber)
                         Text(headline)
-                            .font(.system(size: 8.5, weight: .medium, design: .monospaced))
-                            .foregroundStyle(WxTheme.snwAmber)
+                            .font(.system(size: 11.5, weight: .medium))
+                            .foregroundStyle(WxGlassTheme.textPrimary)
                             .lineLimit(2)
                     }
-                    .padding(6)
+                    .padding(9)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(WxTheme.snwAmber.opacity(0.08), in: RoundedRectangle(cornerRadius: 4))
+                    .background(WxGlassTheme.amber.opacity(0.10), in: WxGlassTheme.nestedShape())
+                    .overlay(WxGlassTheme.nestedShape().strokeBorder(WxGlassTheme.amber.opacity(0.32), lineWidth: 0.8))
                 }
 
                 // Active Watches & Warnings if present
                 if let watches = storm.watchesWarnings, !watches.isEmpty {
-                    VStack(alignment: .leading, spacing: 3) {
-                        HStack(spacing: 4) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 5) {
                             Image(systemName: "exclamationmark.triangle.fill")
-                                .font(.system(size: 8.5))
-                                .foregroundStyle(WxTheme.snwRed)
-                            Text("ACTIVE COASTAL WATCHES / WARNINGS:")
-                                .font(.system(size: 8, weight: .bold, design: .monospaced))
-                                .foregroundStyle(WxTheme.snwRed)
+                                .font(.system(size: 9.5))
+                                .foregroundStyle(WxGlassTheme.conditionRed)
+                            Text("Active Coastal Watches / Warnings")
+                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .foregroundStyle(WxGlassTheme.conditionRed)
                         }
                         ForEach(watches, id: \.self) { w in
                             Text("• \(w)")
-                                .font(.system(size: 8, design: .monospaced))
-                                .foregroundStyle(WxTheme.text)
+                                .font(.system(size: 11))
+                                .foregroundStyle(WxGlassTheme.textPrimary)
                         }
                     }
-                    .padding(6)
+                    .padding(9)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(WxTheme.snwRed.opacity(0.08), in: RoundedRectangle(cornerRadius: 4))
+                    .background(WxGlassTheme.conditionRed.opacity(0.10), in: WxGlassTheme.nestedShape())
+                    .overlay(WxGlassTheme.nestedShape().strokeBorder(WxGlassTheme.conditionRed.opacity(0.32), lineWidth: 0.8))
                 }
 
                 // Bulletins Links
-                HStack(spacing: 12) {
+                HStack(spacing: 10) {
                     if let pUrl = storm.publicAdvisoryUrl, let url = URL(string: pUrl) {
                         Button {
                             NSWorkspace.shared.open(url)
                         } label: {
-                            HStack(spacing: 3) {
-                                Text("PUBLIC ADVISORY")
+                            HStack(spacing: 4) {
+                                Text("Public Advisory")
                                 Image(systemName: "arrow.up.right.square")
                             }
-                            .font(.system(size: 8, weight: .bold, design: .monospaced))
-                            .foregroundStyle(WxTheme.snwSilver)
+                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            .foregroundStyle(WxGlassTheme.textSecondary)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4.5)
+                            .background(Color.white.opacity(0.06), in: Capsule())
+                            .overlay(Capsule().strokeBorder(Color.white.opacity(0.14), lineWidth: 0.8))
                         }
                         .buttonStyle(.plain)
                     }
@@ -412,12 +422,16 @@ struct TropicalStormCard: View {
                         Button {
                             NSWorkspace.shared.open(url)
                         } label: {
-                            HStack(spacing: 3) {
-                                Text("FORECAST DISCUSSION")
+                            HStack(spacing: 4) {
+                                Text("Forecast Discussion")
                                 Image(systemName: "arrow.up.right.square")
                             }
-                            .font(.system(size: 8, weight: .bold, design: .monospaced))
-                            .foregroundStyle(WxTheme.snwSilver)
+                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            .foregroundStyle(WxGlassTheme.textSecondary)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4.5)
+                            .background(Color.white.opacity(0.06), in: Capsule())
+                            .overlay(Capsule().strokeBorder(Color.white.opacity(0.14), lineWidth: 0.8))
                         }
                         .buttonStyle(.plain)
                     }
@@ -430,16 +444,11 @@ struct TropicalStormCard: View {
 
     @ViewBuilder
     private func tropicsMetricCell(label: String, val: String, highlight: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label)
-                .font(.system(size: 7.5, weight: .bold, design: .monospaced))
-                .foregroundStyle(WxTheme.snwSilver)
-            Text(val)
-                .font(.system(size: 9.5, weight: .bold, design: .monospaced))
-                .foregroundStyle(highlight ? statusColor : WxTheme.text)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(5)
-        .background(WxTheme.snwChassis.opacity(0.8), in: RoundedRectangle(cornerRadius: 3))
+        WxSensorCapsule(
+            label: label,
+            value: val,
+            accent: highlight ? statusColor : WxGlassTheme.cyan,
+            compact: true
+        )
     }
 }

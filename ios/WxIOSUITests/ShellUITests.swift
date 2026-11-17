@@ -43,8 +43,58 @@ final class WxIOSShellUITests: XCTestCase {
         XCTAssertFalse(app.buttons["tab.CPC"].exists)
     }
 
+    func testConfigUnitsToggleFavoritesAndRadarControls() throws {
+        let scratchCfg = "/tmp/wx-ios-shell-\(UUID().uuidString).json"
+        defer { try? FileManager.default.removeItem(atPath: scratchCfg) }
+
+        let app = XCUIApplication()
+        app.launchEnvironment = [
+            "WX_UI_TEST": "1",
+            "WX_FIXTURE": "1",
+            "WX_SKIP_LOCATION": "1",
+            "WX_DEFAULT_LOCATION": "New Haven, IN",
+            "WX_CONFIG": scratchCfg,
+        ]
+        app.launch()
+
+        XCTAssertTrue(text(app, "Fixture Partly Cloudy").waitForExistence(timeout: 15), dump(app))
+        XCTAssertEqual(app.staticTexts["surface.temp"].label, "72°", dump(app))
+
+        // 1. Top capsule Pin station button is visible even when favorites start empty.
+        let pinButton = app.buttons["Pin station"]
+        XCTAssertTrue(pinButton.waitForExistence(timeout: 5), dump(app))
+        pinButton.tap()
+
+        // 2. Config segmented Units picker applies Metric (°C) immediately without tapping Save place.
+        open(app, "Config")
+        XCTAssertTrue(text(app, "1 PINNED").waitForExistence(timeout: 5), dump(app))
+        let metricSegment = app.segmentedControls["config.units"].buttons["Metric (°C)"]
+        XCTAssertTrue(metricSegment.waitForExistence(timeout: 5), dump(app))
+        metricSegment.tap()
+
+        open(app, "Surface")
+        XCTAssertTrue(text(app, "22°").waitForExistence(timeout: 5), dump(app))
+        XCTAssertEqual(app.staticTexts["surface.temp"].label, "22°", dump(app))
+
+        // 3. Radar interactive transport (Loop -> Held) and Recenter controls respond cleanly.
+        open(app, "Radar")
+        XCTAssertTrue(text(app, "Fixture Composite").waitForExistence(timeout: 5), dump(app))
+        let transport = app.staticTexts["radar.transport"]
+        XCTAssertTrue(transport.waitForExistence(timeout: 5), dump(app))
+        XCTAssertEqual(transport.label, "Loop")
+        transport.tap()
+        XCTAssertEqual(transport.label, "Held")
+
+        let recenter = app.buttons["Recenter radar"]
+        XCTAssertTrue(recenter.exists, dump(app))
+        recenter.tap()
+    }
+
     private func assertSurface(_ app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
         XCTAssertTrue(text(app, "Fixture Partly Cloudy").waitForExistence(timeout: 15), dump(app), file: file, line: line)
+        let loc = app.staticTexts["surface.location"]
+        XCTAssertTrue(loc.exists, "surface.location missing. \(dump(app))", file: file, line: line)
+        XCTAssertEqual(loc.label, "New Haven, IN", dump(app), file: file, line: line)
         XCTAssertTrue(text(app, "Fixture Dry next 6h").exists, dump(app), file: file, line: line)
         XCTAssertTrue(text(app, "Fixture Tuesday").exists, dump(app), file: file, line: line)
         XCTAssertTrue(text(app, "15:00").exists, dump(app), file: file, line: line)

@@ -360,8 +360,15 @@ func (m InteractiveModel) View() string {
 
 	var sb strings.Builder
 
-	// Reserve 1 line for the help bar at the bottom.
-	renderH := m.height - 1
+	// Reserve 1 line for the help bar at the bottom (and 1 inline error banner line if present).
+	errLines := 0
+	if m.err != nil && m.height > 2 {
+		errLines = 1
+	}
+	renderH := m.height - 1 - errLines
+	if renderH < 1 {
+		renderH = 1
+	}
 
 	// Pick which frame to show.
 	var activeFrame *Frame
@@ -372,21 +379,27 @@ func (m InteractiveModel) View() string {
 	}
 
 	if m.loading || activeFrame == nil {
-		msg := m.status
+		msg := sanitizeSingleLine(m.status)
 		if msg == "" {
 			msg = "Loading…"
 		}
-		// Center the loading message.
+		pill := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#38E1FF")).
+			Bold(true).
+			Render("╭─ ◆ " + msg + " ─╮")
+		if lipgloss.Width(pill) > m.width {
+			pill = lipgloss.NewStyle().MaxWidth(m.width).Render("◆ " + msg)
+		}
 		padY := renderH / 2
 		for i := 0; i < padY; i++ {
 			sb.WriteString("\n")
 		}
-		padX := (m.width - len(msg)) / 2
+		padX := (m.width - lipgloss.Width(pill)) / 2
 		if padX < 0 {
 			padX = 0
 		}
 		sb.WriteString(strings.Repeat(" ", padX))
-		sb.WriteString(msg)
+		sb.WriteString(pill)
 		sb.WriteString("\n")
 		for i := padY + 1; i < renderH; i++ {
 			sb.WriteString("\n")
@@ -397,12 +410,20 @@ func (m InteractiveModel) View() string {
 			TermHeight: renderH,
 			Mode:       m.cfg.TermMode,
 		}
-		_ = RenderFrame(&sb, activeFrame, m.cfg.Loc.DisplayName, opts)
+		if frameErr := RenderFrame(&sb, activeFrame, m.cfg.Loc.DisplayName, opts); frameErr != nil {
+			fallback := lipgloss.NewStyle().MaxWidth(m.width).Render(sanitizeSingleLine(frameErr.Error()))
+			sb.WriteString(fallback)
+			sb.WriteString("\n")
+			for i := 1; i < renderH; i++ {
+				sb.WriteString("\n")
+			}
+		}
 	}
 
-	if m.err != nil {
-		errStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
-		sb.WriteString(errStyle.Render("Error: " + m.err.Error()))
+	if errLines == 1 {
+		errStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF3B56")).Bold(true).MaxWidth(m.width)
+		sb.WriteString(errStyle.Render("▲ Error: " + sanitizeSingleLine(m.err.Error())))
+		sb.WriteString("\x1b[K\n")
 	}
 
 	// Help bar
@@ -412,19 +433,25 @@ func (m InteractiveModel) View() string {
 }
 
 func (m InteractiveModel) helpBar() string {
-	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	key := lipgloss.NewStyle().Foreground(lipgloss.Color("255")).Bold(true)
-	val := lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
+	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("#8CA1C1"))
+	key := lipgloss.NewStyle().Foreground(lipgloss.Color("#38E1FF")).Bold(true)
+	val := lipgloss.NewStyle().Foreground(lipgloss.Color("#F3F8FF"))
 
 	var parts []string
 
-	// Current product
-	prodStr := key.Render("p") + dim.Render(":") + val.Render(ProductLabel(m.product))
+	// Current product (compact label on narrow terminals)
+	prodName := ProductLabel(m.product)
+	if m.width > 0 && m.width < 105 {
+		if idx := strings.IndexByte(prodName, ' '); idx > 0 {
+			prodName = prodName[:idx]
+		}
+	}
+	prodStr := key.Render("p") + dim.Render(":") + val.Render(prodName)
 	parts = append(parts, prodStr)
 
 	// Radius
 	radLabel := fmt.Sprintf("%.0fkm", m.radius)
-	if m.radius > 200 {
+	if m.radius > 200 && (m.width == 0 || m.width >= 115) {
 		sites := len(StationsWithinRadius(m.cfg.Loc.Lat, m.cfg.Loc.Lon, m.radius))
 		if sites > 1 {
 			radLabel = fmt.Sprintf("%.0fkm (mosaic · %d sites)", m.radius, sites)
@@ -434,7 +461,9 @@ func (m InteractiveModel) helpBar() string {
 	}
 	radStr := key.Render("+/-") + dim.Render(":") + val.Render(radLabel)
 	parts = append(parts, radStr)
-	parts = append(parts, key.Render("1-5")+dim.Render(":scale"))
+	if m.width == 0 || m.width >= 96 {
+		parts = append(parts, key.Render("1-5")+dim.Render(":scale"))
+	}
 
 	// Loop status
 	loopLabel := "off"
@@ -450,21 +479,37 @@ func (m InteractiveModel) helpBar() string {
 	if m.loopMode {
 		parts = append(parts, key.Render("←→")+dim.Render(":step"))
 		if m.paused {
-			parts = append(parts, key.Render("space")+dim.Render(":play"))
+			parts = append(parts, key.Render("␣")+dim.Render(":play"))
 		} else {
-			parts = append(parts, key.Render("space")+dim.Render(":pause"))
+			parts = append(parts, key.Render("␣")+dim.Render(":pause"))
 		}
-		speedMs := loopSpeeds[m.speedIdx] / time.Millisecond
-		parts = append(parts, key.Render("<>")+dim.Render(fmt.Sprintf(":speed %dms", speedMs)))
+		if m.width == 0 || m.width >= 100 {
+			speedMs := loopSpeeds[m.speedIdx] / time.Millisecond
+			parts = append(parts, key.Render("<>")+dim.Render(fmt.Sprintf(":%dms", speedMs)))
+		}
 	}
 
 	parts = append(parts, key.Render("r")+dim.Render(":refresh"))
 	parts = append(parts, key.Render("q")+dim.Render(":quit"))
 
-	bar := strings.Join(parts, dim.Render("  │  "))
+	sep := dim.Render(" │ ")
+	if m.width == 0 || m.width >= 110 {
+		sep = dim.Render("  │  ")
+	}
+	bar := strings.Join(parts, sep)
+	if m.width > 0 && lipgloss.Width(bar) > m.width {
+		bar = lipgloss.NewStyle().MaxWidth(m.width).Render(bar)
+	}
 
-	// Pad/truncate to terminal width and clear rest of line.
+	// Clear rest of line without wrapping.
 	return bar + "\x1b[K"
+}
+
+func sanitizeSingleLine(s string) string {
+	s = strings.ReplaceAll(s, "\r\n", " ")
+	s = strings.ReplaceAll(s, "\n", " ")
+	s = strings.ReplaceAll(s, "\r", " ")
+	return strings.TrimSpace(s)
 }
 
 // ── Commands ─────────────────────────────────────────────────────────────────

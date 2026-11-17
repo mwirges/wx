@@ -915,7 +915,18 @@ final class WeatherStore: ObservableObject {
     }
 
     var statusSymbol: String {
-        ConditionSymbol.systemName(for: payload?.conditions?.conditionCode)
+        ConditionSymbol.resolvedSystemName(
+            for: payload,
+            nowcast: nowcastPayload?.nowcast
+        )
+    }
+
+    var isNight: Bool {
+        ConditionSymbol.isNight(for: payload)
+    }
+
+    var resolvedConditionDescription: String? {
+        ConditionSymbol.resolvedDescription(for: payload)
     }
 
     private func updateStatusItemChrome() {

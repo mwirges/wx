@@ -31,14 +31,13 @@ struct CPCOutlookView: View {
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "arrow.triangle.2.circlepath")
-                            Text("REFRESH OUTLOOKS")
+                            Text("Refresh Outlooks")
                         }
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
-                        .foregroundStyle(WxTheme.snwCyan)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 5)
-                        .background(WxTheme.snwCyan.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
-                        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwCyan.opacity(0.4), lineWidth: 0.8))
+                        .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                        .foregroundStyle(WxGlassTheme.cyan)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 5.5)
+                        .wxFrostedCapsule(accent: WxGlassTheme.cyan, active: true)
                     }
                     .buttonStyle(.plain)
                     .disabled(store.isCPCLoading)
@@ -47,16 +46,18 @@ struct CPCOutlookView: View {
 
                 // Error Banner if any
                 if let err = store.cpcErrorMessage {
+                    let errShape = WxGlassTheme.nestedShape()
                     HStack(spacing: 8) {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(WxTheme.snwRed)
-                        Text("// TELEMETRY FAULT: \(err)")
-                            .font(.system(size: 10, weight: .medium, design: .monospaced))
-                            .foregroundStyle(WxTheme.snwRed)
+                            .foregroundStyle(WxGlassTheme.conditionRed)
+                        Text("Telemetry Fault: \(err)")
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .foregroundStyle(WxGlassTheme.conditionRed)
                     }
-                    .padding(8)
-                    .background(WxTheme.snwRed.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
-                    .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(WxTheme.snwRed.opacity(0.3), lineWidth: 0.8))
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(WxGlassTheme.conditionRed.opacity(0.14), in: errShape)
+                    .overlay(errShape.strokeBorder(WxGlassTheme.conditionRed.opacity(0.38), lineWidth: 0.9))
                 }
 
                 // 1. Synoptic Pattern Shift Heads-Up Card
@@ -90,7 +91,7 @@ struct CPCOutlookView: View {
                         .foregroundStyle(WxTheme.snwSilver.opacity(0.6))
                     Spacer()
                     if let fetched = store.cpcPayload?.fetchedAt {
-                        Text("FETCHED // \(fetched.prefix(19))")
+                        Text("FETCHED · \(fetched.prefix(19))")
                             .font(.system(size: 8, weight: .medium, design: .monospaced))
                             .foregroundStyle(WxTheme.snwSilver.opacity(0.6))
                     }
@@ -122,10 +123,10 @@ struct CPCOutlookView: View {
                             .foregroundStyle(WxTheme.snwAmber)
                             .shadow(color: WxTheme.snwAmber.opacity(0.6), radius: 5)
 
-                        VStack(alignment: .leading, spacing: 6) {
+                        VStack(alignment: .leading, spacing: 8) {
                             Text(shift.summary)
-                                .font(.system(size: 12.5, weight: .semibold, design: .monospaced))
-                                .foregroundStyle(WxTheme.text)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(WxGlassTheme.textPrimary)
                                 .fixedSize(horizontal: false, vertical: true)
 
                             HStack(spacing: 8) {
@@ -159,11 +160,11 @@ struct CPCOutlookView: View {
                 } else {
                     HStack(spacing: 8) {
                         Image(systemName: "checkmark.shield.fill")
-                            .font(.system(size: 16))
-                            .foregroundStyle(WxTheme.snwGreen)
+                            .font(.system(size: 18))
+                            .foregroundStyle(WxGlassTheme.nominalGreen)
                         Text("No major regime transition detected. Persistent baseline climatology prevailing across the 6–14 day horizon.")
-                            .font(.system(size: 10.5, weight: .medium, design: .monospaced))
-                            .foregroundStyle(WxTheme.textSecondary)
+                            .font(.system(size: 12.5))
+                            .foregroundStyle(WxGlassTheme.textSecondary)
                     }
                 }
             }
@@ -171,18 +172,18 @@ struct CPCOutlookView: View {
     }
 
     private func shiftTag(label: String, value: String, icon: String, color: Color) -> some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 5) {
             Image(systemName: icon)
-                .font(.system(size: 8.5))
+                .font(.system(size: 9))
                 .foregroundStyle(color)
             Text("\(label): \(value)")
-                .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                .font(.system(size: 9.5, weight: .bold, design: .rounded))
                 .foregroundStyle(color)
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
-        .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
-        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(color.opacity(0.4), lineWidth: 0.8))
+        .padding(.horizontal, 9)
+        .padding(.vertical, 4)
+        .background(color.opacity(0.14), in: Capsule())
+        .overlay(Capsule().strokeBorder(color.opacity(0.42), lineWidth: 0.8))
     }
 
     // ── 2. Horizon Outlook Card (6-10D / 8-14D) ───────────────────────────────────
@@ -240,11 +241,11 @@ struct CPCOutlookView: View {
 
                     if probability > 0 {
                         Text(String(format: "%.0f%% PROB", probability))
-                            .font(.system(size: 9.5, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(WxTheme.text)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(color.opacity(0.18), in: RoundedRectangle(cornerRadius: 3))
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundStyle(WxGlassTheme.textPrimary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2.5)
+                            .background(color.opacity(0.20), in: Capsule())
                     }
                 }
             }
@@ -338,8 +339,8 @@ struct CPCOutlookView: View {
                         .foregroundStyle(isDrought ? WxTheme.snwAmber : WxTheme.snwGreen)
 
                     Text("Official monthly assessment synthesized with soil moisture anomalies and Palmer Drought Severity Index (PDSI).")
-                        .font(.system(size: 8.5, weight: .medium, design: .monospaced))
-                        .foregroundStyle(WxTheme.snwSilver.opacity(0.8))
+                        .font(.system(size: 11.5))
+                        .foregroundStyle(WxGlassTheme.textSecondary)
                 }
             }
         }

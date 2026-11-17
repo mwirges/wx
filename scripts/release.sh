@@ -151,7 +151,7 @@ fi
 
 # 5. Git Commit & Tag
 echo "==> Committing release version files..."
-git add VERSION cmd/version.go macos/WxMac/Info.plist macos/WxMac/AppDelegate.swift README.md
+git add VERSION cmd/version.go macos/WxMac/Info.plist ios/WxIOS/Info.plist ios/WxWidget/Info.plist README.md
 if ! git diff --cached --quiet; then
   git commit -m "release: ${TAG_NAME}"
 else

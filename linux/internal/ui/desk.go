@@ -253,18 +253,15 @@ func (d *Desk) build() {
 	d.placeLine.Wrapping = fyne.TextWrapOff
 	d.syncLine = line("SYNC // —", "sync")
 	d.syncLine.Wrapping = fyne.TextWrapOff
-	network := canvas.NewText("METEOROLOGICAL SENSOR NETWORK // ACTIVE", colSilver)
-	network.TextSize = 9
-	network.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
+	title := tight("WX.DESK · TELEMETRY", "console")
 	capBG := canvas.NewRectangle(withAlpha(colChassis, 0xB3))
-	capBG.CornerRadius = 10
-	capBG.StrokeColor = withAlpha(colCyan, 0x40)
+	capBG.CornerRadius = 12
+	capBG.StrokeColor = withAlpha(colCyan, 0x42)
 	capBG.StrokeWidth = 1
-	capsule := container.NewStack(capBG, container.NewPadded(container.NewHBox(statusDot(colGreen, 6), network)))
-	top := container.NewBorder(nil, nil, d.placeLine, capsule, layout.NewSpacer())
-	title := tight("ATMOSPHERIC TELEMETRY CONSOLE", "console")
-	bandBG := canvas.NewRectangle(withAlpha(colChassis, 0xF2))
-	band := container.NewStack(bandBG, container.NewPadded(container.NewVBox(top, headerPill(title, d.syncLine), modeBar)))
+	capsule := container.NewStack(capBG, container.NewPadded(container.NewHBox(statusDot(colGreen, 6), d.syncLine)))
+	top := container.NewBorder(nil, nil, container.NewHBox(title, d.placeLine), capsule, layout.NewSpacer())
+	bandBG := canvas.NewRectangle(withAlpha(colChassis, 0xEC))
+	band := container.NewStack(bandBG, container.NewPadded(container.NewVBox(top, modeBar)))
 
 	mark := canvas.NewText("NOAA.NWS SENSOR ARRAY · GRID 1KM", colSilver)
 	mark.TextSize = 10

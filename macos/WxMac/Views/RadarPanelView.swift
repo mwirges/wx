@@ -37,19 +37,18 @@ struct RadarProductMenu: View {
         } label: {
             HStack(spacing: 5) {
                 Image(systemName: "antenna.radiowaves.left.and.right")
-                    .font(.system(size: 9.5, weight: .bold))
-                    .foregroundStyle(WxTheme.snwCyan)
-                Text("PRODUCT // \(selectedOption.label.uppercased())")
-                    .font(.system(size: 9.5, weight: .bold, design: .monospaced))
-                    .foregroundStyle(WxTheme.text)
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(WxGlassTheme.cyan)
+                Text(selectedOption.label)
+                    .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                    .foregroundStyle(WxGlassTheme.textPrimary)
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.system(size: 7.5, weight: .bold))
-                    .foregroundStyle(WxTheme.snwCyan.opacity(0.8))
+                    .foregroundStyle(WxGlassTheme.cyan.opacity(0.85))
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(isHUD ? WxTheme.snwChassis.opacity(0.92) : WxTheme.snwPanel, in: RoundedRectangle(cornerRadius: 5))
-            .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(WxTheme.border.opacity(0.45), lineWidth: 0.8))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5.5)
+            .wxFrostedCapsule(accent: WxGlassTheme.cyan)
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
@@ -98,19 +97,18 @@ struct RadarCoverageMenu: View {
         } label: {
             HStack(spacing: 5) {
                 Image(systemName: (store.currentRadarBBox != nil || store.selectedRadarRadius > 200) ? "circle.grid.cross.fill" : "circle.circle")
-                    .font(.system(size: 9.5, weight: .bold))
-                    .foregroundStyle((store.currentRadarBBox != nil || store.selectedRadarRadius > 200) ? WxTheme.snwGreen : WxTheme.snwCyan)
-                Text("SCALE // \(selectedOption.label.uppercased())")
-                    .font(.system(size: 9.5, weight: .bold, design: .monospaced))
-                    .foregroundStyle(WxTheme.text)
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle((store.currentRadarBBox != nil || store.selectedRadarRadius > 200) ? WxGlassTheme.nominalGreen : WxGlassTheme.cyan)
+                Text("Scale · \(selectedOption.label)")
+                    .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                    .foregroundStyle(WxGlassTheme.textPrimary)
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.system(size: 7.5, weight: .bold))
-                    .foregroundStyle(WxTheme.snwCyan.opacity(0.8))
+                    .foregroundStyle(WxGlassTheme.cyan.opacity(0.85))
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(isHUD ? WxTheme.snwChassis.opacity(0.92) : WxTheme.snwPanel, in: RoundedRectangle(cornerRadius: 5))
-            .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(WxTheme.border.opacity(0.45), lineWidth: 0.8))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5.5)
+            .wxFrostedCapsule(accent: WxGlassTheme.cyan)
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
@@ -183,59 +181,52 @@ struct RadarPanelView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if store.isRadarLoading {
                 VStack(spacing: 8) {
-                    ProgressView().controlSize(.regular).tint(WxTheme.snwCyan)
-                    Text("ACQUIRING NOAA MRMS RADAR ARRAY…")
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
-                        .foregroundStyle(WxTheme.snwCyan)
+                    ProgressView().controlSize(.regular).tint(WxGlassTheme.cyan)
+                    Text("Acquiring NOAA MRMS Radar Array…")
+                        .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                        .foregroundStyle(WxGlassTheme.cyanSoft)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.black.opacity(0.85))
+                .background(Color.black.opacity(0.65))
             } else if let err = store.radarErrorMessage {
                 VStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle")
-                        .font(.title)
-                        .foregroundStyle(WxTheme.snwRed)
-                    Text("// TELEMETRY FAULT: \(err)")
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(WxTheme.snwRed)
-                    Button("RETRY SCAN") {
+                        .font(.title2)
+                        .foregroundStyle(WxGlassTheme.conditionRed)
+                    Text("Telemetry Fault: \(err)")
+                        .font(.system(size: 11.5, design: .rounded))
+                        .foregroundStyle(WxGlassTheme.conditionRed)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 20)
+                    Button("Retry Scan") {
                         Task { await store.refreshRadar() }
                     }
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
-                    .foregroundStyle(WxTheme.snwCyan)
+                    .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                    .foregroundStyle(WxGlassTheme.cyan)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.black.opacity(0.85))
+                .background(Color.black.opacity(0.65))
             } else {
                 VStack(spacing: 8) {
                     Image(systemName: "dot.radiowaves.left.and.right")
                         .font(.system(size: 32))
-                        .foregroundStyle(WxTheme.snwCyan.opacity(0.6))
-                    Text("RADAR ARRAY OFFLINE")
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
-                        .foregroundStyle(WxTheme.textSecondary)
-                    Button("ENGAGE SCAN") {
+                        .foregroundStyle(WxGlassTheme.cyan.opacity(0.6))
+                    Text("Radar Array Standby")
+                        .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                        .foregroundStyle(WxGlassTheme.textSecondary)
+                    Button("Engage Scan") {
                         Task { await store.refreshRadar() }
                     }
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
-                    .foregroundStyle(WxTheme.snwCyan)
+                    .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                    .foregroundStyle(WxGlassTheme.cyan)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.black.opacity(0.85))
+                .background(Color.black.opacity(0.65))
             }
 
-            // 2. Floating Top Tactical HUD Bar
+            // 2. Floating Top Frosted Glass HUD Bar
             VStack(spacing: 0) {
                 HStack(spacing: 8) {
-                    // Location Input with GPS and Favorites
-                    LocationBarView(isHUD: true) {
-                        Task {
-                            await store.applyLocationAndUnits()
-                            await store.refreshRadar()
-                        }
-                    }
-                    .frame(width: 210)
-
                     // Product Selector Menu
                     RadarProductMenu(isHUD: true)
 
@@ -248,15 +239,14 @@ struct RadarPanelView: View {
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "scope")
-                                .font(.system(size: 9))
-                            Text("RECENTER")
-                                .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                                .font(.system(size: 9.5, weight: .semibold))
+                            Text("Recenter")
+                                .font(.system(size: 10, weight: .semibold, design: .rounded))
                         }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
-                        .background(WxTheme.snwChassis.opacity(0.92), in: RoundedRectangle(cornerRadius: 5))
-                        .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(WxTheme.snwCyan.opacity(0.45), lineWidth: 0.8))
-                        .foregroundStyle(WxTheme.text)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5.5)
+                        .wxFrostedCapsule(accent: WxGlassTheme.cyan)
+                        .foregroundStyle(WxGlassTheme.textPrimary)
                     }
                     .buttonStyle(.plain)
 
@@ -270,14 +260,13 @@ struct RadarPanelView: View {
                             } else {
                                 Image(systemName: "arrow.triangle.2.circlepath")
                             }
-                            Text(store.isRadarLoading ? "REFRESHING…" : "REFRESH")
+                            Text(store.isRadarLoading ? "Refreshing…" : "Refresh")
                         }
-                        .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                        .foregroundStyle(WxTheme.snwCyan)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
-                        .background(WxTheme.snwCyan.opacity(0.15), in: RoundedRectangle(cornerRadius: 5))
-                        .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(WxTheme.snwCyan.opacity(0.45), lineWidth: 0.8))
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .foregroundStyle(WxGlassTheme.cyan)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5.5)
+                        .wxFrostedCapsule(accent: WxGlassTheme.cyan, active: true)
                     }
                     .buttonStyle(.plain)
                     .disabled(store.isRadarLoading)
@@ -289,19 +278,18 @@ struct RadarPanelView: View {
                     if let refreshed = store.lastRadarRefreshed {
                         TimelineView(.periodic(from: .now, by: 5.0)) { timeline in
                             let seconds = max(0, Int(timeline.date.timeIntervalSince(refreshed)))
-                            let relText = seconds < 10 ? "JUST NOW" : (seconds < 60 ? "\(seconds)s AGO" : "\(seconds/60)m AGO")
-                            HStack(spacing: 4) {
+                            let relText = seconds < 10 ? "just now" : (seconds < 60 ? "\(seconds)s ago" : "\(seconds/60)m ago")
+                            HStack(spacing: 5) {
                                 Image(systemName: "clock.arrow.circlepath")
-                                    .font(.system(size: 8))
-                                    .foregroundStyle(WxTheme.snwCyan)
-                                Text("FETCHED // \(refreshed.formatted(date: .omitted, time: .standard)) (\(relText))")
-                                    .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                                    .foregroundStyle(WxTheme.snwSilver)
+                                    .font(.system(size: 9))
+                                    .foregroundStyle(WxGlassTheme.cyan)
+                                Text("\(refreshed.formatted(date: .omitted, time: .shortened)) (\(relText))")
+                                    .font(.system(size: 9.5, weight: .semibold, design: .monospaced))
+                                    .foregroundStyle(WxGlassTheme.textSecondary)
                             }
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 5)
-                            .background(WxTheme.snwChassis.opacity(0.92), in: RoundedRectangle(cornerRadius: 5))
-                            .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(WxTheme.border.opacity(0.45), lineWidth: 0.8))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5.5)
+                            .wxFrostedCapsule(accent: WxGlassTheme.cyan)
                         }
                     }
 
@@ -310,28 +298,27 @@ struct RadarPanelView: View {
                     let stationList = store.radarPayload?.stations ?? []
                     HStack(spacing: 5) {
                         Circle()
-                            .fill(WxTheme.snwGreen)
-                            .frame(width: 5, height: 5)
-                            .shadow(color: WxTheme.snwGreen.opacity(0.8), radius: 3)
+                            .fill(WxGlassTheme.nominalGreen)
+                            .frame(width: 6, height: 6)
+                            .shadow(color: WxGlassTheme.nominalGreen.opacity(0.8), radius: 3)
                         if isComp && stationList.count > 1 {
-                            Text("NOAA MRMS // MOSAIC (\(stationList.count) SITES)")
-                                .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                                .foregroundStyle(WxTheme.snwCyan)
+                            Text("MRMS Mosaic · \(stationList.count) Sites")
+                                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                .foregroundStyle(WxGlassTheme.cyanSoft)
                                 .help("Contributing NEXRAD radars: " + stationList.joined(separator: ", "))
                         } else if isComp {
-                            Text("NOAA MRMS // COMPOSITE MOSAIC")
-                                .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                                .foregroundStyle(WxTheme.snwCyan)
+                            Text("MRMS Composite")
+                                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                .foregroundStyle(WxGlassTheme.cyanSoft)
                         } else {
-                            Text("NOAA MRMS 1KM // LIVE")
-                                .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                                .foregroundStyle(WxTheme.text)
+                            Text("MRMS 1km Live")
+                                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                .foregroundStyle(WxGlassTheme.textPrimary)
                         }
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 5)
-                    .background(WxTheme.snwChassis.opacity(0.92), in: RoundedRectangle(cornerRadius: 5))
-                    .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(WxTheme.snwCyan.opacity(0.45), lineWidth: 0.8))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5.5)
+                    .wxFrostedCapsule(accent: WxGlassTheme.cyan)
                 }
                 .padding(.horizontal, 14)
                 .padding(.top, 10)
@@ -343,55 +330,42 @@ struct RadarPanelView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
                             if let loc = store.radarPayload?.location {
-                                Text(loc.uppercased())
-                                    .font(.system(size: 9.5, weight: .bold, design: .monospaced))
-                                    .foregroundStyle(WxTheme.text)
+                                Text(loc)
+                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    .foregroundStyle(WxGlassTheme.textPrimary)
                             }
                             if let st = store.radarPayload?.station, !st.isEmpty {
-                                Text("· RADAR // \(st)")
-                                    .font(.system(size: 9, design: .monospaced))
-                                    .foregroundStyle(WxTheme.snwSilver)
+                                Text("· \(st)")
+                                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                                    .foregroundStyle(WxGlassTheme.textSecondary)
                             }
                             Spacer()
                             if let vt = formattedValidTime {
-                                Text("OBSERVED // \(vt)")
-                                    .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                                    .foregroundStyle(WxTheme.snwCyan)
-                            }
-                            if let refreshed = store.lastRadarRefreshed {
-                                Text("· RETRIEVED // \(refreshed.formatted(date: .omitted, time: .standard))")
-                                    .font(.system(size: 8.5, design: .monospaced))
-                                    .foregroundStyle(WxTheme.snwSilver.opacity(0.85))
+                                Text("Valid \(vt)")
+                                    .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(WxGlassTheme.cyan)
                             }
                         }
 
                         scaleBarView
-
-                        let isCompFooter = (store.radarPayload?.isComposite ?? false) || store.selectedRadarRadius > 200
-                        let radKm = String(format: "%.0f", store.radarPayload?.radiusKm ?? store.selectedRadarRadius)
-                        let stationList = store.radarPayload?.stations ?? []
-                        let footerText: String = {
-                            if isCompFooter && stationList.count > 1 {
-                                return "NOAA MRMS MULTI-RADAR COMPOSITE MOSAIC · \(radKm) KM RADIUS · \(stationList.count) SITES · WGS84 VECTOR OVERLAY"
-                            } else if isCompFooter {
-                                return "NOAA MRMS MULTI-RADAR COMPOSITE MOSAIC · \(radKm) KM RADIUS · WGS84 VECTOR OVERLAY"
-                            } else {
-                                return "NOAA MRMS SENSOR ARRAY · \(radKm) KM SCAN RADIUS · WGS84 VECTOR OVERLAY"
-                            }
-                        }()
-                        Text(footerText)
-                            .font(.system(size: 8, weight: .medium, design: .monospaced))
-                            .foregroundStyle(WxTheme.snwSilver.opacity(0.7))
                     }
-                    .padding(10)
-                    .background(WxTheme.snwChassis.opacity(0.92))
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(WxTheme.border.opacity(0.45), lineWidth: 0.8))
-                    .overlay(SNWCornerBrackets(color: WxTheme.snwCyan.opacity(0.7), length: 8, thickness: 1))
-                    .frame(maxWidth: 440)
+                    .padding(12)
+                    .background {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 18, style: .continuous).fill(.ultraThinMaterial)
+                            RoundedRectangle(cornerRadius: 18, style: .continuous).fill(WxGlassTheme.pillTintOverlay())
+                        }
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
+                    )
+                    .shadow(color: Color.black.opacity(0.32), radius: 14, y: 6)
+                    .frame(maxWidth: 420)
 
                     RadarTransportBar(compact: false)
-                        .frame(maxWidth: 440)
+                        .frame(maxWidth: 460)
 
                     Spacer()
                 }
@@ -430,22 +404,24 @@ struct RadarPanelView: View {
                 RadarProductMenu(isHUD: false)
                 RadarCoverageMenu(isHUD: false)
 
-                if let sel = radarProducts.first(where: { $0.id == store.selectedRadarProduct }) {
-                    Text("// \(sel.hint.uppercased())")
-                        .font(.system(size: 8.5, weight: .medium, design: .monospaced))
-                        .foregroundStyle(WxTheme.snwSilver.opacity(0.75))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
+                Spacer(minLength: 4)
 
                 if let refreshed = store.lastRadarRefreshed {
                     TimelineView(.periodic(from: .now, by: 5.0)) { timeline in
                         let seconds = max(0, Int(timeline.date.timeIntervalSince(refreshed)))
-                        let relText = seconds < 10 ? "JUST NOW" : (seconds < 60 ? "\(seconds)s AGO" : "\(seconds/60)m AGO")
-                        Text("// FETCHED \(refreshed.formatted(date: .omitted, time: .standard)) (\(relText))")
-                            .font(.system(size: 8, weight: .bold, design: .monospaced))
-                            .foregroundStyle(WxTheme.snwSilver.opacity(0.85))
-                            .lineLimit(1)
+                        let relText = seconds < 10 ? "just now" : (seconds < 60 ? "\(seconds)s ago" : "\(seconds/60)m ago")
+                        HStack(spacing: 4) {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .font(.system(size: 8.5))
+                                .foregroundStyle(WxGlassTheme.cyan)
+                            Text("\(refreshed.formatted(date: .omitted, time: .shortened)) · \(relText)")
+                                .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                                .foregroundStyle(WxGlassTheme.textSecondary)
+                                .lineLimit(1)
+                        }
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 5)
+                        .wxFrostedCapsule(accent: WxGlassTheme.cyan)
                     }
                 }
 
@@ -459,14 +435,13 @@ struct RadarPanelView: View {
                         } else {
                             Image(systemName: "arrow.triangle.2.circlepath")
                         }
-                        Text(store.isRadarLoading ? "REFRESHING…" : "REFRESH")
+                        Text(store.isRadarLoading ? "Refreshing…" : "Refresh")
                     }
-                    .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                    .foregroundStyle(WxTheme.snwCyan)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4.5)
-                    .background(WxTheme.snwCyan.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
-                    .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwCyan.opacity(0.35), lineWidth: 0.8))
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .foregroundStyle(WxGlassTheme.cyan)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .wxFrostedCapsule(accent: WxGlassTheme.cyan, active: true)
                 }
                 .buttonStyle(.plain)
                 .disabled(store.isRadarLoading)
@@ -475,8 +450,8 @@ struct RadarPanelView: View {
 
             // Radar Map Display Area
             ZStack {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.black.opacity(0.7))
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color.black.opacity(0.65))
 
                 if let img = store.radarImage, let payload = store.radarPayload, payload.bbox != nil, payload.center != nil {
                     ZStack(alignment: .top) {
@@ -485,24 +460,23 @@ struct RadarPanelView: View {
                         }, onBBoxNeedsUpdate: { newBBox in
                             Task { await store.refreshRadar(bbox: newBBox) }
                         })
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
-                        // Floating tactical HUD controls
+                        // Floating frosted HUD controls
                         HStack {
                             Button {
                                 recenterID += 1
                             } label: {
                                 HStack(spacing: 4) {
                                     Image(systemName: "scope")
-                                        .font(.system(size: 9))
-                                    Text("RECENTER GRID")
-                                        .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                                        .font(.system(size: 9.5))
+                                    Text("Recenter")
+                                        .font(.system(size: 10, weight: .semibold, design: .rounded))
                                 }
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(WxTheme.snwPanel, in: RoundedRectangle(cornerRadius: 4))
-                                .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwCyan.opacity(0.4), lineWidth: 0.8))
-                                .foregroundStyle(WxTheme.text)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .wxFrostedCapsule(accent: WxGlassTheme.cyan)
+                                .foregroundStyle(WxGlassTheme.textPrimary)
                             }
                             .buttonStyle(.plain)
 
@@ -512,40 +486,39 @@ struct RadarPanelView: View {
                             let stationList = store.radarPayload?.stations ?? []
                             HStack(spacing: 5) {
                                 Circle()
-                                    .fill(WxTheme.snwGreen)
-                                    .frame(width: 5, height: 5)
-                                    .shadow(color: WxTheme.snwGreen.opacity(0.8), radius: 3)
+                                    .fill(WxGlassTheme.nominalGreen)
+                                    .frame(width: 5.5, height: 5.5)
+                                    .shadow(color: WxGlassTheme.nominalGreen.opacity(0.8), radius: 3)
                                 if isComp && stationList.count > 1 {
-                                    Text("NOAA MRMS // MOSAIC (\(stationList.count))")
-                                        .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                                        .foregroundStyle(WxTheme.snwCyan)
+                                    Text("MRMS Mosaic (\(stationList.count))")
+                                        .font(.system(size: 9.5, weight: .semibold, design: .rounded))
+                                        .foregroundStyle(WxGlassTheme.cyanSoft)
                                         .help("Contributing NEXRAD radars: " + stationList.joined(separator: ", "))
                                 } else if isComp {
-                                    Text("NOAA MRMS // COMPOSITE")
-                                        .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                                        .foregroundStyle(WxTheme.snwCyan)
+                                    Text("MRMS Composite")
+                                        .font(.system(size: 9.5, weight: .semibold, design: .rounded))
+                                        .foregroundStyle(WxGlassTheme.cyanSoft)
                                 } else {
-                                    Text("NOAA MRMS 1KM // LIVE")
-                                        .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                                        .foregroundStyle(WxTheme.text)
+                                    Text("MRMS 1km Live")
+                                        .font(.system(size: 9.5, weight: .semibold, design: .rounded))
+                                        .foregroundStyle(WxGlassTheme.textPrimary)
                                 }
                             }
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(WxTheme.snwPanel, in: RoundedRectangle(cornerRadius: 4))
-                            .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwCyan.opacity(0.4), lineWidth: 0.8))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .wxFrostedCapsule(accent: WxGlassTheme.cyan)
                         }
                         .padding(10)
 
                         if store.isRadarLoading {
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(Color.black.opacity(0.55))
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(Color.black.opacity(0.48))
                             VStack(spacing: 6) {
                                 ProgressView()
-                                    .tint(WxTheme.snwCyan)
-                                Text("DOWNLINKING MRMS TELEMETRY…")
-                                    .font(.system(size: 9.5, weight: .bold, design: .monospaced))
-                                    .foregroundStyle(WxTheme.snwCyan)
+                                    .tint(WxGlassTheme.cyan)
+                                Text("Downlinking MRMS Telemetry…")
+                                    .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(WxGlassTheme.cyanSoft)
                             }
                         }
                     }
@@ -555,15 +528,15 @@ struct RadarPanelView: View {
                         Image(nsImage: img)
                             .resizable()
                             .aspectRatio(contentMode: .fit)
-                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
                         if store.isRadarLoading {
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(Color.black.opacity(0.55))
-                            ProgressView("UPDATING SENSORS…")
-                                .tint(WxTheme.snwCyan)
-                                .font(.system(size: 9.5, weight: .bold, design: .monospaced))
-                                .foregroundStyle(WxTheme.text)
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(Color.black.opacity(0.48))
+                            ProgressView("Updating Sensors…")
+                                .tint(WxGlassTheme.cyan)
+                                .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                                .foregroundStyle(WxGlassTheme.textPrimary)
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -571,42 +544,42 @@ struct RadarPanelView: View {
                     VStack(spacing: 8) {
                         ProgressView()
                             .controlSize(.regular)
-                            .tint(WxTheme.snwCyan)
-                        Text("ACQUIRING NOAA MRMS RADAR ARRAY…")
-                            .font(.system(size: 10, weight: .bold, design: .monospaced))
-                            .foregroundStyle(WxTheme.snwCyan)
+                            .tint(WxGlassTheme.cyan)
+                        Text("Acquiring NOAA MRMS Radar Array…")
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .foregroundStyle(WxGlassTheme.cyanSoft)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if let err = store.radarErrorMessage {
                     VStack(spacing: 8) {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.title2)
-                            .foregroundStyle(WxTheme.snwRed)
-                        Text("// TELEMETRY FAULT: \(err)")
-                            .font(.system(size: 10, design: .monospaced))
-                            .foregroundStyle(WxTheme.snwRed)
+                            .foregroundStyle(WxGlassTheme.conditionRed)
+                        Text("Telemetry Fault: \(err)")
+                            .font(.system(size: 11, design: .rounded))
+                            .foregroundStyle(WxGlassTheme.conditionRed)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 16)
-                        Button("RETRY SCAN") {
+                        Button("Retry Scan") {
                             Task { await store.refreshRadar() }
                         }
-                        .font(.system(size: 9.5, weight: .bold, design: .monospaced))
-                        .foregroundStyle(WxTheme.snwCyan)
+                        .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                        .foregroundStyle(WxGlassTheme.cyan)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     VStack(spacing: 8) {
                         Image(systemName: "dot.radiowaves.left.and.right")
                             .font(.title)
-                            .foregroundStyle(WxTheme.snwCyan.opacity(0.6))
-                        Text("RADAR ARRAY OFFLINE")
-                            .font(.system(size: 10, weight: .bold, design: .monospaced))
-                            .foregroundStyle(WxTheme.textSecondary)
-                        Button("ENGAGE SCAN") {
+                            .foregroundStyle(WxGlassTheme.cyan.opacity(0.6))
+                        Text("Radar Array Standby")
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .foregroundStyle(WxGlassTheme.textSecondary)
+                        Button("Engage Scan") {
                             Task { await store.refreshRadar() }
                         }
-                        .font(.system(size: 9.5, weight: .bold, design: .monospaced))
-                        .foregroundStyle(WxTheme.snwCyan)
+                        .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                        .foregroundStyle(WxGlassTheme.cyan)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
@@ -615,10 +588,9 @@ struct RadarPanelView: View {
             .frame(height: flexibleHeight ? nil : 380)
             .frame(maxHeight: flexibleHeight ? .infinity : 380)
             .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.16), lineWidth: 1)
             )
-            .overlay(SNWCornerBrackets(color: WxTheme.snwCyan.opacity(0.8), length: 12, thickness: 1.5))
 
             // Radar Transport Playback Bar
             RadarTransportBar(compact: !flexibleHeight)
@@ -628,28 +600,28 @@ struct RadarPanelView: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     if let loc = store.radarPayload?.location {
-                        Text(loc.uppercased())
-                            .font(.system(size: 9.5, weight: .bold, design: .monospaced))
-                            .foregroundStyle(WxTheme.text)
+                        Text(loc)
+                            .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                            .foregroundStyle(WxGlassTheme.textPrimary)
                     }
                     if let st = store.radarPayload?.station, !st.isEmpty {
-                        Text("· RADAR // \(st)")
-                            .font(.system(size: 9, design: .monospaced))
-                            .foregroundStyle(WxTheme.snwSilver)
+                        Text("· \(st)")
+                            .font(.system(size: 9.5, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(WxGlassTheme.textSecondary)
                     }
                     Spacer()
                     if let vt = formattedValidTime {
-                        Text("VALID // \(vt)")
-                            .font(.system(size: 8.5, design: .monospaced))
-                            .foregroundStyle(WxTheme.snwSilver.opacity(0.8))
+                        Text("Valid \(vt)")
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            .foregroundStyle(WxGlassTheme.cyanSoft)
                     }
                 }
 
                 scaleBarView
 
-                Text("MRMS SENSOR ARRAY · 200 KM SCAN RADIUS · WGS84 VECTOR OVERLAY")
-                    .font(.system(size: 8, weight: .medium, design: .monospaced))
-                    .foregroundStyle(WxTheme.snwSilver.opacity(0.7))
+                Text("MRMS Sensor Array · 200 km Scan Radius · WGS84 Vector Overlay")
+                    .font(.system(size: 8.5, weight: .medium, design: .rounded))
+                    .foregroundStyle(WxGlassTheme.textMuted)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -661,15 +633,18 @@ struct RadarPanelView: View {
 
     @ViewBuilder
     private var scaleBarView: some View {
+        let nested = WxGlassTheme.nestedShape()
         if store.selectedRadarProduct == "echo-tops" {
             // Echo Tops Scale (kft)
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 2) {
-                    Text("10 kft").font(.system(size: 8, design: .monospaced)).foregroundStyle(WxTheme.textSecondary)
+                    Text("10 kft").font(.system(size: 8.5, weight: .medium, design: .monospaced)).foregroundStyle(WxGlassTheme.textSecondary)
                     Spacer()
-                    Text("ECHO TOPS // CLOUD HEIGHT").font(.system(size: 8, weight: .bold, design: .monospaced)).foregroundStyle(WxTheme.snwSilver)
+                    Text("Echo Tops · Cloud Height")
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .foregroundStyle(WxGlassTheme.textSecondary)
                     Spacer()
-                    Text("60+ kft").font(.system(size: 8, design: .monospaced)).foregroundStyle(WxTheme.textSecondary)
+                    Text("60+ kft").font(.system(size: 8.5, weight: .medium, design: .monospaced)).foregroundStyle(WxGlassTheme.textSecondary)
                 }
 
                 LinearGradient(
@@ -685,42 +660,35 @@ struct RadarPanelView: View {
                     startPoint: .leading,
                     endPoint: .trailing
                 )
-                .frame(height: 5)
+                .frame(height: 5.5)
                 .clipShape(Capsule())
-                .overlay(Capsule().strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 0.5))
+                .overlay(Capsule().strokeBorder(Color.white.opacity(0.22), lineWidth: 0.5))
 
                 HStack {
-                    Text("LOW TOPS")
-                        .font(.system(size: 8, design: .monospaced))
-                        .foregroundStyle(WxTheme.textSecondary)
+                    Text("Low Tops")
                     Spacer()
-                    Text("MID LEVEL")
-                        .font(.system(size: 8, design: .monospaced))
-                        .foregroundStyle(WxTheme.textSecondary)
+                    Text("Mid Level")
                     Spacer()
-                    Text("CONVECTIVE CORE")
-                        .font(.system(size: 8, design: .monospaced))
-                        .foregroundStyle(WxTheme.textSecondary)
+                    Text("Convective Core")
                 }
+                .font(.system(size: 8.5, weight: .medium, design: .rounded))
+                .foregroundStyle(WxGlassTheme.textMuted)
             }
-            .padding(8)
-            .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(WxTheme.snwChassis.opacity(0.8))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .strokeBorder(WxTheme.border.opacity(0.25), lineWidth: 0.8)
-                    )
-            )
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(Color.white.opacity(0.05), in: nested)
+            .overlay(nested.strokeBorder(Color.white.opacity(0.12), lineWidth: 0.8))
         } else {
             // dBZ Reflectivity Scale Bar
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 2) {
-                    Text("15").font(.system(size: 8, design: .monospaced)).foregroundStyle(WxTheme.textSecondary)
+                    Text("15 dBZ").font(.system(size: 8.5, weight: .medium, design: .monospaced)).foregroundStyle(WxGlassTheme.textSecondary)
                     Spacer()
-                    Text("REFLECTIVITY // dBZ INTENSITY").font(.system(size: 8, weight: .bold, design: .monospaced)).foregroundStyle(WxTheme.snwSilver)
+                    Text("Reflectivity · dBZ Intensity")
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .foregroundStyle(WxGlassTheme.textSecondary)
                     Spacer()
-                    Text("70+").font(.system(size: 8, design: .monospaced)).foregroundStyle(WxTheme.textSecondary)
+                    Text("70+ dBZ").font(.system(size: 8.5, weight: .medium, design: .monospaced)).foregroundStyle(WxGlassTheme.textSecondary)
                 }
 
                 LinearGradient(
@@ -736,33 +704,24 @@ struct RadarPanelView: View {
                     startPoint: .leading,
                     endPoint: .trailing
                 )
-                .frame(height: 5)
+                .frame(height: 5.5)
                 .clipShape(Capsule())
-                .overlay(Capsule().strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 0.5))
+                .overlay(Capsule().strokeBorder(Color.white.opacity(0.22), lineWidth: 0.5))
 
                 HStack {
-                    Text("LIGHT")
-                        .font(.system(size: 8, design: .monospaced))
-                        .foregroundStyle(WxTheme.textSecondary)
+                    Text("Light")
                     Spacer()
-                    Text("MODERATE")
-                        .font(.system(size: 8, design: .monospaced))
-                        .foregroundStyle(WxTheme.textSecondary)
+                    Text("Moderate")
                     Spacer()
-                    Text("HEAVY / SEVERE")
-                        .font(.system(size: 8, design: .monospaced))
-                        .foregroundStyle(WxTheme.textSecondary)
+                    Text("Heavy / Severe")
                 }
+                .font(.system(size: 8.5, weight: .medium, design: .rounded))
+                .foregroundStyle(WxGlassTheme.textMuted)
             }
-            .padding(8)
-            .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(WxTheme.snwChassis.opacity(0.8))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .strokeBorder(WxTheme.border.opacity(0.25), lineWidth: 0.8)
-                    )
-            )
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(Color.white.opacity(0.05), in: nested)
+            .overlay(nested.strokeBorder(Color.white.opacity(0.12), lineWidth: 0.8))
         }
     }
 
@@ -817,57 +776,57 @@ struct RadarTransportBar: View {
 
     var body: some View {
         HStack(spacing: compact ? 6 : 10) {
-            // Play / Pause Button
+            // Play / Pause Capsule Pill
             Button {
                 store.toggleLoop()
             } label: {
                 HStack(spacing: 4) {
                     Image(systemName: store.isLoopPlaying ? "pause.fill" : "play.fill")
-                        .font(.system(size: compact ? 9 : 10.5, weight: .bold))
+                        .font(.system(size: compact ? 9 : 10, weight: .bold))
                     if !compact {
-                        Text(store.isLoopPlaying ? "PAUSE" : "LOOP")
-                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        Text(store.isLoopPlaying ? "Pause" : "Loop")
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
                     }
                 }
-                .foregroundStyle(store.isLoopPlaying ? Color.black : WxTheme.snwCyan)
-                .padding(.horizontal, compact ? 7 : 10)
-                .padding(.vertical, compact ? 4 : 5.5)
+                .foregroundStyle(store.isLoopPlaying ? Color(red: 0.03, green: 0.07, blue: 0.14) : WxGlassTheme.cyan)
+                .padding(.horizontal, compact ? 9 : 12)
+                .padding(.vertical, compact ? 5 : 6)
                 .background(
-                    store.isLoopPlaying ? WxTheme.snwCyan : WxTheme.snwPanel,
-                    in: RoundedRectangle(cornerRadius: 5)
+                    store.isLoopPlaying ? WxGlassTheme.cyan : WxGlassTheme.cyan.opacity(0.14),
+                    in: Capsule()
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 5)
-                        .strokeBorder(WxTheme.snwCyan.opacity(0.8), lineWidth: 1)
+                    Capsule()
+                        .strokeBorder(WxGlassTheme.cyan.opacity(store.isLoopPlaying ? 0.95 : 0.60), lineWidth: 1)
                 )
             }
             .buttonStyle(.plain)
             .disabled(!hasFrames)
 
-            // Step Backward Button
+            // Step Backward Circular Pill
             Button {
                 store.stepFrameBackward()
             } label: {
                 Image(systemName: "backward.frame.fill")
-                    .font(.system(size: compact ? 8.5 : 9.5))
-                    .foregroundStyle(WxTheme.snwSilver)
-                    .padding(compact ? 4 : 5.5)
-                    .background(WxTheme.snwPanel, in: RoundedRectangle(cornerRadius: 4))
-                    .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 0.8))
+                    .font(.system(size: compact ? 8.5 : 9.5, weight: .semibold))
+                    .foregroundStyle(WxGlassTheme.textSecondary)
+                    .frame(width: compact ? 24 : 27, height: compact ? 24 : 27)
+                    .background(Color.white.opacity(0.07), in: Circle())
+                    .overlay(Circle().strokeBorder(Color.white.opacity(0.16), lineWidth: 0.8))
             }
             .buttonStyle(.plain)
             .disabled(!hasFrames)
 
-            // Step Forward Button
+            // Step Forward Circular Pill
             Button {
                 store.stepFrameForward()
             } label: {
                 Image(systemName: "forward.frame.fill")
-                    .font(.system(size: compact ? 8.5 : 9.5))
-                    .foregroundStyle(WxTheme.snwSilver)
-                    .padding(compact ? 4 : 5.5)
-                    .background(WxTheme.snwPanel, in: RoundedRectangle(cornerRadius: 4))
-                    .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 0.8))
+                    .font(.system(size: compact ? 8.5 : 9.5, weight: .semibold))
+                    .foregroundStyle(WxGlassTheme.textSecondary)
+                    .frame(width: compact ? 24 : 27, height: compact ? 24 : 27)
+                    .background(Color.white.opacity(0.07), in: Circle())
+                    .overlay(Circle().strokeBorder(Color.white.opacity(0.16), lineWidth: 0.8))
             }
             .buttonStyle(.plain)
             .disabled(!hasFrames)
@@ -881,7 +840,7 @@ struct RadarTransportBar: View {
                             store.seekFrame(to: f.id)
                         } label: {
                             Capsule()
-                                .fill(isSelected ? WxTheme.snwCyan : (f.isLive ? WxTheme.snwGreen.opacity(0.7) : WxTheme.snwSilver.opacity(0.35)))
+                                .fill(isSelected ? WxGlassTheme.cyan : (f.isLive ? WxGlassTheme.nominalGreen.opacity(0.75) : Color.white.opacity(0.28)))
                                 .frame(width: compact ? 12 : 18, height: isSelected ? 8 : 5)
                                 .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isSelected)
                         }
@@ -894,10 +853,10 @@ struct RadarTransportBar: View {
             Spacer(minLength: 4)
 
             // Time & Relative Badge
-            HStack(spacing: 5) {
+            HStack(spacing: 6) {
                 Text(formattedTime)
                     .font(.system(size: compact ? 9 : 10, weight: .bold, design: .monospaced))
-                    .foregroundStyle(WxTheme.text)
+                    .foregroundStyle(WxGlassTheme.textPrimary)
 
                 let isLive = activeFrame?.isLive ?? true
                 Button {
@@ -905,40 +864,40 @@ struct RadarTransportBar: View {
                 } label: {
                     HStack(spacing: 3) {
                         Circle()
-                            .fill(isLive ? WxTheme.snwGreen : WxTheme.snwCyan)
+                            .fill(isLive ? WxGlassTheme.nominalGreen : WxGlassTheme.cyan)
                             .frame(width: 4.5, height: 4.5)
                         Text(activeFrame?.label ?? "LIVE")
-                            .font(.system(size: 8, weight: .heavy, design: .monospaced))
-                            .foregroundStyle(isLive ? WxTheme.snwGreen : WxTheme.snwCyan)
+                            .font(.system(size: 8.5, weight: .heavy, design: .monospaced))
+                            .foregroundStyle(isLive ? WxGlassTheme.nominalGreen : WxGlassTheme.cyan)
                     }
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2.5)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
                     .background(
-                        (isLive ? WxTheme.snwGreen : WxTheme.snwCyan).opacity(0.12),
+                        (isLive ? WxGlassTheme.nominalGreen : WxGlassTheme.cyan).opacity(0.14),
                         in: Capsule()
                     )
                     .overlay(
-                        Capsule().strokeBorder((isLive ? WxTheme.snwGreen : WxTheme.snwCyan).opacity(0.4), lineWidth: 0.8)
+                        Capsule().strokeBorder((isLive ? WxGlassTheme.nominalGreen : WxGlassTheme.cyan).opacity(0.42), lineWidth: 0.8)
                     )
                 }
                 .buttonStyle(.plain)
 
-                // Quick Refresh Button
+                // Quick Refresh Circular Pill
                 Button {
                     Task { await store.refreshRadar() }
                 } label: {
-                    HStack(spacing: 3) {
+                    Group {
                         if store.isRadarLoading {
-                            ProgressView().controlSize(.small)
+                            ProgressView().controlSize(.mini)
                         } else {
                             Image(systemName: "arrow.clockwise")
-                                .font(.system(size: compact ? 8 : 9, weight: .bold))
+                                .font(.system(size: compact ? 8.5 : 9.5, weight: .bold))
                         }
                     }
-                    .foregroundStyle(WxTheme.snwCyan)
-                    .padding(compact ? 4 : 5)
-                    .background(WxTheme.snwPanel, in: RoundedRectangle(cornerRadius: 4))
-                    .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwCyan.opacity(0.4), lineWidth: 0.8))
+                    .foregroundStyle(WxGlassTheme.cyan)
+                    .frame(width: compact ? 24 : 26, height: compact ? 24 : 26)
+                    .background(Color.white.opacity(0.07), in: Circle())
+                    .overlay(Circle().strokeBorder(WxGlassTheme.cyan.opacity(0.38), lineWidth: 0.8))
                 }
                 .buttonStyle(.plain)
                 .disabled(store.isRadarLoading)
@@ -947,26 +906,27 @@ struct RadarTransportBar: View {
 
             // Speed toggle (only in full HUD)
             if !compact {
+                let fast = (store.loopStepMs == 190)
                 Button {
-                    store.loopStepMs = (store.loopStepMs == 380) ? 190 : 380
+                    store.loopStepMs = fast ? 380 : 190
                 } label: {
-                    Text(store.loopStepMs == 380 ? "1X" : "2X")
-                        .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                        .foregroundStyle(store.loopStepMs == 190 ? WxTheme.snwCyan : WxTheme.snwSilver)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 4)
-                        .background(WxTheme.snwPanel, in: RoundedRectangle(cornerRadius: 4))
-                        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 0.8))
+                    Text(fast ? "2×" : "1×")
+                        .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                        .foregroundStyle(fast ? WxGlassTheme.cyan : WxGlassTheme.textSecondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4.5)
+                        .background(fast ? WxGlassTheme.cyan.opacity(0.16) : Color.white.opacity(0.07), in: Capsule())
+                        .overlay(Capsule().strokeBorder(fast ? WxGlassTheme.cyan.opacity(0.55) : Color.white.opacity(0.16), lineWidth: 0.8))
                 }
                 .buttonStyle(.plain)
             }
 
-            // Export Scan Menu
+            // Export Scan Menu Capsule
             Menu {
                 Button {
                     if let img = currentFrameImage {
                         RadarExportService.copyImageToPasteboard(img)
-                        triggerToast("COPIED")
+                        triggerToast("Copied")
                     }
                 } label: {
                     Label("Copy Frame to Clipboard", systemImage: "doc.on.doc")
@@ -997,35 +957,40 @@ struct RadarTransportBar: View {
                 }
                 .disabled(store.radarFrames.isEmpty)
             } label: {
-                HStack(spacing: 3) {
+                HStack(spacing: 4) {
                     if let toast = exportToast {
                         Text(toast)
-                            .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                            .foregroundStyle(WxTheme.snwGreen)
+                            .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                            .foregroundStyle(WxGlassTheme.nominalGreen)
                     } else {
                         Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: compact ? 8 : 9, weight: .bold))
+                            .font(.system(size: compact ? 8.5 : 9.5, weight: .bold))
                         if !compact {
-                            Text("EXPORT SCAN")
-                                .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                            Text("Export")
+                                .font(.system(size: 9.5, weight: .semibold, design: .rounded))
                         }
                     }
                 }
-                .foregroundStyle(exportToast != nil ? WxTheme.snwGreen : WxTheme.snwCyan)
-                .padding(.horizontal, compact ? 6 : 8)
-                .padding(.vertical, compact ? 3.5 : 4)
-                .background(WxTheme.snwPanel, in: RoundedRectangle(cornerRadius: 4))
-                .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwCyan.opacity(0.5), lineWidth: 0.8))
+                .foregroundStyle(exportToast != nil ? WxGlassTheme.nominalGreen : WxGlassTheme.cyan)
+                .padding(.horizontal, compact ? 8 : 10)
+                .padding(.vertical, compact ? 4.5 : 5)
+                .background(Color.white.opacity(0.07), in: Capsule())
+                .overlay(Capsule().strokeBorder(WxGlassTheme.cyan.opacity(0.42), lineWidth: 0.8))
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
             .help("Export Scan: Copy PNG to clipboard, save PNG, or export animated GIF loop")
         }
         .padding(.horizontal, compact ? 10 : 12)
-        .padding(.vertical, compact ? 6 : 8)
-        .background(WxTheme.snwChassis.opacity(0.92))
-        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(WxTheme.border.opacity(0.45), lineWidth: 0.8))
+        .padding(.vertical, compact ? 7 : 9)
+        .background {
+            ZStack {
+                RoundedRectangle(cornerRadius: 16, style: .continuous).fill(.ultraThinMaterial)
+                RoundedRectangle(cornerRadius: 16, style: .continuous).fill(WxGlassTheme.pillTintOverlay())
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Color.white.opacity(0.18), lineWidth: 0.9))
     }
 }
 

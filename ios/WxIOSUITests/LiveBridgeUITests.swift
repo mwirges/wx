@@ -50,6 +50,8 @@ final class WxIOSLiveBridgeUITests: XCTestCase {
         }
         XCTAssertTrue(label.contains("°"), "temperature stayed empty (\(label)). \(dump(app))")
         XCTAssertFalse(label.contains("—"), "temperature is a dash. \(dump(app))")
+        let condition = app.descendants(matching: .any)["surface.condition"]
+        XCTAssertTrue(condition.exists && !condition.label.isEmpty, "surface.condition missing on live ASOS station. \(dump(app))")
         XCTAssertFalse(app.staticTexts["No day periods"].exists, dump(app))
         XCTAssertFalse(app.staticTexts["No hourly periods"].exists, dump(app))
         XCTAssertEqual(app.tabBars.count, 0, "system tab bar is visible. \(dump(app))")

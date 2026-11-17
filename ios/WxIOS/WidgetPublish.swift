@@ -26,11 +26,13 @@ enum WidgetPublish {
             nextPrecipTime: WxPublishISO.date(cast?.nextPrecipTime),
             intervals: intervals(cast)
         )
-        let high = daytime(payload)
-        let low = nighttime(payload)
+        let resolvedPlace = (conditions?.location?.trimmingCharacters(in: .whitespacesAndNewlines))
+            .flatMap { $0.isEmpty ? nil : $0 }
+            ?? (place.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "wx" : place.trimmingCharacters(in: .whitespacesAndNewlines))
+        let hiLo = payload?.forecast?.leadHighLow(units: resolvedUnits) ?? (highText: nil, lowText: nil)
         let cue = LiveActivityCue.make(
             sample: sample,
-            location: place.isEmpty ? "wx" : place,
+            location: resolvedPlace,
             headline: headline,
             phase: cast?.primaryPhase ?? "none",
             sparkline: spark,
@@ -38,21 +40,25 @@ enum WidgetPublish {
             detail: cast?.summary ?? "",
             cessationText: clockText(WxPublishISO.date(cast?.precipEndTime))
         )
-        let rawCondition = conditions?.description?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let resolvedCondition = ConditionSymbol.resolvedDescription(for: payload, now: now) ?? ""
+        let resolvedSymbol = ConditionSymbol.resolvedSystemName(for: payload, nowcast: cast, now: now)
+        let night = ConditionSymbol.isNight(for: payload, now: now)
         return WxWidgetSnapshot(
             updatedAt: now,
-            location: WxWidgetText.clip(place.isEmpty ? "wx" : place),
+            location: WxWidgetText.clip(resolvedPlace),
             units: resolvedUnits,
             temperatureText: temperature,
-            condition: WxWidgetText.clip(rawCondition.isEmpty ? "—" : rawCondition),
-            highText: WxTemperature.text(f: high?.temperatureF, c: high?.temperatureC, units: resolvedUnits),
-            lowText: WxTemperature.text(f: low?.temperatureF, c: low?.temperatureC, units: resolvedUnits),
+            condition: WxWidgetText.clip(resolvedCondition.isEmpty ? "—" : resolvedCondition),
+            highText: hiLo.highText ?? "—",
+            lowText: hiLo.lowText ?? "—",
             precipHeadline: WxWidgetText.clip(headline),
             precipSummary: WxWidgetText.clip(cast?.summary ?? ""),
             sparkline: WxWidgetText.clip(spark, limit: 32),
-            hours: hours(payload, units: resolvedUnits),
+            hours: hours(payload, units: resolvedUnits, now: now),
             days: days(payload, units: resolvedUnits),
-            cue: cue
+            cue: cue,
+            symbolName: resolvedSymbol,
+            isNight: night
         )
     }
 
@@ -102,27 +108,18 @@ enum WidgetPublish {
         }
     }
 
-    private static func daytime(_ payload: WxPayload?) -> Period? {
-        let periods = payload?.forecast?.periods ?? []
-        return periods.first { $0.isDaytime == true } ?? periods.first
-    }
-
-    private static func nighttime(_ payload: WxPayload?) -> Period? {
-        (payload?.forecast?.periods ?? []).first { $0.isDaytime == false }
-    }
-
-    private static func hours(_ payload: WxPayload?, units: String) -> [WxWidgetSnapshot.Chip] {
-        (payload?.forecast?.hourly ?? []).prefix(6).map { period in
-            let temp = IOSFormat.period(period, units: units)
+    private static func hours(_ payload: WxPayload?, units: String, now: Date) -> [WxWidgetSnapshot.Chip] {
+        (payload?.forecast?.activeHourlyPeriods(at: now) ?? []).prefix(6).map { period in
+            let temp = period.formattedTemperature(units: units)
             let pop = percent(period.probabilityOfPrecipitation)
             let value = pop == "—" ? temp : "\(temp) \(pop)"
-            return WxWidgetSnapshot.Chip(label: IOSFormat.hourLabel(period), value: value)
+            return WxWidgetSnapshot.Chip(label: period.formattedHourLabel, value: value)
         }
     }
 
     private static func days(_ payload: WxPayload?, units: String) -> [WxWidgetSnapshot.Chip] {
         (payload?.forecast?.periods ?? []).prefix(3).map { period in
-            let temp = IOSFormat.period(period, units: units)
+            let temp = period.formattedTemperature(units: units)
             let pop = percent(period.probabilityOfPrecipitation)
             let value = pop == "—" ? temp : "\(temp) \(pop)"
             return WxWidgetSnapshot.Chip(label: period.name, value: value)

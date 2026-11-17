@@ -56,6 +56,7 @@ targets:
       - path: ../macos/WxMac/Services/WxTheme.swift
       - path: ../macos/WxMac/Services/WxConfig.swift
       - path: ../macos/WxMac/Services/ConditionSymbol.swift
+      - path: ../macos/WxMac/Services/ConditionPanel.swift
     dependencies:
       - framework: ../build/WxCore.xcframework
         embed: false
@@ -149,6 +150,11 @@ targets:
     sources:
       - path: WxWidgetTests
       - path: Shared
+      - path: WxIOS/WidgetPublish.swift
+      - path: WxWidget/WxConditionsWidget.swift
+      - path: ../macos/WxMac/Services/WeatherModels.swift
+      - path: ../macos/WxMac/Services/WxTheme.swift
+      - path: ../macos/WxMac/Services/ConditionSymbol.swift
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES

@@ -1,9 +1,14 @@
 package radar
 
 import (
+	"errors"
+	"image"
+	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 func TestInteractiveModel_Init(t *testing.T) {
@@ -226,3 +231,48 @@ func TestLoopSpeedAdjustment(t *testing.T) {
 		t.Errorf("after 's': speedIdx = %d, want 2", m3.speedIdx)
 	}
 }
+
+func TestHelpBar_NeverExceedsNarrowTerminalWidth(t *testing.T) {
+	for _, width := range []int{80, 60, 42} {
+		m := NewInteractiveModel(InteractiveConfig{
+			Product:  ProductCompositeReflectivity,
+			RadiusKM: 500,
+		})
+		m.width = width
+		m.height = 24
+		m.loopMode = true
+
+		raw := strings.TrimSuffix(m.helpBar(), "\x1b[K")
+		if strings.Contains(raw, "\n") {
+			t.Fatalf("width=%d helpBar contained newline: %q", width, raw)
+		}
+		if got := lipgloss.Width(raw); got > width {
+			t.Fatalf("width=%d helpBar visual width = %d, want <= %d: %q", width, got, width, raw)
+		}
+	}
+}
+
+func TestInteractiveView_ErrorKeepsLineBudget(t *testing.T) {
+	for _, height := range []int{24, 6} {
+		m := NewInteractiveModel(InteractiveConfig{
+			Product:  ProductCompositeReflectivity,
+			RadiusKM: 200,
+		})
+		m.width = 80
+		m.height = height
+		m.loading = false
+		m.frame = &Frame{
+			Img:       image.NewRGBA(image.Rect(0, 0, 32, 32)),
+			ValidTime: time.Date(2026, 10, 25, 18, 0, 0, 0, time.UTC),
+			Product:   ProductCompositeReflectivity,
+		}
+		m.err = errors.New("upstream radar timeout\nretry failed")
+
+		view := m.View()
+		lines := strings.Split(view, "\n")
+		if len(lines) != height {
+			t.Fatalf("height=%d View() with multiline error rendered %d lines, want %d:\n%s", height, len(lines), height, view)
+		}
+	}
+}
+

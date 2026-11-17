@@ -144,7 +144,9 @@ struct RadarMapView: NSViewRepresentable {
                abs(existing.coordinate.latitude - center.lat) < 0.0001,
                abs(existing.coordinate.longitude - center.lon) < 0.0001,
                abs(existing.bbox.minLat - bbox.minLat) < 0.0001,
-               abs(existing.bbox.maxLat - bbox.maxLat) < 0.0001 {
+               abs(existing.bbox.maxLat - bbox.maxLat) < 0.0001,
+               abs(existing.bbox.minLon - bbox.minLon) < 0.0001,
+               abs(existing.bbox.maxLon - bbox.maxLon) < 0.0001 {
                 existing.image = image
                 if let renderer = mapView.renderer(for: existing) as? RadarMapOverlayRenderer {
                     renderer.setNeedsDisplay()

@@ -56,7 +56,6 @@ struct ClimateTrendsView: View {
             }
             .padding(14)
         }
-        .background(WxTheme.bg)
         .onAppear {
             if store.historyPayload == nil && !store.isHistoryLoading {
                 Task { await store.refreshHistory() }
@@ -91,15 +90,15 @@ struct ClimateTrendsView: View {
 
             Spacer()
 
-            // Range Segmented Buttons
+            // Range Segmented Capsule
             HStack(spacing: 2) {
-                rangeButton(days: 7, label: "7 DAYS")
-                rangeButton(days: 14, label: "14 DAYS")
-                rangeButton(days: 30, label: "30 DAYS")
+                rangeButton(days: 7, label: "7 Days")
+                rangeButton(days: 14, label: "14 Days")
+                rangeButton(days: 30, label: "30 Days")
             }
             .padding(3)
-            .background(WxTheme.snwChassis, in: RoundedRectangle(cornerRadius: 6))
-            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(WxTheme.border.opacity(0.35), lineWidth: 0.8))
+            .background(Color.black.opacity(0.28), in: Capsule())
+            .overlay(Capsule().strokeBorder(Color.white.opacity(0.16), lineWidth: 0.8))
 
             Button {
                 Task {
@@ -109,25 +108,30 @@ struct ClimateTrendsView: View {
             } label: {
                 HStack(spacing: 4) {
                     if store.isHistoryLoading || store.isClimateLoading {
-                        ProgressView().controlSize(.small).tint(WxTheme.snwCyan)
+                        ProgressView().controlSize(.small).tint(WxGlassTheme.cyan)
                     } else {
                         Image(systemName: "arrow.triangle.2.circlepath")
                     }
-                    Text("SYNC")
+                    Text("Sync")
                 }
-                .font(.system(size: 9, weight: .bold, design: .monospaced))
-                .foregroundStyle(WxTheme.snwCyan)
-                .padding(.horizontal, 9)
-                .padding(.vertical, 5)
-                .background(WxTheme.snwCyan.opacity(0.12), in: RoundedRectangle(cornerRadius: 5))
-                .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(WxTheme.snwCyan.opacity(0.35), lineWidth: 0.8))
+                .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                .foregroundStyle(WxGlassTheme.cyan)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 5.5)
+                .wxFrostedCapsule(accent: WxGlassTheme.cyan, active: true)
             }
             .buttonStyle(.plain)
             .disabled(store.isHistoryLoading || store.isClimateLoading)
         }
-        .padding(10)
-        .background(WxTheme.snwPanel, in: RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 0.8))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background {
+            ZStack {
+                RoundedRectangle(cornerRadius: 18, style: .continuous).fill(.ultraThinMaterial)
+                RoundedRectangle(cornerRadius: 18, style: .continuous).fill(WxGlassTheme.cardTintOverlay())
+            }
+        }
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Color.white.opacity(0.16), lineWidth: 0.9))
     }
 
     private func rangeButton(days: Int, label: String) -> some View {
@@ -137,18 +141,18 @@ struct ClimateTrendsView: View {
             Task { await store.refreshHistory() }
         } label: {
             Text(label)
-                .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
+                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4.5)
                 .background(
-                    selectedRange == days ? WxTheme.snwCyan.opacity(0.25) : Color.clear,
-                    in: RoundedRectangle(cornerRadius: 4)
+                    selectedRange == days ? WxGlassTheme.cyan.opacity(0.24) : Color.clear,
+                    in: Capsule()
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 4)
-                        .strokeBorder(selectedRange == days ? WxTheme.snwCyan : Color.clear, lineWidth: 0.8)
+                    Capsule()
+                        .strokeBorder(selectedRange == days ? WxGlassTheme.cyan.opacity(0.65) : Color.clear, lineWidth: 0.8)
                 )
-                .foregroundStyle(selectedRange == days ? WxTheme.snwCyan : WxTheme.textSecondary)
+                .foregroundStyle(selectedRange == days ? WxGlassTheme.textPrimary : WxGlassTheme.textSecondary)
         }
         .buttonStyle(.plain)
     }
@@ -158,73 +162,48 @@ struct ClimateTrendsView: View {
     @ViewBuilder
     private var climateLoadingCard: some View {
         HStack(spacing: 8) {
-            ProgressView().controlSize(.small).tint(WxTheme.snwAmber)
-            Text("ACQUIRING NOAA ACIS CLIMATE NORMALS & HISTORICAL EXTREMES...")
-                .font(.system(size: 9.5, weight: .semibold, design: .monospaced))
-                .foregroundStyle(WxTheme.snwSilver)
+            ProgressView().controlSize(.small).tint(WxGlassTheme.amber)
+            Text("Acquiring NOAA ACIS climate normals & historical extremes…")
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(WxGlassTheme.textSecondary)
             Spacer()
         }
         .padding(10)
-        .background(WxTheme.snwPanel, in: RoundedRectangle(cornerRadius: 6))
-        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(WxTheme.border.opacity(0.3), lineWidth: 0.8))
+        .background(Color.white.opacity(0.05), in: WxGlassTheme.nestedShape())
+        .overlay(WxGlassTheme.nestedShape().strokeBorder(Color.white.opacity(0.12), lineWidth: 0.8))
     }
 
     @ViewBuilder
     private func climateNormalsCard(_ c: ClimateReportDTO) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            // Header Bar
-            HStack(spacing: 8) {
-                Image(systemName: "gauge.with.needle")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(WxTheme.snwAmber)
-                Text("NOAA 30-YEAR CLIMATE NORMALS & ALL-TIME RECORDS")
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
-                    .tracking(0.5)
-                    .foregroundStyle(WxTheme.text)
-
-                Spacer()
-
+        WxGlassCard(
+            title: "NOAA 30-Year Climate Normals & Records",
+            tag: c.normalsPeriod ?? "1991–2020",
+            accent: WxGlassTheme.amber
+        ) {
+            VStack(alignment: .leading, spacing: 10) {
                 if let station = c.stationName {
                     Text(station)
-                        .font(.system(size: 8.5, weight: .medium, design: .monospaced))
-                        .foregroundStyle(WxTheme.snwSilver)
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundStyle(WxGlassTheme.textSecondary)
                 }
 
-                Text(c.normalsPeriod ?? "1991–2020")
-                    .font(.system(size: 8, weight: .bold, design: .monospaced))
-                    .foregroundStyle(WxTheme.snwAmber)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(WxTheme.snwAmber.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
-                    .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.snwAmber.opacity(0.35), lineWidth: 0.8))
-            }
-
-            // Departure Anomaly Banner
-            if let dep = c.departure {
-                departureBanner(dep)
-            }
-
-            // Normals and Records Grid
-            HStack(alignment: .top, spacing: 10) {
-                // Today's 30-Year Normals
-                if let norm = c.todayNormals {
-                    todayNormalsPanel(norm)
+                if let dep = c.departure {
+                    departureBanner(dep)
                 }
 
-                // All-Time Records
-                if let rec = c.records {
-                    recordsPanel(rec)
-                }
-
-                // Monthly Normals
-                if let monthly = c.monthlyNormals {
-                    monthlyNormalsPanel(monthly)
+                HStack(alignment: .top, spacing: 10) {
+                    if let norm = c.todayNormals {
+                        todayNormalsPanel(norm)
+                    }
+                    if let rec = c.records {
+                        recordsPanel(rec)
+                    }
+                    if let monthly = c.monthlyNormals {
+                        monthlyNormalsPanel(monthly)
+                    }
                 }
             }
         }
-        .padding(12)
-        .background(WxTheme.snwPanel, in: RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(WxTheme.snwAmber.opacity(0.35), lineWidth: 0.8))
     }
 
     @ViewBuilder
@@ -255,10 +234,10 @@ struct ClimateTrendsView: View {
                     .foregroundStyle(WxTheme.textSecondary)
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(badgeColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 5))
-        .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(badgeColor.opacity(0.35), lineWidth: 0.8))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .background(badgeColor.opacity(0.12), in: Capsule())
+        .overlay(Capsule().strokeBorder(badgeColor.opacity(0.38), lineWidth: 0.8))
     }
 
     @ViewBuilder
@@ -280,10 +259,10 @@ struct ClimateTrendsView: View {
             climateStatRow(label: "NORMAL MEAN", value: mean.map { String(format: "%.1f%@", $0, tempUnit) } ?? "--", color: WxTheme.text)
             climateStatRow(label: "NORMAL PRECIP", value: pcpn.map { String(format: "%.2f %@", $0, precipUnit) } ?? "--", color: WxTheme.snwGreen)
         }
-        .padding(9)
+        .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(WxTheme.snwChassis, in: RoundedRectangle(cornerRadius: 6))
-        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(WxTheme.border.opacity(0.3), lineWidth: 0.8))
+        .background(Color.white.opacity(0.05), in: WxGlassTheme.nestedShape())
+        .overlay(WxGlassTheme.nestedShape().strokeBorder(Color.white.opacity(0.10), lineWidth: 0.7))
     }
 
     @ViewBuilder
@@ -309,10 +288,10 @@ struct ClimateTrendsView: View {
             climateRecordRow(label: "COLDEST HIGH", record: rec.coldestHigh, isTemp: true, color: WxTheme.snwSilver)
             climateRecordRow(label: "WARMEST LOW", record: rec.warmestLow, isTemp: true, color: WxTheme.snwSilver)
         }
-        .padding(9)
+        .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(WxTheme.snwChassis, in: RoundedRectangle(cornerRadius: 6))
-        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(WxTheme.border.opacity(0.3), lineWidth: 0.8))
+        .background(Color.white.opacity(0.05), in: WxGlassTheme.nestedShape())
+        .overlay(WxGlassTheme.nestedShape().strokeBorder(Color.white.opacity(0.10), lineWidth: 0.7))
     }
 
     @ViewBuilder
@@ -334,10 +313,10 @@ struct ClimateTrendsView: View {
             climateStatRow(label: "TOTAL PRECIP", value: pcpn.map { String(format: "%.2f %@", $0, precipUnit) } ?? "--", color: WxTheme.snwGreen)
             climateStatRow(label: "STATUS", value: "30-YR BASELINE", color: WxTheme.snwSilver)
         }
-        .padding(9)
+        .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(WxTheme.snwChassis, in: RoundedRectangle(cornerRadius: 6))
-        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(WxTheme.border.opacity(0.3), lineWidth: 0.8))
+        .background(Color.white.opacity(0.05), in: WxGlassTheme.nestedShape())
+        .overlay(WxGlassTheme.nestedShape().strokeBorder(Color.white.opacity(0.10), lineWidth: 0.7))
     }
 
     private func climateStatRow(label: String, value: String, color: Color) -> some View {
@@ -422,23 +401,7 @@ struct ClimateTrendsView: View {
     }
 
     private func kpiCard(title: String, value: String, icon: String, accent: Color) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            HStack {
-                Image(systemName: icon)
-                    .font(.system(size: 10))
-                    .foregroundStyle(accent)
-                Text(title)
-                    .font(.system(size: 8, weight: .bold, design: .monospaced))
-                    .foregroundStyle(WxTheme.snwSilver)
-                Spacer()
-            }
-            Text(value)
-                .font(.system(size: 16, weight: .heavy, design: .monospaced))
-                .foregroundStyle(WxTheme.text)
-        }
-        .padding(10)
-        .background(WxTheme.snwPanel, in: RoundedRectangle(cornerRadius: 6))
-        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(WxTheme.border.opacity(0.35), lineWidth: 0.8))
+        WxSensorCapsule(label: title, value: value, symbol: icon, accent: accent)
     }
 
     // ── Chart 1: Temperature High/Low Range Envelope ──────────────────────────────
@@ -472,9 +435,10 @@ struct ClimateTrendsView: View {
                                 yStart: .value("Low", l),
                                 yEnd: .value("High", h)
                             )
+                            .interpolationMethod(.catmullRom)
                             .foregroundStyle(
                                 LinearGradient(
-                                    colors: [WxTheme.snwRed.opacity(0.25), WxTheme.snwCyan.opacity(0.15)],
+                                    colors: [WxGlassTheme.conditionRed.opacity(0.26), WxGlassTheme.cyan.opacity(0.16)],
                                     startPoint: .top,
                                     endPoint: .bottom
                                 )
@@ -484,22 +448,24 @@ struct ClimateTrendsView: View {
                                 x: .value("Date", dateLabel),
                                 y: .value("High", h)
                             )
-                            .foregroundStyle(WxTheme.snwRed)
-                            .lineStyle(StrokeStyle(lineWidth: 2))
+                            .interpolationMethod(.catmullRom)
+                            .foregroundStyle(WxGlassTheme.conditionRed)
+                            .lineStyle(StrokeStyle(lineWidth: 2.2))
 
                             PointMark(
                                 x: .value("Date", dateLabel),
                                 y: .value("High", h)
                             )
-                            .foregroundStyle(WxTheme.snwRed)
+                            .foregroundStyle(WxGlassTheme.conditionRed)
                             .symbolSize(18)
 
                             LineMark(
                                 x: .value("Date", dateLabel),
                                 y: .value("Low", l)
                             )
-                            .foregroundStyle(WxTheme.snwCyan)
-                            .lineStyle(StrokeStyle(lineWidth: 2))
+                            .interpolationMethod(.catmullRom)
+                            .foregroundStyle(WxGlassTheme.cyan)
+                            .lineStyle(StrokeStyle(lineWidth: 2.2))
 
                             PointMark(
                                 x: .value("Date", dateLabel),
@@ -569,12 +535,12 @@ struct ClimateTrendsView: View {
                         )
                         .foregroundStyle(
                             LinearGradient(
-                                colors: [WxTheme.snwGreen, WxTheme.snwCyan.opacity(0.8)],
+                                colors: [WxGlassTheme.nominalGreen, WxGlassTheme.cyan.opacity(0.85)],
                                 startPoint: .top,
                                 endPoint: .bottom
                             )
                         )
-                        .cornerRadius(3)
+                        .cornerRadius(6)
                     }
                 }
                 .chartYAxis {
@@ -612,12 +578,12 @@ struct ClimateTrendsView: View {
 
     @ViewBuilder
     private func observationsTable(_ days: [HistoryDayDTO]) -> some View {
-        SNWConsoleCard(title: "Surface Observation Telemetry Log", tag: "CLIM.LOG") {
-            VStack(spacing: 0) {
+        WxGlassCard(title: "Surface Observation Telemetry Log", tag: "CLIM.LOG") {
+            VStack(spacing: 2) {
                 // Table Header
                 HStack(spacing: 6) {
                     Text("DATE")
-                        .frame(width: 75, alignment: .leading)
+                        .frame(width: 82, alignment: .leading)
                     Text("CONDITIONS")
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Text("HIGH / LOW")
@@ -625,31 +591,31 @@ struct ClimateTrendsView: View {
                     Text("PRECIP")
                         .frame(width: 65, alignment: .trailing)
                     Text("WIND")
-                        .frame(width: 65, alignment: .trailing)
+                        .frame(width: 68, alignment: .trailing)
                 }
-                .font(.system(size: 8, weight: .bold, design: .monospaced))
-                .foregroundStyle(WxTheme.snwSilver)
+                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .foregroundStyle(WxGlassTheme.textMuted)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(WxTheme.snwChassis.opacity(0.8))
+                .background(Color.white.opacity(0.06), in: WxGlassTheme.nestedShape())
 
-                Divider().background(WxTheme.border.opacity(0.4))
-
-                // Table Rows
-                ForEach(Array(days.reversed())) { d in
+                // Table Rows (Subtle Translucent Row Striping)
+                let reversedDays = Array(days.reversed())
+                ForEach(Array(reversedDays.enumerated()), id: \.element.id) { idx, d in
                     HStack(spacing: 6) {
                         Text(formatRowDate(d.date))
-                            .font(.system(size: 9, weight: .bold, design: .monospaced))
-                            .foregroundStyle(WxTheme.text)
-                            .frame(width: 75, alignment: .leading)
+                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(WxGlassTheme.textPrimary)
+                            .frame(width: 82, alignment: .leading)
 
-                        HStack(spacing: 5) {
+                        HStack(spacing: 6) {
                             Image(systemName: ConditionSymbol.systemName(for: d.conditionCode))
-                                .font(.system(size: 9.5))
-                                .foregroundStyle(WxTheme.snwCyan)
-                            Text(d.description?.uppercased() ?? "OBSERVED")
-                                .font(.system(size: 8.5, weight: .medium, design: .monospaced))
-                                .foregroundStyle(WxTheme.snwSilver)
+                                .font(.system(size: 11))
+                                .symbolRenderingMode(.hierarchical)
+                                .foregroundStyle(WxGlassTheme.cyan)
+                            Text(d.description ?? "Observed")
+                                .font(.system(size: 11, weight: .medium, design: .rounded))
+                                .foregroundStyle(WxGlassTheme.textSecondary)
                                 .lineLimit(1)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -658,33 +624,35 @@ struct ClimateTrendsView: View {
                         let l = isMetric ? d.tempMinC : d.tempMinF
                         HStack(spacing: 3) {
                             Text(h.map { String(format: "%.0f°", $0) } ?? "--")
-                                .font(.system(size: 9.5, weight: .bold, design: .monospaced))
-                                .foregroundStyle(WxTheme.snwRed)
+                                .font(.system(size: 11.5, weight: .bold, design: .rounded))
+                                .foregroundStyle(WxGlassTheme.conditionRed)
                             Text("/")
-                                .font(.system(size: 8, design: .monospaced))
-                                .foregroundStyle(WxTheme.border)
+                                .font(.system(size: 9.5, design: .rounded))
+                                .foregroundStyle(WxGlassTheme.textMuted)
                             Text(l.map { String(format: "%.0f°", $0) } ?? "--")
-                                .font(.system(size: 9.5, weight: .bold, design: .monospaced))
-                                .foregroundStyle(WxTheme.snwCyan)
+                                .font(.system(size: 11.5, weight: .bold, design: .rounded))
+                                .foregroundStyle(WxGlassTheme.cyan)
                         }
                         .frame(width: 95, alignment: .trailing)
 
                         let p = (isMetric ? d.precipMm : d.precipIn) ?? 0
-                        Text(p > 0 ? String(format: isMetric ? "%.1fmm" : "%.2f\"", p) : "0.00")
-                            .font(.system(size: 9, weight: p > 0 ? .bold : .regular, design: .monospaced))
-                            .foregroundStyle(p > 0 ? WxTheme.snwGreen : WxTheme.snwSilver.opacity(0.5))
+                        Text(p > 0 ? String(format: isMetric ? "%.1f mm" : "%.2f\"", p) : "0.00")
+                            .font(.system(size: 10, weight: p > 0 ? .bold : .regular, design: .monospaced))
+                            .foregroundStyle(p > 0 ? WxGlassTheme.nominalGreen : WxGlassTheme.textMuted.opacity(0.6))
                             .frame(width: 65, alignment: .trailing)
 
                         let w = (isMetric ? d.windMaxKph : d.windMaxMph) ?? 0
                         Text(String(format: "%.0f %@", w, windUnit))
-                            .font(.system(size: 9, design: .monospaced))
-                            .foregroundStyle(WxTheme.textSecondary)
-                            .frame(width: 65, alignment: .trailing)
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundStyle(WxGlassTheme.textSecondary)
+                            .frame(width: 68, alignment: .trailing)
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6.5)
-
-                    Divider().background(WxTheme.border.opacity(0.18))
+                    .background(
+                        idx.isMultiple(of: 2) ? Color.clear : Color.white.opacity(0.035),
+                        in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    )
                 }
             }
         }
@@ -692,12 +660,12 @@ struct ClimateTrendsView: View {
 
     private func legendItem(color: Color, label: String) -> some View {
         HStack(spacing: 4) {
-            RoundedRectangle(cornerRadius: 2)
+            Circle()
                 .fill(color)
-                .frame(width: 8, height: 8)
+                .frame(width: 7, height: 7)
             Text(label)
-                .font(.system(size: 8, weight: .bold, design: .monospaced))
-                .foregroundStyle(WxTheme.snwSilver)
+                .font(.system(size: 8.5, weight: .semibold, design: .rounded))
+                .foregroundStyle(WxGlassTheme.textSecondary)
         }
     }
 

@@ -100,8 +100,12 @@ targets:
     platform: macOS
     sources:
       - path: WxMacTests
-      - path: WxMac/Services/MCPSpawnGuard.swift
-      - path: WxMac/Services/WxConfig.swift
+      - path: WxMac
+        excludes:
+          - WxMacApp.swift
+          - Info.plist
+          - "*.entitlements"
+          - "Assets.xcassets/**"
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES

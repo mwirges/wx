@@ -125,7 +125,7 @@ final class StatusItemController: NSObject {
         // 1. Active Location Header
         if let current = store.payload?.conditions?.location {
             let activeItem = NSMenuItem(
-                title: "ACTIVE // \(current.uppercased()) (\(store.displayTemp))",
+                title: "Active · \(current) (\(store.displayTemp))",
                 action: nil,
                 keyEquivalent: ""
             )
@@ -135,7 +135,7 @@ final class StatusItemController: NSObject {
         }
 
         // 2. Command Grid / Pinned Locations Header
-        let gridHeader = NSMenuItem(title: "PINNED LOCATIONS // COMMAND GRID", action: nil, keyEquivalent: "")
+        let gridHeader = NSMenuItem(title: "Pinned Stations", action: nil, keyEquivalent: "")
         gridHeader.isEnabled = false
         menu.addItem(gridHeader)
 
@@ -362,7 +362,15 @@ struct MenuBarGridCardView: View {
     }
 
     private var symbol: String {
-        ConditionSymbol.systemName(for: card.payload?.conditions?.conditionCode)
+        ConditionSymbol.resolvedSystemName(for: card.payload)
+    }
+
+    private var isNight: Bool {
+        ConditionSymbol.isNight(for: card.payload)
+    }
+
+    private var resolvedDescription: String? {
+        ConditionSymbol.resolvedDescription(for: card.payload)
     }
 
     private var windString: String {
@@ -407,14 +415,14 @@ struct MenuBarGridCardView: View {
                 // Station / Location Name
                 VStack(alignment: .leading, spacing: 1) {
                     Text(card.displayName)
-                        .font(.system(size: 11, weight: isCurrent ? .bold : .medium))
-                        .foregroundStyle(isCurrent ? WxTheme.snwCyan : WxTheme.text)
+                        .font(.system(size: 11, weight: isCurrent ? .bold : .medium, design: .rounded))
+                        .foregroundStyle(isCurrent ? WxGlassTheme.cyan : WxGlassTheme.textPrimary)
                         .lineLimit(1)
 
-                    if let desc = card.payload?.conditions?.description, !desc.isEmpty {
+                    if let desc = resolvedDescription, !desc.isEmpty {
                         Text(desc)
-                            .font(.system(size: 8.5))
-                            .foregroundStyle(WxTheme.textSecondary)
+                            .font(.system(size: 8.5, design: .rounded))
+                            .foregroundStyle(WxGlassTheme.textSecondary)
                             .lineLimit(1)
                     }
                 }
@@ -423,37 +431,38 @@ struct MenuBarGridCardView: View {
 
                 // Warning / Watch Badge
                 if let badge = alertBadge {
-                    HStack(spacing: 2) {
+                    HStack(spacing: 2.5) {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .font(.system(size: 8))
                         Text(badge.text)
                             .font(.system(size: 7.5, weight: .heavy, design: .monospaced))
                     }
                     .foregroundStyle(badge.color)
-                    .padding(.horizontal, 4)
+                    .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(badge.color.opacity(0.18), in: RoundedRectangle(cornerRadius: 3))
-                    .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(badge.color.opacity(0.5), lineWidth: 0.5))
+                    .background(badge.color.opacity(0.18), in: Capsule())
+                    .overlay(Capsule().strokeBorder(badge.color.opacity(0.50), lineWidth: 0.6))
                 }
 
                 // Wind Telemetry
                 if !windString.isEmpty {
                     Text(windString)
                         .font(.system(size: 9.5, weight: .medium, design: .monospaced))
-                        .foregroundStyle(WxTheme.snwSilver)
+                        .foregroundStyle(WxGlassTheme.textSecondary)
                 }
 
                 // Weather Symbol + Temp
                 HStack(spacing: 4) {
                     if card.isLoading && card.payload == nil {
-                        ProgressView().controlSize(.mini).tint(WxTheme.snwCyan)
+                        ProgressView().controlSize(.mini).tint(WxGlassTheme.cyan)
                     } else {
                         Image(systemName: symbol)
                             .font(.system(size: 12))
-                            .foregroundStyle(WxTheme.snwCyan)
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundStyle(ConditionSymbol.tint(for: symbol, isNight: isNight))
                         Text(tempString)
-                            .font(.system(size: 12, weight: .bold, design: .monospaced))
-                            .foregroundStyle(WxTheme.text)
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundStyle(WxGlassTheme.textPrimary)
                     }
                 }
             }
@@ -462,10 +471,18 @@ struct MenuBarGridCardView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 isHovered
-                    ? WxTheme.snwCyan.opacity(0.12)
-                    : (isCurrent ? WxTheme.snwChassis.opacity(0.6) : Color.clear),
-                in: RoundedRectangle(cornerRadius: 4)
+                    ? WxGlassTheme.cyan.opacity(0.14)
+                    : (isCurrent ? Color.white.opacity(0.08) : Color.clear),
+                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
             )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(
+                        isCurrent ? WxGlassTheme.cyan.opacity(0.45) : (isHovered ? Color.white.opacity(0.16) : .clear),
+                        lineWidth: 0.8
+                    )
+            )
+            .padding(.horizontal, 4)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

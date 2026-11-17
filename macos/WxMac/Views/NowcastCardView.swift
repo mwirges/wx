@@ -18,11 +18,11 @@ struct NowcastCardView: View {
 
     private var statusColor: Color {
         if isActive {
-            return WxTheme.snwRed
+            return WxGlassTheme.conditionRed
         } else if hasUpcoming {
-            return WxTheme.snwAmber
+            return WxGlassTheme.amber
         } else {
-            return WxTheme.snwGreen
+            return WxGlassTheme.nominalGreen
         }
     }
 
@@ -32,18 +32,17 @@ struct NowcastCardView: View {
         } else if hasUpcoming {
             return "PRECIPITATION EXPECTED"
         } else {
-            return "ALL CLEAR // DRY"
+            return "ALL CLEAR · DRY"
         }
     }
 
     var body: some View {
-        SNWConsoleCard(
-            title: "Precipitation Nowcast & Rain Timeline",
+        WxGlassCard(
+            title: "Precipitation Nowcast",
             tag: "RADAR.QPF",
-            statusColor: statusColor
+            accent: statusColor
         ) {
             VStack(alignment: .leading, spacing: 10) {
-                // Header Row: Status Badge & Headline
                 HStack(alignment: .center, spacing: 8) {
                     HStack(spacing: 5) {
                         Circle()
@@ -52,89 +51,86 @@ struct NowcastCardView: View {
                             .shadow(color: statusColor.opacity(0.8), radius: 2)
 
                         Text(statusBadgeText)
-                            .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                            .font(.system(size: 9, weight: .bold, design: .rounded))
                             .foregroundStyle(statusColor)
                     }
-                    .padding(.horizontal, 8)
+                    .padding(.horizontal, 10)
                     .padding(.vertical, 4)
-                    .background(statusColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
-                    .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(statusColor.opacity(0.35), lineWidth: 0.8))
+                    .background(statusColor.opacity(0.14), in: Capsule())
+                    .overlay(Capsule().strokeBorder(statusColor.opacity(0.38), lineWidth: 0.8))
 
                     Spacer()
 
-                    if let phase = nowcast.primaryPhase, !phase.isEmpty, phase != "none" {
+                    if let phase = nowcast.primaryPhase, !phase.isEmpty, phase.caseInsensitiveCompare("none") != .orderedSame {
                         HStack(spacing: 4) {
                             Image(systemName: phaseIcon(phase))
-                                .font(.system(size: 9))
+                                .font(.system(size: 9.5))
                                 .foregroundStyle(phaseColor(phase))
                             Text(phase.uppercased())
-                                .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                                .font(.system(size: 9, weight: .bold, design: .rounded))
                                 .foregroundStyle(phaseColor(phase))
                         }
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
-                        .background(WxTheme.snwChassis.opacity(0.8), in: RoundedRectangle(cornerRadius: 4))
-                        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 0.5))
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 3.5)
+                        .background(Color.white.opacity(0.06), in: Capsule())
+                        .overlay(Capsule().strokeBorder(Color.white.opacity(0.14), lineWidth: 0.7))
                     }
                 }
 
-                // Headline & Narrative Summary
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(nowcast.headline ?? "No precipitation expected")
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
-                        .foregroundStyle(WxTheme.text)
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundStyle(WxGlassTheme.textPrimary)
 
                     if let summary = nowcast.summary, !summary.isEmpty {
                         Text(summary)
-                            .font(.system(size: 9.5, weight: .medium, design: .monospaced))
-                            .foregroundStyle(WxTheme.snwSilver.opacity(0.85))
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(WxGlassTheme.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
 
-                // Key Telemetry Metric Chips
-                HStack(spacing: 6) {
+                HStack(spacing: 7) {
                     let liquidStr = isMetric
                         ? String(format: "%.1f mm", nowcast.totalLiquidMm ?? 0)
                         : String(format: "%.2f in", nowcast.totalLiquidIn ?? 0)
-                    MetricChip(label: "Liquid Total", value: liquidStr)
+                    MetricChip(label: "Liquid Total", value: liquidStr, symbol: "drop.fill")
 
                     if let snowCm = nowcast.totalSnowCm, snowCm > 0.05 {
                         let snowStr = isMetric
                             ? String(format: "%.1f cm", snowCm)
                             : String(format: "%.1f in", nowcast.totalSnowIn ?? (snowCm / 2.54))
-                        MetricChip(label: "Snow Total", value: snowStr)
+                        MetricChip(label: "Snow Total", value: snowStr, symbol: "snowflake")
                     }
 
                     let peakRate = isMetric
                         ? String(format: "%.1f mm/h", nowcast.peakRateMmh ?? 0)
                         : String(format: "%.2f in/h", nowcast.peakRateInh ?? 0)
-                    MetricChip(label: "Peak Rate", value: peakRate)
+                    MetricChip(label: "Peak Rate", value: peakRate, symbol: "cloud.heavyrain.fill")
 
                     if let intervals = nowcast.intervals, !intervals.isEmpty {
                         let spanHours = Double(intervals.count) * 15.0 / 60.0
-                        MetricChip(label: "Window", value: String(format: "%.0fh", spanHours))
+                        MetricChip(label: "Window", value: String(format: "%.0fh", spanHours), symbol: "clock.fill")
                     }
                 }
 
-                // Timeline Bar Chart (15-min Intervals)
                 if let intervals = nowcast.intervals, !intervals.isEmpty {
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 5) {
                         HStack {
                             Text("15-MINUTE INTENSITY TIMELINE")
-                                .font(.system(size: 8, weight: .bold, design: .monospaced))
-                                .foregroundStyle(WxTheme.snwSilver.opacity(0.7))
+                                .font(.system(size: 8.5, weight: .bold, design: .rounded))
+                                .foregroundStyle(WxGlassTheme.textMuted)
                             Spacer()
-                            Text("HOURLY RATE (IN/H)")
-                                .font(.system(size: 7.5, weight: .semibold, design: .monospaced))
-                                .foregroundStyle(WxTheme.snwCyan.opacity(0.8))
+                            Text(isMetric ? "RATE (MM/H)" : "RATE (IN/H)")
+                                .font(.system(size: 8, weight: .semibold, design: .monospaced))
+                                .foregroundStyle(WxGlassTheme.cyanSoft)
                         }
 
                         NowcastTimelineBarsView(intervals: Array(intervals.prefix(24)), isMetric: isMetric)
                     }
-                    .padding(8)
-                    .background(WxTheme.snwChassis.opacity(0.65), in: RoundedRectangle(cornerRadius: 6))
-                    .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(WxTheme.border.opacity(0.35), lineWidth: 0.6))
+                    .padding(10)
+                    .background(Color.white.opacity(0.05), in: WxGlassTheme.nestedShape())
+                    .overlay(WxGlassTheme.nestedShape().strokeBorder(Color.white.opacity(0.10), lineWidth: 0.7))
                 }
             }
         }
@@ -151,23 +147,21 @@ struct NowcastCardView: View {
 
     private func phaseColor(_ phase: String) -> Color {
         switch phase.lowercased() {
-        case "snow": return WxTheme.snwCyan
-        case "freezing-rain", "freezing_rain": return Color(red: 0.6, green: 0.8, blue: 1.0)
-        case "ice-pellets", "mixed": return WxTheme.snwAmber
-        default: return WxTheme.snwCyan
+        case "snow": return WxGlassTheme.cyan
+        case "freezing-rain", "freezing_rain": return WxGlassTheme.periwinkle
+        case "ice-pellets", "mixed": return WxGlassTheme.amber
+        default: return WxGlassTheme.cyan
         }
     }
 }
 
-// Visual timeline bars for 15-minute precipitation slices
 struct NowcastTimelineBarsView: View {
     let intervals: [PrecipIntervalDTO]
     let isMetric: Bool
 
-    // Max rate across intervals to scale bars
     private var maxRate: Double {
         let maxVal = intervals.map { $0.rateInh ?? 0 }.max() ?? 0
-        return max(0.20, maxVal) // at least 0.20 in/h baseline
+        return max(0.20, maxVal)
     }
 
     var body: some View {
@@ -178,14 +172,14 @@ struct NowcastTimelineBarsView: View {
                     ForEach(intervals) { iv in
                         let rate = iv.rateInh ?? 0
                         let heightRatio = min(1.0, rate / maxRate)
-                        let barHeight = max(3.0, CGFloat(heightRatio) * geo.size.height)
+                        let barHeight = max(3.5, CGFloat(heightRatio) * geo.size.height)
 
-                        VStack(spacing: 1) {
+                        VStack(spacing: 0) {
                             Spacer(minLength: 0)
-                            RoundedRectangle(cornerRadius: 1.5)
+                            Capsule(style: .continuous)
                                 .fill(barColor(for: rate, phase: iv.phase))
                                 .frame(width: barWidth, height: barHeight)
-                                .shadow(color: barColor(for: rate, phase: iv.phase).opacity(rate > 0.05 ? 0.6 : 0), radius: 2)
+                                .shadow(color: barColor(for: rate, phase: iv.phase).opacity(rate > 0.05 ? 0.55 : 0), radius: 3)
                         }
                         .help(tooltipText(for: iv))
                     }
@@ -193,27 +187,21 @@ struct NowcastTimelineBarsView: View {
             }
             .frame(height: 38)
 
-            // Time Labels Row (spaced intervals)
             HStack {
                 if let first = intervals.first {
                     Text(first.formattedTime)
-                        .font(.system(size: 7.5, weight: .medium, design: .monospaced))
-                        .foregroundStyle(WxTheme.snwSilver.opacity(0.7))
                 }
                 Spacer()
                 if intervals.count > 8 {
-                    let midIdx = intervals.count / 2
-                    Text(intervals[midIdx].formattedTime)
-                        .font(.system(size: 7.5, weight: .medium, design: .monospaced))
-                        .foregroundStyle(WxTheme.snwSilver.opacity(0.7))
+                    Text(intervals[intervals.count / 2].formattedTime)
                 }
                 Spacer()
                 if let last = intervals.last {
                     Text(last.formattedTime)
-                        .font(.system(size: 7.5, weight: .medium, design: .monospaced))
-                        .foregroundStyle(WxTheme.snwSilver.opacity(0.7))
                 }
             }
+            .font(.system(size: 8.5, weight: .medium, design: .monospaced))
+            .foregroundStyle(WxGlassTheme.textMuted)
         }
     }
 
@@ -222,15 +210,15 @@ struct NowcastTimelineBarsView: View {
             return Color.white
         }
         if rateInh >= 0.35 {
-            return WxTheme.snwRed
+            return WxGlassTheme.conditionRed
         } else if rateInh >= 0.15 {
-            return WxTheme.snwAmber
+            return WxGlassTheme.amber
         } else if rateInh >= 0.03 {
-            return WxTheme.snwCyan
+            return WxGlassTheme.cyan
         } else if rateInh > 0.001 {
-            return WxTheme.snwCyan.opacity(0.5)
+            return WxGlassTheme.cyan.opacity(0.55)
         } else {
-            return WxTheme.border.opacity(0.25)
+            return Color.white.opacity(0.14)
         }
     }
 

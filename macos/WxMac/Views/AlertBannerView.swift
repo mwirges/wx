@@ -85,7 +85,7 @@ private func expiryText(_ raw: String?) -> String? {
     return raw
 }
 
-/// Pinned above the desk content on every tab. Renders nothing when no warning or watch is active.
+/// Sculpted Liquid Glass Alert Ribbon pinned immediately below the Unified Bridge Toolbar on every desk tab.
 struct AlertBannerView: View {
     @EnvironmentObject private var store: WeatherStore
     @State private var showDetails = false
@@ -94,6 +94,9 @@ struct AlertBannerView: View {
         let ranked = rankedBannerAlerts(store.activeAlerts)
         if let lead = ranked.first {
             banner(lead: lead, extra: ranked.count - 1)
+                .padding(.horizontal, 14)
+                .padding(.top, 6)
+                .padding(.bottom, 4)
         }
     }
 
@@ -110,50 +113,87 @@ struct AlertBannerView: View {
             kindToken(kind)
         }
         .accessibilityElement(children: .contain)
-        .padding(.bottom, 8)
         .popover(isPresented: $showDetails, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
             AlertBannerDetailView()
         }
     }
 
     private func bannerLabel(alert: Alert, kind: AlertBannerKind, extra: Int) -> some View {
-        HStack(spacing: 8) {
+        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        let isWarning = (kind == .warning)
+
+        return HStack(spacing: 10) {
             Image(systemName: kind.symbolName)
                 .font(.system(size: 14, weight: .bold))
                 .accessibilityHidden(true)
+
             Text(alert.event.uppercased())
-                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                .font(.system(size: 12.5, weight: .bold, design: .rounded))
+                .tracking(0.3)
                 .lineLimit(1)
                 .layoutPriority(1)
+
             if let expiry = expiryText(alert.expires) {
                 Text("EXPIRES \(expiry.uppercased())")
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
+                    .opacity(0.92)
                     .lineLimit(1)
             }
+
             Spacer(minLength: 8)
+
             if extra > 0 {
                 Text("+\(extra) more")
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2.5)
+                    .background(Color.black.opacity(0.22), in: Capsule())
                     .lineLimit(1)
             }
+
+            HStack(spacing: 3) {
+                Text("View Advisory")
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9.5, weight: .bold))
+            }
+            .padding(.horizontal, 9)
+            .padding(.vertical, 3.5)
+            .background(Color.white.opacity(isWarning ? 0.18 : 0.08), in: Capsule())
         }
-        .foregroundStyle(kind == .warning ? Color.white : WxTheme.snwAmber)
+        .foregroundStyle(isWarning ? Color.white : WxGlassTheme.amber)
         .padding(.horizontal, 14)
-        .padding(.vertical, 8)
+        .padding(.vertical, 8.5)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
-            if kind == .warning {
-                WxTheme.snwRed
-            } else {
-                WxTheme.snwAmber.opacity(0.16)
+            ZStack {
+                shape.fill(.ultraThinMaterial)
+                if isWarning {
+                    shape.fill(
+                        LinearGradient(
+                            colors: [WxGlassTheme.conditionRed.opacity(0.92), WxGlassTheme.conditionRed.opacity(0.72)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                } else {
+                    shape.fill(WxGlassTheme.amber.opacity(0.16))
+                }
             }
         }
         .overlay {
-            if kind == .watch {
-                Rectangle().strokeBorder(WxTheme.snwAmber, lineWidth: 1.5)
-            }
+            shape.strokeBorder(
+                isWarning ? Color.white.opacity(0.34) : WxGlassTheme.amber.opacity(0.75),
+                lineWidth: isWarning ? 1.0 : 1.5
+            )
         }
-        .contentShape(Rectangle())
+        .clipShape(shape)
+        .shadow(
+            color: (isWarning ? WxGlassTheme.conditionRed : WxGlassTheme.amber).opacity(0.28),
+            radius: 12,
+            y: 4
+        )
+        .contentShape(shape)
     }
 
     /// Child element so XCUITest can query the kind without scrolling the banner away.
@@ -175,11 +215,17 @@ struct AlertBannerDetailView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("ACTIVE ALERTS")
-                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                .foregroundStyle(WxTheme.snwSilver)
-                .padding(.bottom, 8)
-                .accessibilityIdentifier("alert-banner-details")
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(WxGlassTheme.conditionRed)
+                    .frame(width: 6, height: 6)
+                Text("ACTIVE ALERTS")
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .tracking(0.5)
+                    .foregroundStyle(WxGlassTheme.textSecondary)
+                    .accessibilityIdentifier("alert-banner-details")
+            }
+            .padding(.bottom, 10)
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
@@ -191,16 +237,17 @@ struct AlertBannerDetailView: View {
             }
         }
         .padding(14)
-        .frame(width: 440, height: 420)
-        .background(WxTheme.bg)
+        .frame(width: 450, height: 430)
+        .background(WarpGlassBackground(regime: .severe))
         .preferredColorScheme(.dark)
     }
 
     private func detailRow(_ alert: Alert) -> some View {
         let tint = rowTint(alert)
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
         return VStack(alignment: .leading, spacing: 6) {
             Text(alert.event.uppercased())
-                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                .font(.system(size: 12.5, weight: .bold, design: .rounded))
                 .foregroundStyle(tint)
             detailField("HEADLINE", alert.headline)
             detailField("AREA", alert.area)
@@ -209,12 +256,9 @@ struct AlertBannerDetailView: View {
             detailField("INSTRUCTION", alert.instruction)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
-        .background(tint.opacity(0.10), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .strokeBorder(tint.opacity(0.4), lineWidth: 0.8)
-        )
+        .padding(12)
+        .background(tint.opacity(0.10), in: shape)
+        .overlay(shape.strokeBorder(tint.opacity(0.42), lineWidth: 0.9))
     }
 
     @ViewBuilder
@@ -222,11 +266,11 @@ struct AlertBannerDetailView: View {
         if let value = value?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty {
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
-                    .font(.system(size: 8, weight: .bold, design: .monospaced))
-                    .foregroundStyle(WxTheme.snwSilver)
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .foregroundStyle(WxGlassTheme.textMuted)
                 Text(value)
-                    .font(.system(size: 11))
-                    .foregroundStyle(WxTheme.text)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(WxGlassTheme.textPrimary)
                     .fixedSize(horizontal: false, vertical: true)
                     .textSelection(.enabled)
             }
@@ -235,9 +279,9 @@ struct AlertBannerDetailView: View {
 
     private func rowTint(_ alert: Alert) -> Color {
         switch alertBannerKind(alert) {
-        case .warning: return WxTheme.snwRed
-        case .watch: return WxTheme.snwAmber
-        case nil: return WxTheme.snwSilver
+        case .warning: return WxGlassTheme.conditionRed
+        case .watch: return WxGlassTheme.amber
+        case nil: return WxGlassTheme.textSecondary
         }
     }
 }

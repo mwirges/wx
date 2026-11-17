@@ -512,3 +512,63 @@ func TestRenderJSON_AirQuality(t *testing.T) {
 		t.Fatalf("expected top-level air_quality with aqi 42")
 	}
 }
+
+func TestRenderJSON_ForecastZeroCelsiusAndZeroFahrenheit(t *testing.T) {
+	data := RenderData{
+		Forecast: &models.Forecast{
+			GeneratedAt: time.Date(2026, 11, 17, 5, 0, 0, 0, time.UTC),
+			Periods: []models.Period{
+				{Name: "Tonight", StartTime: time.Date(2026, 11, 17, 2, 0, 0, 0, time.UTC), TempC: 0.0},
+				{Name: "Arctic Night", StartTime: time.Date(2026, 11, 18, 2, 0, 0, 0, time.UTC), TempC: -17.77777777777778},
+			},
+		},
+	}
+
+	// Metric mode: 0.0°C must not be dropped by omitempty, and temperature_f must be omitted.
+	metricOut := captureStdout(t, func() {
+		if err := renderJSON(data, RenderOptions{Units: "metric"}); err != nil {
+			t.Fatalf("renderJSON metric: %v", err)
+		}
+	})
+	var metricRes struct {
+		Forecast struct {
+			Periods []struct {
+				TempC *float64 `json:"temperature_c"`
+				TempF *float64 `json:"temperature_f"`
+			} `json:"periods"`
+		} `json:"forecast"`
+	}
+	if err := json.Unmarshal(metricOut, &metricRes); err != nil {
+		t.Fatalf("unmarshal metric: %v", err)
+	}
+	if metricRes.Forecast.Periods[0].TempC == nil || *metricRes.Forecast.Periods[0].TempC != 0.0 {
+		t.Errorf("metric 0°C period temperature_c = %v, want 0.0", metricRes.Forecast.Periods[0].TempC)
+	}
+	if metricRes.Forecast.Periods[0].TempF != nil {
+		t.Errorf("metric period temperature_f = %v, want nil", metricRes.Forecast.Periods[0].TempF)
+	}
+
+	// Imperial mode: 0.0°F (-17.78°C) and 0.0°C (32°F) must both serialize non-nil values.
+	impOut := captureStdout(t, func() {
+		if err := renderJSON(data, RenderOptions{Units: "imperial"}); err != nil {
+			t.Fatalf("renderJSON imperial: %v", err)
+		}
+	})
+	var impRes struct {
+		Forecast struct {
+			Periods []struct {
+				TempC *float64 `json:"temperature_c"`
+				TempF *float64 `json:"temperature_f"`
+			} `json:"periods"`
+		} `json:"forecast"`
+	}
+	if err := json.Unmarshal(impOut, &impRes); err != nil {
+		t.Fatalf("unmarshal imperial: %v", err)
+	}
+	if impRes.Forecast.Periods[0].TempC == nil || *impRes.Forecast.Periods[0].TempC != 0.0 {
+		t.Errorf("imperial 32°F period temperature_c = %v, want 0.0", impRes.Forecast.Periods[0].TempC)
+	}
+	if impRes.Forecast.Periods[1].TempF == nil || *impRes.Forecast.Periods[1].TempF > 0.01 || *impRes.Forecast.Periods[1].TempF < -0.01 {
+		t.Errorf("imperial 0°F period temperature_f = %v, want ~0.0", impRes.Forecast.Periods[1].TempF)
+	}
+}

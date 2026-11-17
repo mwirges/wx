@@ -12,15 +12,15 @@ import (
 
 // Mac desk palette from WxTheme. The Fyne theme uses the same bytes.
 var (
-	colChassis = color.NRGBA{R: 0x0A, G: 0x12, B: 0x22, A: 0xFF}
-	colPanel   = color.NRGBA{R: 0x0E, G: 0x1A, B: 0x2D, A: 0xF0}
+	colChassis = color.NRGBA{R: 0x08, G: 0x12, B: 0x24, A: 0xFF}
+	colPanel   = color.NRGBA{R: 0x0C, G: 0x18, B: 0x2E, A: 0xDA}
 	colCyan    = color.NRGBA{R: 0x38, G: 0xE1, B: 0xFF, A: 0xFF}
 	colGold    = color.NRGBA{R: 0xF5, G: 0xA6, B: 0x23, A: 0xFF}
 	colAmber   = color.NRGBA{R: 0xFF, G: 0x9F, B: 0x0A, A: 0xFF}
 	colRed     = color.NRGBA{R: 0xFF, G: 0x3B, B: 0x56, A: 0xFF}
 	colGreen   = color.NRGBA{R: 0x30, G: 0xD1, B: 0x58, A: 0xFF}
-	colSilver  = color.NRGBA{R: 0x94, G: 0xA7, B: 0xC5, A: 0xFF}
-	colText    = color.NRGBA{R: 0xF0, G: 0xF6, B: 0xFF, A: 0xFF}
+	colSilver  = color.NRGBA{R: 0xB4, G: 0xC5, B: 0xDF, A: 0xFF}
+	colText    = color.NRGBA{R: 0xF3, G: 0xF8, B: 0xFF, A: 0xFF}
 )
 
 func withAlpha(c color.Color, a uint8) color.NRGBA {
@@ -29,9 +29,8 @@ func withAlpha(c color.Color, a uint8) color.NRGBA {
 	return n
 }
 
-// bracketFrame paints a panel, a hairline stroke, and eight corner ticks
-// in the margin. The body is last and inset, so it receives clicks and
-// walk() still sees a container.
+// bracketFrame paints a rounded glass panel, a luminous rim stroke, a swept
+// top horizon rail, and the inset body last so clicks and walk() stay intact.
 type bracketFrame struct {
 	inset  float32
 	length float32
@@ -46,14 +45,19 @@ func (b bracketFrame) MinSize(objects []fyne.CanvasObject) fyne.Size {
 }
 
 func (b bracketFrame) Layout(objects []fyne.CanvasObject, size fyne.Size) {
-	if len(objects) < 11 {
+	if len(objects) < 4 {
 		return
 	}
 	for _, obj := range objects[:2] {
 		obj.Move(fyne.NewPos(0, 0))
 		obj.Resize(size)
 	}
-	placeBrackets(objects[2:10], size, b.length)
+	railInset := float32(16)
+	if railInset > size.Width*0.25 {
+		railInset = size.Width * 0.25
+	}
+	setLine(objects[2], railInset, 1, size.Width-railInset, 1)
+
 	pad := b.inset
 	inner := fyne.NewSize(size.Width-pad*2, size.Height-pad*2)
 	if inner.Width < 0 {
@@ -62,29 +66,8 @@ func (b bracketFrame) Layout(objects []fyne.CanvasObject, size fyne.Size) {
 	if inner.Height < 0 {
 		inner.Height = 0
 	}
-	objects[10].Move(fyne.NewPos(pad, pad))
-	objects[10].Resize(inner)
-}
-
-func placeBrackets(lines []fyne.CanvasObject, size fyne.Size, length float32) {
-	w, h := size.Width, size.Height
-	if length > w/2 {
-		length = w / 2
-	}
-	if length > h/2 {
-		length = h / 2
-	}
-	// Inset by 2 so the stroke sits inside the panel instead of on the
-	// clipped outer pixel.
-	const o float32 = 2
-	setLine(lines[0], o, o, length, o)
-	setLine(lines[1], o, o, o, length)
-	setLine(lines[2], w-length, o, w-o, o)
-	setLine(lines[3], w-o, o, w-o, length)
-	setLine(lines[4], o, h-o, length, h-o)
-	setLine(lines[5], o, h-length, o, h-o)
-	setLine(lines[6], w-length, h-o, w-o, h-o)
-	setLine(lines[7], w-o, h-length, w-o, h-o)
+	objects[len(objects)-1].Move(fyne.NewPos(pad, pad))
+	objects[len(objects)-1].Resize(inner)
 }
 
 func setLine(obj fyne.CanvasObject, x1, y1, x2, y2 float32) {
@@ -95,19 +78,14 @@ func setLine(obj fyne.CanvasObject, x1, y1, x2, y2 float32) {
 
 func framed(accent color.Color, content fyne.CanvasObject, inset, length float32) *fyne.Container {
 	bg := canvas.NewRectangle(colPanel)
-	bg.CornerRadius = 8
+	bg.CornerRadius = 12
 	stroke := canvas.NewRectangle(color.NRGBA{})
-	stroke.StrokeColor = withAlpha(accent, 0x59)
-	stroke.StrokeWidth = 1
-	stroke.CornerRadius = 8
-	objs := []fyne.CanvasObject{bg, stroke}
-	tick := withAlpha(accent, 0xE0)
-	for i := 0; i < 8; i++ {
-		line := canvas.NewLine(tick)
-		line.StrokeWidth = 2
-		objs = append(objs, line)
-	}
-	objs = append(objs, content)
+	stroke.StrokeColor = withAlpha(accent, 0x98)
+	stroke.StrokeWidth = 1.2
+	stroke.CornerRadius = 12
+	rail := canvas.NewLine(withAlpha(accent, 0xDF))
+	rail.StrokeWidth = 1.6
+	objs := []fyne.CanvasObject{bg, stroke, rail, content}
 	return container.New(&bracketFrame{inset: inset, length: length}, objs...)
 }
 
@@ -204,7 +182,7 @@ func (m *modePill) Tapped(*fyne.PointEvent) {
 
 func (m *modePill) CreateRenderer() fyne.WidgetRenderer {
 	bg := canvas.NewRectangle(withAlpha(colChassis, 0x99))
-	bg.CornerRadius = 6
+	bg.CornerRadius = 12
 	bg.StrokeWidth = 1
 	bg.StrokeColor = withAlpha(colCyan, 0x40)
 	label := canvas.NewText(m.Text, colSilver)
@@ -322,9 +300,9 @@ func (m *menuChip) Tapped(ev *fyne.PointEvent) {
 
 func (m *menuChip) CreateRenderer() fyne.WidgetRenderer {
 	bg := canvas.NewRectangle(withAlpha(colChassis, 0xD9))
-	bg.CornerRadius = 5
+	bg.CornerRadius = 12
 	bg.StrokeWidth = 1
-	bg.StrokeColor = withAlpha(colCyan, 0x66)
+	bg.StrokeColor = withAlpha(colCyan, 0x52)
 	label := canvas.NewText(m.shown(), colText)
 	label.TextSize = 10
 	label.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
@@ -391,9 +369,9 @@ func (u *unitSegment) Tapped(ev *fyne.PointEvent) {
 
 func (u *unitSegment) CreateRenderer() fyne.WidgetRenderer {
 	bg := canvas.NewRectangle(withAlpha(colChassis, 0xD9))
-	bg.CornerRadius = 5
+	bg.CornerRadius = 12
 	bg.StrokeWidth = 1
-	bg.StrokeColor = withAlpha(colCyan, 0x66)
+	bg.StrokeColor = withAlpha(colCyan, 0x52)
 	f := canvas.NewText("°F", colText)
 	f.TextSize = 11
 	f.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
@@ -401,7 +379,7 @@ func (u *unitSegment) CreateRenderer() fyne.WidgetRenderer {
 	c.TextSize = 11
 	c.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
 	mark := canvas.NewRectangle(withAlpha(colCyan, 0x33))
-	mark.CornerRadius = 4
+	mark.CornerRadius = 10
 	return &unitRenderer{seg: u, bg: bg, mark: mark, f: f, c: c}
 }
 
@@ -477,9 +455,9 @@ func (a *actionChip) Tapped(*fyne.PointEvent) {
 
 func (a *actionChip) CreateRenderer() fyne.WidgetRenderer {
 	bg := canvas.NewRectangle(withAlpha(colChassis, 0xD9))
-	bg.CornerRadius = 5
+	bg.CornerRadius = 12
 	bg.StrokeWidth = 1
-	bg.StrokeColor = withAlpha(colCyan, 0x66)
+	bg.StrokeColor = withAlpha(colCyan, 0x52)
 	label := canvas.NewText(a.Text, colCyan)
 	label.TextSize = 10
 	label.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
@@ -529,7 +507,7 @@ func statusBadge(text, role string) fyne.CanvasObject {
 		wash, edge, ink = withAlpha(colAmber, 0x28), withAlpha(colAmber, 0x73), colAmber
 	}
 	bg := canvas.NewRectangle(wash)
-	bg.CornerRadius = 4
+	bg.CornerRadius = 10
 	bg.StrokeColor = edge
 	bg.StrokeWidth = 1
 	words := line(text, role)

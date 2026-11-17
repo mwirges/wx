@@ -14,12 +14,12 @@ enum IOSTab: String, CaseIterable, Identifiable {
 
     var symbol: String {
         switch self {
-        case .surface: return "sun.max"
-        case .tactical: return "square.grid.2x2"
+        case .surface: return "sun.max.fill"
+        case .tactical: return "safari.fill"
         case .radar: return "dot.radiowaves.left.and.right"
-        case .severe: return "cloud.bolt"
+        case .severe: return "bolt.fill"
         case .tropics: return "hurricane"
-        case .config: return "gearshape"
+        case .config: return "slider.horizontal.3"
         }
     }
 }
@@ -55,6 +55,13 @@ final class IOSStore: ObservableObject {
     @Published private(set) var loopFrame = 0
     @Published private(set) var loopTicks = 0
     @Published private(set) var loopPlaying = false
+    @Published private(set) var userPausedRadarLoop = false
+    @Published var selectedRadarProduct: String = "composite-reflectivity"
+    @Published var selectedRadarRadius: Double = 200
+    @Published private(set) var radarViewportRevision = 0
+    @Published private(set) var radarHasCustomBBox = false
+    @Published var favorites: [WxLocationEntry] = []
+    @Published var recentLocations: [String] = []
     /// True while the iPad split keeps the radar pane on screen. iPhone leaves this false,
     /// so the loop still runs only on the Radar tab there.
     @Published private(set) var radarPaneOnScreen = false
@@ -76,6 +83,7 @@ final class IOSStore: ObservableObject {
     private var loopTask: Task<Void, Never>?
     private var refreshTask: Task<Void, Never>?
     private var didConsiderActivity = false
+    private var radarRequestGeneration = 0
 
     init(client: (any IOSWeatherClient)? = nil, clock: (any IOSClock)? = nil) {
         let resolved = clock ?? IOSClocks.make()
@@ -89,6 +97,112 @@ final class IOSStore: ObservableObject {
     var currentRadarImage: CGImage? {
         guard radarPictures.indices.contains(loopFrame) else { return nil }
         return radarPictures[loopFrame].image
+    }
+
+    var currentRadarValidTime: String? {
+        if radarPictures.indices.contains(loopFrame) {
+            return radarPictures[loopFrame].validTime
+        }
+        return radar?.validTime
+    }
+
+    var atmosphereRegime: WxAtmosphereRegime {
+        WxAtmosphereRegime.resolve(
+            conditions: payload?.conditions,
+            alerts: payload?.alerts ?? [],
+            astronomy: payload?.conditions?.astronomy ?? payload?.astronomy,
+            nowcast: nowcast?.nowcast ?? payload?.conditions?.nowcast ?? payload?.nowcast,
+            forecast: payload?.forecast
+        )
+    }
+
+    func toggleRadarPlayback() {
+        guard radarPictures.count > 1 else { return }
+        userPausedRadarLoop.toggle()
+        syncRadarLoop()
+    }
+
+    func stepRadarFrame(by delta: Int) {
+        guard !radarPictures.isEmpty else { return }
+        userPausedRadarLoop = true
+        syncRadarLoop()
+        let count = radarPictures.count
+        loopFrame = ((loopFrame + delta) % count + count) % count
+    }
+
+    func seekRadarFrame(to index: Int) {
+        guard radarPictures.indices.contains(index) else { return }
+        userPausedRadarLoop = true
+        syncRadarLoop()
+        loopFrame = index
+    }
+
+    func setRadarProduct(_ product: String) {
+        guard selectedRadarProduct != product else { return }
+        selectedRadarProduct = product
+        radarHasCustomBBox = false
+        Task { await loadRadar() }
+    }
+
+    func setRadarRadius(_ radius: Double) {
+        if selectedRadarRadius == radius && !radarHasCustomBBox {
+            radarViewportRevision += 1
+            return
+        }
+        selectedRadarRadius = radius
+        radarHasCustomBBox = false
+        radarViewportRevision += 1
+        Task { await loadRadar() }
+    }
+
+    func reloadSavedStations() {
+        let cfg = WxConfig.load()
+        favorites = cfg.favorites ?? []
+        recentLocations = cfg.recentLocations ?? []
+    }
+
+    func isFavorite(_ location: String) -> Bool {
+        let clean = location.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { return false }
+        let matchesDirect = favorites.contains {
+            $0.name.caseInsensitiveCompare(clean) == .orderedSame ||
+            $0.value.caseInsensitiveCompare(clean) == .orderedSame
+        }
+        if matchesDirect {
+            return true
+        }
+        if clean.caseInsensitiveCompare(place.trimmingCharacters(in: .whitespacesAndNewlines)) == .orderedSame,
+           let resolved = payload?.conditions?.location?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !resolved.isEmpty {
+            return favorites.contains {
+                $0.name.caseInsensitiveCompare(resolved) == .orderedSame ||
+                $0.value.caseInsensitiveCompare(resolved) == .orderedSame
+            }
+        }
+        return false
+    }
+
+    func toggleFavorite(_ location: String) {
+        let clean = location.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { return }
+        let isActivePlace = clean.caseInsensitiveCompare(place.trimmingCharacters(in: .whitespacesAndNewlines)) == .orderedSame
+        let resolvedName = isActivePlace
+            ? (payload?.conditions?.location?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 }
+            : nil
+        if isFavorite(clean) {
+            WxConfig.removeFavorite(nameOrValue: clean)
+            if let resolvedName {
+                WxConfig.removeFavorite(nameOrValue: resolvedName)
+            }
+        } else {
+            WxConfig.addFavorite(name: resolvedName ?? clean, value: clean)
+        }
+        reloadSavedStations()
+    }
+
+    func removeFavorite(_ nameOrValue: String) {
+        WxConfig.removeFavorite(nameOrValue: nameOrValue)
+        reloadSavedStations()
     }
 
     func advanceTestClock(by seconds: TimeInterval = 6 * 60) {
@@ -110,6 +224,8 @@ final class IOSStore: ObservableObject {
         seedFromEnvironment()
         let cfg = WxConfig.load()
         units = cfg.units == "metric" ? "metric" : "imperial"
+        favorites = cfg.favorites ?? []
+        recentLocations = cfg.recentLocations ?? []
         let saved = (cfg.defaultLocation ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         let resolved = await resolvePlace(saved: saved)
         place = resolved
@@ -150,7 +266,10 @@ final class IOSStore: ObservableObject {
     }
 
     func syncRadarLoop() {
-        if foreground && wantsRadarLoop && radarPictures.count > 1 {
+        if !wantsRadarLoop {
+            userPausedRadarLoop = false
+        }
+        if foreground && wantsRadarLoop && !userPausedRadarLoop && radarPictures.count > 1 {
             startRadarLoop()
         } else {
             stopRadarLoop()
@@ -193,6 +312,7 @@ final class IOSStore: ObservableObject {
         if !clean.isEmpty {
             WxConfig.addRecent(location: clean)
         }
+        reloadSavedStations()
         self.place = clean
         self.units = nextUnits
         locationNote = nil
@@ -226,6 +346,9 @@ final class IOSStore: ObservableObject {
         radarLoading = true
         surfaceError = nil
         radarError = nil
+        radarHasCustomBBox = false
+        radarRequestGeneration += 1
+        let radarGen = radarRequestGeneration
         refreshCount += 1
         let client = self.client
         let units = self.units
@@ -243,7 +366,8 @@ final class IOSStore: ObservableObject {
         ])
         async let radarRaw = fetchIOSWeather(client, args: [
             "radar", "--raw", "--loop", "--frames", "6",
-            "--location", whereTo, "--product", "composite-reflectivity",
+            "--location", whereTo, "--product", selectedRadarProduct,
+            "--radius", String(format: "%.0f", selectedRadarRadius),
         ])
         let forecastResult = await forecastRaw
         let nowcastResult = await nowcastRaw
@@ -290,33 +414,64 @@ final class IOSStore: ObservableObject {
             break
         }
 
-        switch radarResult {
+        if radarGen == radarRequestGeneration {
+            switch radarResult {
+            case .success(let raw):
+                do {
+                    try applyRadar(raw)
+                } catch {
+                    radarError = error.localizedDescription
+                }
+            case .failure(let error):
+                radarError = error.localizedDescription
+            }
+            radarLoading = false
+        }
+
+        isLoading = false
+        syncRadarLoop()
+        await publishSharedCache()
+    }
+
+    func loadRadar(bbox: RadarBBox? = nil) async {
+        let whereTo = place.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !whereTo.isEmpty else { return }
+
+        radarRequestGeneration += 1
+        let gen = radarRequestGeneration
+        radarLoading = true
+        radarError = nil
+
+        var args = [
+            "radar", "--raw", "--loop", "--frames", "6",
+            "--location", whereTo, "--product", selectedRadarProduct,
+        ]
+        if let bbox {
+            args += ["--bbox", String(format: "%.4f,%.4f,%.4f,%.4f", bbox.minLat, bbox.minLon, bbox.maxLat, bbox.maxLon)]
+        } else {
+            args += ["--radius", String(format: "%.0f", selectedRadarRadius)]
+        }
+
+        let result = await fetchIOSWeather(client, args: args)
+        guard gen == radarRequestGeneration else { return }
+        radarLoading = false
+
+        switch result {
         case .success(let raw):
             do {
                 try applyRadar(raw)
+                radarHasCustomBBox = (bbox != nil)
             } catch {
                 radarError = error.localizedDescription
             }
         case .failure(let error):
             radarError = error.localizedDescription
         }
-
-        isLoading = false
-        radarLoading = false
         syncRadarLoop()
-        await publishSharedCache()
-    }
-
-    func loadRadar() async {
-        await loadExtra(
-            args: ["radar", "--raw", "--loop", "--frames", "6", "--location", place, "--product", "composite-reflectivity"],
-            loading: \.radarLoading,
-            error: \.radarError
-        ) { raw in
-            try self.applyRadar(raw)
+        // Only publish home-station radar frames to the Home Screen widget cache.
+        if bbox == nil {
+            await publishSharedCache()
         }
-        syncRadarLoop()
-        await publishSharedCache()
     }
 
     func loadSevere() async {
@@ -443,6 +598,8 @@ final class IOSStore: ObservableObject {
         nowcast = nil
         radar = nil
         radarPictures = []
+        radarHasCustomBBox = false
+        radarViewportRevision += 1
         loopFrame = 0
         spc = nil
         tropics = nil
@@ -536,7 +693,7 @@ final class IOSStore: ObservableObject {
                 try? await Task.sleep(nanoseconds: intervalNs)
                 guard let self, !Task.isCancelled else { return }
                 let wanted = self.tab == .radar || self.radarPaneOnScreen
-                guard self.foreground, wanted, self.radarPictures.count > 1 else {
+                guard self.foreground, wanted, !self.userPausedRadarLoop, self.radarPictures.count > 1 else {
                     self.stopRadarLoop()
                     return
                 }
@@ -584,16 +741,7 @@ final class IOSStore: ObservableObject {
 
 enum IOSFormat {
     static func temperature(f: Double?, c: Double?, units: String) -> String {
-        if units == "metric", let c {
-            return String(format: "%.0f°", c)
-        }
-        if let f {
-            return String(format: "%.0f°", f)
-        }
-        if let c {
-            return String(format: "%.0f°", c)
-        }
-        return "—"
+        WxTemperature.text(f: f, c: c, units: units)
     }
 
     static func observation(_ conditions: Conditions?, units: String) -> String {
@@ -601,18 +749,10 @@ enum IOSFormat {
     }
 
     static func period(_ period: Period, units: String) -> String {
-        temperature(f: period.temperatureF, c: period.temperatureC, units: units)
+        period.formattedTemperature(units: units)
     }
 
     static func hourLabel(_ period: Period) -> String {
-        guard let raw = period.startTime, !raw.isEmpty else { return period.name }
-        let iso = ISO8601DateFormatter()
-        iso.formatOptions = [.withInternetDateTime]
-        guard let date = iso.date(from: raw) else { return period.name }
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = .current
-        formatter.dateFormat = "h a"
-        return formatter.string(from: date)
+        period.formattedHourLabel
     }
 }

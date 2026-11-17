@@ -1,0 +1,2323 @@
+<!doctype html>
+<html lang="en" data-direction="snw-glass" data-weather="rain">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <title>wx UI Chrome Overhaul — Warp Glass Mock Studio</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Reusable Vector SVG Sprite (Hero Icons, Forecast & Dock SF/Starfleet Glyphs, Weather-Regime MRMS Gradients, ConditionPanel) -->
+  <svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">
+    <defs>
+      <linearGradient id="sun-glow" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#ffe082"/>
+        <stop offset="100%" stop-color="#f5a623"/>
+      </linearGradient>
+      <linearGradient id="cloud-glass" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#ffffff" stop-opacity="0.96"/>
+        <stop offset="100%" stop-color="#9beeff" stop-opacity="0.68"/>
+      </linearGradient>
+      <linearGradient id="storm-cloud" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#dbeafe" stop-opacity="0.92"/>
+        <stop offset="100%" stop-color="#475569" stop-opacity="0.86"/>
+      </linearGradient>
+
+      <!-- Severe Supercell Radar Gradients (65+ dBZ Hail Core — ONLY shown in Condition Red!) -->
+      <radialGradient id="mrms-core-1" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#f5d0fe" stop-opacity="0.95"/>
+        <stop offset="22%" stop-color="#ef4444" stop-opacity="0.90"/>
+        <stop offset="48%" stop-color="#f97316" stop-opacity="0.82"/>
+        <stop offset="72%" stop-color="#eab308" stop-opacity="0.68"/>
+        <stop offset="100%" stop-color="#22c55e" stop-opacity="0"/>
+      </radialGradient>
+      <radialGradient id="mrms-band-2" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#f97316" stop-opacity="0.82"/>
+        <stop offset="38%" stop-color="#eab308" stop-opacity="0.68"/>
+        <stop offset="72%" stop-color="#22c55e" stop-opacity="0.52"/>
+        <stop offset="100%" stop-color="#0ea5e9" stop-opacity="0"/>
+      </radialGradient>
+
+      <!-- Stratiform Rain Gradients (18–38 dBZ Emerald/Lime/Soft-Yellow — shown in Rain 72°!) -->
+      <radialGradient id="mrms-rain-outer" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#22c55e" stop-opacity="0.62"/>
+        <stop offset="52%" stop-color="#10b981" stop-opacity="0.42"/>
+        <stop offset="82%" stop-color="#0ea5e9" stop-opacity="0.22"/>
+        <stop offset="100%" stop-color="#0ea5e9" stop-opacity="0"/>
+      </radialGradient>
+      <radialGradient id="mrms-rain-core" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#eab308" stop-opacity="0.72"/>
+        <stop offset="36%" stop-color="#84cc16" stop-opacity="0.62"/>
+        <stop offset="74%" stop-color="#22c55e" stop-opacity="0.38"/>
+        <stop offset="100%" stop-color="#10b981" stop-opacity="0"/>
+      </radialGradient>
+
+      <!-- Clear-Air / Bragg Scatter Gradients (5–12 dBZ — shown in Golden Hr & Night!) -->
+      <radialGradient id="mrms-clear-golden" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#38e1ff" stop-opacity="0.22"/>
+        <stop offset="48%" stop-color="#14b8a6" stop-opacity="0.11"/>
+        <stop offset="82%" stop-color="#f5a623" stop-opacity="0.05"/>
+        <stop offset="100%" stop-color="#38e1ff" stop-opacity="0"/>
+      </radialGradient>
+      <radialGradient id="mrms-clear-night" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#5e72ff" stop-opacity="0.26"/>
+        <stop offset="52%" stop-color="#38e1ff" stop-opacity="0.12"/>
+        <stop offset="100%" stop-color="#38e1ff" stop-opacity="0"/>
+      </radialGradient>
+
+      <!-- Hero Weather Icons (64x64) -->
+      <symbol id="wx-icon-rain-sun" viewBox="0 0 64 64">
+        <circle cx="24" cy="22" r="11" fill="url(#sun-glow)"/>
+        <path d="M21 44h24a10 10 0 0 0 1.2-19.9A14 14 0 0 0 19 21a11 11 0 0 0 2 23z" fill="url(#cloud-glass)"/>
+        <path d="M24 49l-3 7M33 49l-3 7M42 49l-3 7" stroke="#38e1ff" stroke-width="3" stroke-linecap="round"/>
+      </symbol>
+
+      <symbol id="wx-icon-severe-storm" viewBox="0 0 64 64">
+        <path d="M19 41h26a10 10 0 0 0 1.2-19.9A14 14 0 0 0 17 18a11 11 0 0 0 2 23z" fill="url(#storm-cloud)"/>
+        <path d="M34 33l-7 12h6l-2 11 10-14h-6l3-9z" fill="#ffe082" stroke="#ff9f0a" stroke-width="0.8" stroke-linejoin="round"/>
+        <path d="M21 46l-2.5 6M44 46l-2.5 6" stroke="#ff5c74" stroke-width="2.8" stroke-linecap="round"/>
+      </symbol>
+
+      <symbol id="wx-icon-golden-clear" viewBox="0 0 64 64">
+        <circle cx="32" cy="32" r="19" fill="rgba(245,166,35,0.22)"/>
+        <circle cx="32" cy="32" r="13" fill="url(#sun-glow)"/>
+        <g stroke="#ffe082" stroke-width="2.6" stroke-linecap="round">
+          <line x1="32" y1="7" x2="32" y2="12"/><line x1="32" y1="52" x2="32" y2="57"/>
+          <line x1="7" y1="32" x2="12" y2="32"/><line x1="52" y1="32" x2="57" y2="32"/>
+          <line x1="14.5" y1="14.5" x2="18" y2="18"/><line x1="46" y1="46" x2="49.5" y2="49.5"/>
+          <line x1="49.5" y1="14.5" x2="46" y2="18"/><line x1="18" y1="46" x2="14.5" y2="49.5"/>
+        </g>
+      </symbol>
+
+      <symbol id="wx-icon-orbital-night" viewBox="0 0 64 64">
+        <path d="M40.5 14.5A17.5 17.5 0 1 0 51 39.5 14.5 14.5 0 0 1 40.5 14.5z" fill="#dbeafe" stroke="#7cecff" stroke-width="1.2"/>
+        <circle cx="46" cy="18" r="1.8" fill="#ffe082"/>
+        <circle cx="52" cy="27" r="1.3" fill="#7cecff"/>
+        <circle cx="20" cy="16" r="1.4" fill="#ffffff"/>
+      </symbol>
+
+      <!-- Compact Forecast Vector Weather Glyphs (24x24 — Replaces all square OS emojis!) -->
+      <symbol id="ico-wx-rain" viewBox="0 0 24 24">
+        <path d="M7.2 15.5h9.8a4 4 0 0 0 .5-7.96A5.5 5.5 0 0 0 6.8 6.4a4.4 4.4 0 0 0 .4 9.1z" fill="url(#cloud-glass)"/>
+        <path d="M8.5 18l-1.3 3M12.5 18l-1.3 3M16.5 18l-1.3 3" stroke="#38e1ff" stroke-width="1.8" stroke-linecap="round"/>
+      </symbol>
+
+      <symbol id="ico-wx-sun-rain" viewBox="0 0 24 24">
+        <circle cx="8.2" cy="7.8" r="4.1" fill="url(#sun-glow)"/>
+        <path d="M8 16h9.2a3.7 3.7 0 0 0 .4-7.38A5 5 0 0 0 7.8 7.6a4 4 0 0 0 .2 8.4z" fill="url(#cloud-glass)"/>
+        <path d="M9.5 18.2l-1.1 2.6M14.2 18.2l-1.1 2.6" stroke="#38e1ff" stroke-width="1.8" stroke-linecap="round"/>
+      </symbol>
+
+      <symbol id="ico-wx-tstorm" viewBox="0 0 24 24">
+        <path d="M7 14.8h10a3.8 3.8 0 0 0 .4-7.58A5.3 5.3 0 0 0 6.6 6.1a4.2 4.2 0 0 0 .4 8.7z" fill="url(#storm-cloud)"/>
+        <path d="M13 12l-2.8 4.8h2.4l-.8 4.4 4-5.6h-2.3L13 12z" fill="#ffe082"/>
+        <path d="M7.6 17.2l-1 2.4M16.8 17.2l-1 2.4" stroke="#ff5c74" stroke-width="1.6" stroke-linecap="round"/>
+      </symbol>
+
+      <symbol id="ico-wx-partly" viewBox="0 0 24 24">
+        <circle cx="8.5" cy="8.5" r="4.3" fill="url(#sun-glow)"/>
+        <path d="M8.2 17.5h9.3a3.8 3.8 0 0 0 .4-7.56A5.1 5.1 0 0 0 8 8.9a4.2 4.2 0 0 0 .2 8.6z" fill="url(#cloud-glass)"/>
+      </symbol>
+
+      <symbol id="ico-wx-sun" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="5" fill="url(#sun-glow)"/>
+        <g stroke="#ffe082" stroke-width="1.8" stroke-linecap="round">
+          <line x1="12" y1="2.5" x2="12" y2="4.6"/><line x1="12" y1="19.4" x2="12" y2="21.5"/>
+          <line x1="2.5" y1="12" x2="4.6" y2="12"/><line x1="19.4" y1="12" x2="21.5" y2="12"/>
+          <line x1="5.3" y1="5.3" x2="6.8" y2="6.8"/><line x1="17.2" y1="17.2" x2="18.7" y2="18.7"/>
+          <line x1="18.7" y1="5.3" x2="17.2" y2="6.8"/><line x1="6.8" y1="17.2" x2="5.3" y2="18.7"/>
+        </g>
+      </symbol>
+
+      <symbol id="ico-wx-sunset" viewBox="0 0 24 24">
+        <path d="M6.5 15a5.5 5.5 0 0 1 11 0" fill="url(#sun-glow)"/>
+        <g stroke="#ffe082" stroke-width="1.7" stroke-linecap="round">
+          <line x1="12" y1="5" x2="12" y2="7.2"/>
+          <line x1="5.8" y1="8.8" x2="7.3" y2="10.3"/>
+          <line x1="18.2" y1="8.8" x2="16.7" y2="10.3"/>
+        </g>
+        <line x1="3" y1="15.5" x2="21" y2="15.5" stroke="#f5a623" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="6.5" y1="18.8" x2="17.5" y2="18.8" stroke="#7cecff" stroke-opacity="0.7" stroke-width="1.5" stroke-linecap="round"/>
+      </symbol>
+
+      <symbol id="ico-wx-cloud" viewBox="0 0 24 24">
+        <path d="M6.8 17.5h10.5a4.2 4.2 0 0 0 .5-8.36A5.8 5.8 0 0 0 6.4 8a4.6 4.6 0 0 0 .4 9.5z" fill="url(#cloud-glass)"/>
+      </symbol>
+
+      <symbol id="ico-wx-moon" viewBox="0 0 24 24">
+        <path d="M15.2 4.6a7.4 7.4 0 1 0 4.4 10.6 6.1 6.1 0 0 1-4.4-10.6z" fill="#dbeafe" stroke="#7cecff" stroke-width="1.1"/>
+        <circle cx="17.6" cy="6.6" r="1.1" fill="#ffe082"/>
+        <circle cx="19.6" cy="10.4" r="0.8" fill="#7cecff"/>
+      </symbol>
+
+      <symbol id="ico-wx-fog" viewBox="0 0 24 24">
+        <path d="M6.8 13.2h10.4a3.5 3.5 0 0 0 .4-6.96A5 5 0 0 0 6.6 5.4a3.9 3.9 0 0 0 .2 7.8z" fill="url(#cloud-glass)" fill-opacity="0.82"/>
+        <g stroke="#9beeff" stroke-width="1.7" stroke-linecap="round">
+          <line x1="4" y1="16" x2="20" y2="16"/>
+          <line x1="6" y1="19" x2="18" y2="19" stroke-opacity="0.72"/>
+        </g>
+      </symbol>
+
+      <symbol id="ico-wx-gibbous" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="7.5" fill="#1e293b" stroke="rgba(124,236,255,0.4)" stroke-width="1"/>
+        <path d="M12 4.5a7.5 7.5 0 0 1 0 15c-2.6 0-4.7-3.36-4.7-7.5S9.4 4.5 12 4.5z" fill="#ffe082" transform="scale(-1,1) translate(-24,0)"/>
+        <path d="M12 4.5a7.5 7.5 0 0 0 0 15c2.2 0 4-3.36 4-7.5s-1.8-7.5-4-7.5z" fill="#fde68a"/>
+      </symbol>
+
+      <!-- Dock, Toolbar & Sensor SF/Starfleet Vector Glyphs (24x24, currentColor) -->
+      <symbol id="ico-tab-surface" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.9"/>
+        <g stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
+          <line x1="12" y1="3" x2="12" y2="5.2"/><line x1="12" y1="18.8" x2="12" y2="21"/>
+          <line x1="3" y1="12" x2="5.2" y2="12"/><line x1="18.8" y1="12" x2="21" y2="12"/>
+          <line x1="5.6" y1="5.6" x2="7.2" y2="7.2"/><line x1="16.8" y1="16.8" x2="18.4" y2="18.4"/>
+          <line x1="18.4" y1="5.6" x2="16.8" y2="7.2"/><line x1="7.2" y1="16.8" x2="5.6" y2="18.4"/>
+        </g>
+      </symbol>
+
+      <symbol id="ico-tab-tactical" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <polygon points="15.8,8.2 13.3,13.3 8.2,15.8 10.7,10.7" fill="currentColor"/>
+      </symbol>
+
+      <symbol id="ico-tab-radar" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="2.2" fill="currentColor"/>
+        <path d="M7.2 7.2a6.8 6.8 0 0 0 0 9.6M16.8 7.2a6.8 6.8 0 0 1 0 9.6M4.2 4.2a11 11 0 0 0 0 15.6M19.8 4.2a11 11 0 0 1 0 15.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </symbol>
+
+      <symbol id="ico-tab-severe" viewBox="0 0 24 24">
+        <path d="M13.2 3L6.5 13.2h5l-1.2 7.8 7.2-10.4h-5L13.2 3z" fill="currentColor" stroke="currentColor" stroke-width="0.8" stroke-linejoin="round"/>
+      </symbol>
+
+      <symbol id="ico-tab-tropics" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="3.4" fill="none" stroke="currentColor" stroke-width="1.9"/>
+        <path d="M12 8.6c3.8 0 6.8-2.2 7.6-5.1M12 15.4c-3.8 0-6.8 2.2-7.6 5.1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </symbol>
+
+      <symbol id="ico-tab-config" viewBox="0 0 24 24">
+        <g stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
+          <line x1="4" y1="7" x2="20" y2="7"/>
+          <line x1="4" y1="12" x2="20" y2="12"/>
+          <line x1="4" y1="17" x2="20" y2="17"/>
+        </g>
+        <circle cx="9" cy="7" r="2.2" fill="#071022" stroke="currentColor" stroke-width="1.8"/>
+        <circle cx="15.5" cy="12" r="2.2" fill="#071022" stroke="currentColor" stroke-width="1.8"/>
+        <circle cx="10.5" cy="17" r="2.2" fill="#071022" stroke="currentColor" stroke-width="1.8"/>
+      </symbol>
+
+      <symbol id="ico-mode-dual" viewBox="0 0 24 24">
+        <rect x="3.5" y="4.5" width="17" height="15" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <line x1="11" y1="4.5" x2="11" y2="19.5" stroke="currentColor" stroke-width="1.8"/>
+      </symbol>
+
+      <symbol id="ico-mode-outlooks" viewBox="0 0 24 24">
+        <path d="M4 18.5h16M5 15l4.5-4.5 3.5 2.8 5.5-6.3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+        <polyline points="14.5,7 18.5,7 18.5,11" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+
+      <symbol id="ico-mode-climate" viewBox="0 0 24 24">
+        <rect x="3.5" y="5" width="17" height="15.5" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <line x1="3.5" y1="9.5" x2="20.5" y2="9.5" stroke="currentColor" stroke-width="1.8"/>
+        <line x1="8" y1="3" x2="8" y2="6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="16" y1="3" x2="16" y2="6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </symbol>
+
+      <symbol id="ico-mode-grid" viewBox="0 0 24 24">
+        <rect x="3.5" y="3.5" width="7" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <rect x="13.5" y="3.5" width="7" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <rect x="3.5" y="13.5" width="7" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <rect x="13.5" y="13.5" width="7" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      </symbol>
+
+      <symbol id="ico-droplet" viewBox="0 0 24 24">
+        <path d="M12 3.5C12 3.5 6 10.4 6 14.6a6 6 0 0 0 12 0C18 10.4 12 3.5 12 3.5z" fill="currentColor"/>
+      </symbol>
+
+      <symbol id="ico-wind" viewBox="0 0 24 24">
+        <path d="M4 9.5h11.5a2.5 2.5 0 1 0-2.4-3.2M3 13.5h14.5a2.5 2.5 0 1 1-2.4 3.2M5 17.2h6.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+      </symbol>
+
+      <symbol id="ico-eye" viewBox="0 0 24 24">
+        <path d="M2.5 12s3.6-6 9.5-6 9.5 6 9.5 6-3.6 6-9.5 6-9.5-6-9.5-6z" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <circle cx="12" cy="12" r="2.8" fill="currentColor"/>
+      </symbol>
+
+      <symbol id="ico-pin" viewBox="0 0 24 24">
+        <path d="M19.5 4.5L4 11.2l6.4 2.4 2.4 6.4 6.7-15.5z" fill="currentColor"/>
+      </symbol>
+
+      <symbol id="ico-alert" viewBox="0 0 24 24">
+        <path d="M12 3.8L2.8 19.5h18.4L12 3.8z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+        <line x1="12" y1="9.5" x2="12" y2="14" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+        <circle cx="12" cy="16.8" r="1.1" fill="currentColor"/>
+      </symbol>
+
+      <symbol id="ico-phone" viewBox="0 0 24 24">
+        <rect x="6.5" y="2.5" width="11" height="19" rx="2.8" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <line x1="10" y1="5.2" x2="14" y2="5.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      </symbol>
+
+      <symbol id="ico-sparkles" viewBox="0 0 24 24">
+        <path d="M12 3l2 5.2L19.2 10 14 12l-2 5.2L10 12 4.8 10 10 8.2 12 3zM18.5 15l.9 2.2 2.1.9-2.1.9-.9 2.2-.9-2.2-2.1-.9 2.1-.9.9-2.2z" fill="currentColor"/>
+      </symbol>
+
+      <symbol id="ico-island" viewBox="0 0 24 24">
+        <rect x="3" y="4" width="8" height="8" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <rect x="13" y="4" width="8" height="8" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <rect x="3" y="14.5" width="18" height="5.5" rx="2.75" fill="currentColor" fill-opacity="0.32" stroke="currentColor" stroke-width="1.7"/>
+      </symbol>
+
+      <symbol id="ico-desktop" viewBox="0 0 24 24">
+        <rect x="2.5" y="4" width="19" height="13" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M8.5 20.5h7M12 17v3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </symbol>
+
+      <symbol id="ico-split" viewBox="0 0 24 24">
+        <rect x="2.5" y="4.5" width="19" height="15" rx="2.8" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <line x1="9.5" y1="4.5" x2="9.5" y2="19.5" stroke="currentColor" stroke-width="1.8"/>
+        <circle cx="15.5" cy="12" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      </symbol>
+
+      <symbol id="ico-crosshair" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <circle cx="12" cy="12" r="1.8" fill="currentColor"/>
+        <g stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <line x1="12" y1="2.5" x2="12" y2="5.5"/><line x1="12" y1="18.5" x2="12" y2="21.5"/>
+          <line x1="2.5" y1="12" x2="5.5" y2="12"/><line x1="18.5" y1="12" x2="21.5" y2="12"/>
+        </g>
+      </symbol>
+
+      <symbol id="ico-layers" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      </symbol>
+
+      <!-- Authentic Starfleet ConditionPanel matching macos/WxMac/Services/ConditionPanel.swift (Red / Yellow / Nominal) -->
+      <symbol id="snw-condition-panel" viewBox="0 0 112 52">
+        <rect x="1" y="1" width="110" height="50" rx="10" fill="rgba(8,6,14,0.86)" stroke="#ff3b56" stroke-opacity="0.55" stroke-width="1.2"/>
+        <path d="M31 5 Q16 5 11 11 L21 15 L31 15 Z" fill="#ff3b56"/>
+        <path d="M81 5 Q96 5 101 11 L91 15 L81 15 Z" fill="#ff3b56"/>
+        <rect x="34" y="5" width="44" height="1.6" rx="0.8" fill="#ff3b56" fill-opacity="0.50"/>
+        <rect x="34" y="7.4" width="44" height="1.6" rx="0.8" fill="#ff3b56" fill-opacity="0.72"/>
+        <rect x="34" y="9.8" width="44" height="1.6" rx="0.8" fill="#ff3b56" fill-opacity="0.88"/>
+        <rect x="34" y="12.2" width="44" height="1.8" rx="0.9" fill="#ff6b81"/>
+        <path d="M12 19 L8 19 Q3 26 8 33 L12 33 Z" fill="#ff3b56"/>
+        <path d="M100 19 L104 19 Q109 26 104 33 L100 33 Z" fill="#ff3b56"/>
+        <text x="56" y="26.5" text-anchor="middle" fill="#ff4d67" font-family="ui-rounded, -apple-system, sans-serif" font-size="10.5" font-weight="900" letter-spacing="2.2">ALERT</text>
+        <text x="56" y="34" text-anchor="middle" fill="#ffb4c0" font-family="ui-monospace, SF Mono, monospace" font-size="5.6" font-weight="700" letter-spacing="1.1">CONDITION: RED</text>
+        <path d="M31 47 Q16 47 11 41 L21 37 L31 37 Z" fill="#ff3b56"/>
+        <path d="M81 47 Q96 47 101 41 L91 37 L81 37 Z" fill="#ff3b56"/>
+        <rect x="34" y="38" width="44" height="1.8" rx="0.9" fill="#ff6b81"/>
+        <rect x="34" y="40.6" width="44" height="1.6" rx="0.8" fill="#ff3b56" fill-opacity="0.84"/>
+        <rect x="34" y="43" width="44" height="1.6" rx="0.8" fill="#ff3b56" fill-opacity="0.62"/>
+        <rect x="34" y="45.4" width="44" height="1.6" rx="0.8" fill="#ff3b56" fill-opacity="0.42"/>
+      </symbol>
+
+      <symbol id="snw-condition-panel-yellow" viewBox="0 0 112 52">
+        <rect x="1" y="1" width="110" height="50" rx="10" fill="rgba(14,10,6,0.86)" stroke="#f5a623" stroke-opacity="0.58" stroke-width="1.2"/>
+        <path d="M31 5 Q16 5 11 11 L21 15 L31 15 Z" fill="#f5a623"/>
+        <path d="M81 5 Q96 5 101 11 L91 15 L81 15 Z" fill="#f5a623"/>
+        <rect x="34" y="5" width="44" height="1.6" rx="0.8" fill="#f5a623" fill-opacity="0.50"/>
+        <rect x="34" y="7.4" width="44" height="1.6" rx="0.8" fill="#f5a623" fill-opacity="0.72"/>
+        <rect x="34" y="9.8" width="44" height="1.6" rx="0.8" fill="#f5a623" fill-opacity="0.88"/>
+        <rect x="34" y="12.2" width="44" height="1.8" rx="0.9" fill="#ffe082"/>
+        <path d="M12 19 L8 19 Q3 26 8 33 L12 33 Z" fill="#f5a623"/>
+        <path d="M100 19 L104 19 Q109 26 104 33 L100 33 Z" fill="#f5a623"/>
+        <text x="56" y="26.5" text-anchor="middle" fill="#ffca57" font-family="ui-rounded, -apple-system, sans-serif" font-size="10.2" font-weight="900" letter-spacing="1.8">WATCH</text>
+        <text x="56" y="34" text-anchor="middle" fill="#ffe9b8" font-family="ui-monospace, SF Mono, monospace" font-size="5.3" font-weight="700" letter-spacing="0.9">COND: YELLOW</text>
+        <path d="M31 47 Q16 47 11 41 L21 37 L31 37 Z" fill="#f5a623"/>
+        <path d="M81 47 Q96 47 101 41 L91 37 L81 37 Z" fill="#f5a623"/>
+        <rect x="34" y="38" width="44" height="1.8" rx="0.9" fill="#ffe082"/>
+        <rect x="34" y="40.6" width="44" height="1.6" rx="0.8" fill="#f5a623" fill-opacity="0.84"/>
+        <rect x="34" y="43" width="44" height="1.6" rx="0.8" fill="#f5a623" fill-opacity="0.62"/>
+        <rect x="34" y="45.4" width="44" height="1.6" rx="0.8" fill="#f5a623" fill-opacity="0.42"/>
+      </symbol>
+
+      <symbol id="snw-condition-panel-nominal" viewBox="0 0 112 52">
+        <rect x="1" y="1" width="110" height="50" rx="10" fill="rgba(6,14,18,0.86)" stroke="#30d158" stroke-opacity="0.52" stroke-width="1.2"/>
+        <path d="M31 5 Q16 5 11 11 L21 15 L31 15 Z" fill="#30d158"/>
+        <path d="M81 5 Q96 5 101 11 L91 15 L81 15 Z" fill="#30d158"/>
+        <rect x="34" y="5" width="44" height="1.6" rx="0.8" fill="#30d158" fill-opacity="0.46"/>
+        <rect x="34" y="7.4" width="44" height="1.6" rx="0.8" fill="#30d158" fill-opacity="0.68"/>
+        <rect x="34" y="9.8" width="44" height="1.6" rx="0.8" fill="#30d158" fill-opacity="0.86"/>
+        <rect x="34" y="12.2" width="44" height="1.8" rx="0.9" fill="#7cecff"/>
+        <path d="M12 19 L8 19 Q3 26 8 33 L12 33 Z" fill="#30d158"/>
+        <path d="M100 19 L104 19 Q109 26 104 33 L100 33 Z" fill="#30d158"/>
+        <text x="56" y="26.5" text-anchor="middle" fill="#6ee7b7" font-family="ui-rounded, -apple-system, sans-serif" font-size="9.6" font-weight="900" letter-spacing="1.5">NOMINAL</text>
+        <text x="56" y="34" text-anchor="middle" fill="#b9f6ca" font-family="ui-monospace, SF Mono, monospace" font-size="5.4" font-weight="700" letter-spacing="1.0">ALL CLEAR</text>
+        <path d="M31 47 Q16 47 11 41 L21 37 L31 37 Z" fill="#30d158"/>
+        <path d="M81 47 Q96 47 101 41 L91 37 L81 37 Z" fill="#30d158"/>
+        <rect x="34" y="38" width="44" height="1.8" rx="0.9" fill="#7cecff"/>
+        <rect x="34" y="40.6" width="44" height="1.6" rx="0.8" fill="#30d158" fill-opacity="0.80"/>
+        <rect x="34" y="43" width="44" height="1.6" rx="0.8" fill="#30d158" fill-opacity="0.58"/>
+        <rect x="34" y="45.4" width="44" height="1.6" rx="0.8" fill="#30d158" fill-opacity="0.38"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <header class="studio-header">
+    <div class="studio-header-inner">
+      <div class="brand-cluster">
+        <div class="brand-orb" aria-hidden="true">WX</div>
+        <div>
+          <h1 class="studio-title">wx UI Chrome Overhaul — Warp Glass Studio</h1>
+          <p class="studio-subtitle">Sculpted Starfleet Telemetry × Apple Liquid Glass · iPhone, iPad, Widgets &amp; macOS</p>
+        </div>
+      </div>
+
+      <div class="control-deck" role="group" aria-label="Theme direction and atmosphere controls">
+        <div class="control-group" role="group" aria-label="Chrome direction">
+          <span class="control-group-label">Chrome</span>
+          <button type="button" class="pill-choice" data-set-direction="snw-glass" aria-pressed="true">A · Enterprise Glass ★</button>
+          <button type="button" class="pill-choice" data-set-direction="atmos-glass" aria-pressed="false">B · Horizon Glass</button>
+          <button type="button" class="pill-choice" data-set-direction="lcars-curved" aria-pressed="false">C · Curved LCARS</button>
+          <button type="button" class="pill-choice legacy-btn" data-set-direction="legacy-v1" aria-pressed="false">Before (v1 Audit)</button>
+        </div>
+
+        <div class="control-group" role="group" aria-label="Weather condition">
+          <span class="control-group-label">Sky</span>
+          <button type="button" class="pill-choice" data-set-weather="rain" aria-pressed="true">Rain 72°</button>
+          <button type="button" class="pill-choice" data-set-weather="severe" aria-pressed="false">Condition Red 78°</button>
+          <button type="button" class="pill-choice" data-set-weather="golden" aria-pressed="false">Golden Hr 68°</button>
+          <button type="button" class="pill-choice" data-set-weather="night" aria-pressed="false">Night 44°</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="studio-nav-bar" aria-label="Mockup platforms">
+    <div class="studio-tablist" role="tablist" aria-label="Device mockups" data-studio-tablist>
+      <button type="button" role="tab" class="studio-tab" id="tab-iphone-lineup" data-panel="panel-iphone-lineup" aria-selected="true" tabindex="0">
+        <svg class="wx-ico" style="--ico-size:15px" aria-hidden="true"><use href="#ico-phone"/></svg>
+        <span>iPhone 3-Up Overhaul</span>
+      </button>
+      <button type="button" role="tab" class="studio-tab" id="tab-iphone-interactive" data-panel="panel-iphone-interactive" aria-selected="false" tabindex="-1">
+        <svg class="wx-ico" style="--ico-size:15px" aria-hidden="true"><use href="#ico-sparkles"/></svg>
+        <span>Interactive iPhone (All 6 Tabs)</span>
+      </button>
+      <button type="button" role="tab" class="studio-tab" id="tab-widgets-island" data-panel="panel-widgets-island" aria-selected="false" tabindex="-1">
+        <svg class="wx-ico" style="--ico-size:15px" aria-hidden="true"><use href="#ico-island"/></svg>
+        <span>Widgets &amp; Dynamic Island</span>
+      </button>
+      <button type="button" role="tab" class="studio-tab" id="tab-mac-desk" data-panel="panel-mac-desk" aria-selected="false" tabindex="-1">
+        <svg class="wx-ico" style="--ico-size:15px" aria-hidden="true"><use href="#ico-desktop"/></svg>
+        <span>macOS Desk Console</span>
+      </button>
+      <button type="button" role="tab" class="studio-tab" id="tab-popover-ipad" data-panel="panel-popover-ipad" aria-selected="false" tabindex="-1">
+        <svg class="wx-ico" style="--ico-size:15px" aria-hidden="true"><use href="#ico-split"/></svg>
+        <span>Menu Bar HUD &amp; iPad Split</span>
+      </button>
+    </div>
+
+    <div class="direction-callout" aria-live="polite">
+      <span class="callout-dot" aria-hidden="true"></span>
+      <strong id="direction-badge" class="mono text-cyan">Direction A · Recommended</strong>
+      <span id="direction-summary">Enterprise Liquid Glass — Strange New Worlds cyan/gold telemetry fused with 24pt continuous squircles, frosted multi-layer glass, 1px specular rim refraction, swept horizon light-rails, and iOS 26 capsule+orb dock. Zero 90° brackets.</span>
+    </div>
+  </nav>
+
+  <main class="studio-stage" id="main-stage">
+    <!-- =====================================================================
+         PANEL 1: iPhone 17 Pro 3-Up Lineup (Surface, Full-Bleed Radar, Tactical)
+         ===================================================================== -->
+    <section role="tabpanel" id="panel-iphone-lineup" aria-labelledby="tab-iphone-lineup" class="studio-panel">
+      <div class="panel-inner">
+        <div class="section-caption">
+          <div>
+            <h2>iPhone 17 Pro — Complete Mobile Chrome Rescue</h2>
+            <p>Replaces the flat navy desktop-shrunk layout, 52 right-angle sniper brackets, icon-less forecast text, and 240pt static radar box with breathable atmospheric glass, concentric 24pt/14pt continuous squircles, full-bleed interactive MapKit radar, and an iOS 26 floating capsule + orb dock.</p>
+          </div>
+        </div>
+
+        <div class="phones-lineup">
+          <!-- PHONE 1: SURFACE -->
+          <div class="device-column">
+            <div class="iphone-frame">
+              <div class="iphone-screen wx-atmosphere">
+                <div class="ios-status-bar">
+                  <span data-bind="phoneClock">9:41</span>
+                  <div class="dynamic-island" aria-label="Dynamic Island Nowcast">
+                    <span class="modern-only" style="display:inline-flex;align-items:center;gap:4px">
+                      <svg class="wx-ico" style="--ico-size:11px" aria-hidden="true"><use data-island-icon href="#ico-droplet"/></svg>
+                      <span data-bind="islandLead">18m</span>
+                    </span>
+                    <span class="island-mini-bars modern-only" data-island-bars aria-hidden="true">
+                      <span class="island-mini-bar heavy" style="height:85%"></span>
+                      <span class="island-mini-bar heavy" style="height:100%"></span>
+                      <span class="island-mini-bar" style="height:70%"></span>
+                      <span class="island-mini-bar" style="height:45%"></span>
+                      <span class="island-mini-bar dry" style="height:28%"></span>
+                    </span>
+                    <span class="legacy-only" style="color:#64748b">—</span>
+                  </div>
+                  <span>5G 100%</span>
+                </div>
+
+                <!-- Legacy v1 Top Pill (only shown in Before mode) -->
+                <div class="legacy-only" style="padding:4px 12px">
+                  <div class="wx-glass-card" style="padding:6px 10px">
+                    <div class="flex-between mono" style="font-size:9.5px">
+                      <span class="text-gold">● WX.IOS</span>
+                      <strong data-bind="placeUpper">NEW HAVEN, IN</strong>
+                      <span class="text-cyan" data-bind="obsTime">6:45 PM</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Modern Floating Location Pill -->
+                <div class="ios-top-bar modern-only">
+                  <button type="button" class="ios-loc-pill" data-jump-config aria-label="Open station switcher in interactive iPhone prototype">
+                    <span class="wx-pip" style="--pip-color:var(--wx-green)" aria-hidden="true"></span>
+                    <span data-bind="place">New Haven, IN</span>
+                    <span class="text-muted" aria-hidden="true">▾</span>
+                  </button>
+                  <span class="ios-sync-pill"><span data-bind="icao">KFWA</span> · LIVE</span>
+                </div>
+
+                <div class="ios-body scroll-y">
+                  <!-- Open Atmospheric Hero -->
+                  <div class="ios-hero modern-only">
+                    <div class="ios-hero-temp-row">
+                      <svg width="54" height="54" aria-hidden="true"><use data-hero-icon href="#wx-icon-rain-sun"/></svg>
+                      <span class="ios-hero-temp" data-bind="temp">72°</span>
+                    </div>
+                    <div class="ios-hero-cond" data-bind="cond">Light Rain &amp; Mist</div>
+                    <div class="ios-hero-meta" data-bind="hl">H: 76°  L: 58°  ·  Feels 71°</div>
+                    <div class="ios-quick-chips">
+                      <span class="ios-micro-pill" data-bind="windChip">↘ 9 mph SSW</span>
+                      <span class="ios-micro-pill">
+                        <svg class="wx-ico text-cyan" style="--ico-size:11px" aria-hidden="true"><use href="#ico-droplet"/></svg>
+                        <span data-bind="rhChip">78% RH</span>
+                      </span>
+                      <span class="ios-micro-pill"><span class="text-green">●</span> <span data-bind="aqiChip">AQI 28</span></span>
+                    </div>
+                  </div>
+
+                  <!-- Legacy v1 Boxy Observation Card -->
+                  <div class="wx-glass-card legacy-only">
+                    <div class="wx-card-head">
+                      <span class="wx-card-kicker mono text-cyan">● OBSERVATION</span>
+                      <span class="mono text-muted" style="font-size:9px" data-bind="icao">KFWA</span>
+                    </div>
+                    <div style="display:flex;align-items:baseline;gap:10px">
+                      <span style="font-size:38px;font-weight:700" data-bind="temp">72°</span>
+                      <span class="text-muted" data-bind="cond">Light Rain &amp; Mist</span>
+                    </div>
+                  </div>
+
+                  <!-- Sculpted Starfleet Alert Ribbon (Amber for Watch / Crimson for Warning) -->
+                  <div class="wx-alert-ribbon cond-yellow modern-only" data-alert-conditional>
+                    <span class="snw-wing-badge" data-bind="alertBadge">COND · YELLOW</span>
+                    <div style="flex:1;min-inline-size:0">
+                      <div style="font-size:12.5px;font-weight:700;color:#fff" data-bind="alertTitle">Areal Flood Watch</div>
+                      <div style="font-size:11px;color:rgba(255,238,214,0.9)" data-bind="alertSub">Maumee River Basin · Until 9:00 PM EDT</div>
+                    </div>
+                    <span aria-hidden="true" style="color:#fff;font-weight:700">›</span>
+                  </div>
+
+                  <!-- 15-Minute Nowcast Glass Card -->
+                  <div class="wx-glass-card">
+                    <div class="wx-horizon-rail" style="--rail-color:var(--wx-cyan)"></div>
+                    <div class="wx-card-head">
+                      <span class="wx-card-kicker"><span class="wx-pip"></span>Precip Nowcast</span>
+                      <span class="wx-card-tag">MRMS · 15M</span>
+                    </div>
+                    <div style="font-size:14px;font-weight:700" data-bind="nowcastTitle">Rain tapering off in ~18 min</div>
+                    <div style="font-size:11.5px;color:var(--wx-text-secondary);margin-block-start:2px" data-bind="nowcastSub">Light stratiform band moving ENE at 28 mph · 0.18" expected</div>
+                    <div class="nowcast-bars modern-only" data-nowcast-bars role="img" aria-label="Precipitation intensity over next 60 minutes">
+                      <div class="nowcast-bar heavy" style="height:88%"></div>
+                      <div class="nowcast-bar heavy" style="height:95%"></div>
+                      <div class="nowcast-bar" style="height:76%"></div>
+                      <div class="nowcast-bar" style="height:64%"></div>
+                      <div class="nowcast-bar" style="height:48%"></div>
+                      <div class="nowcast-bar" style="height:34%"></div>
+                      <div class="nowcast-bar" style="height:22%"></div>
+                      <div class="nowcast-bar dry" style="height:14%"></div>
+                      <div class="nowcast-bar dry" style="height:14%"></div>
+                      <div class="nowcast-bar dry" style="height:14%"></div>
+                      <div class="nowcast-bar dry" style="height:14%"></div>
+                      <div class="nowcast-bar" style="height:26%"></div>
+                      <div class="nowcast-bar" style="height:38%"></div>
+                      <div class="nowcast-bar" style="height:24%"></div>
+                      <div class="nowcast-bar dry" style="height:14%"></div>
+                      <div class="nowcast-bar dry" style="height:14%"></div>
+                    </div>
+                    <div class="flex-between mono modern-only" style="font-size:9.5px;color:var(--wx-text-muted);margin-block-start:3px">
+                      <span>NOW</span><span>+30M</span><span>+60M</span><span>+90M</span>
+                    </div>
+                  </div>
+
+                  <!-- Legacy v1 Inverted Days-above-Hourly (No Icons, No Range Bars — Forensic Match) -->
+                  <div class="wx-glass-card legacy-only">
+                    <div class="wx-card-head"><span class="mono text-cyan" style="font-size:9.5px">● DAYS</span></div>
+                    <div style="display:flex;flex-direction:column;gap:6px;font-size:13px" data-day-rows>
+                      <div class="flex-between"><span>Today</span><span class="mono text-cyan" data-bind="legacyTodayHigh">76°</span></div>
+                      <div style="font-size:11.5px;color:var(--wx-text-secondary)" data-bind="cond">Light Rain &amp; Mist</div>
+                      <div class="flex-between"><span>Tonight</span><span class="mono text-cyan" data-bind="legacyTonightLow">58°</span></div>
+                      <div class="flex-between"><span>Wednesday</span><span class="mono text-cyan" data-f="74">74°</span></div>
+                    </div>
+                  </div>
+                  <div class="wx-glass-card legacy-only">
+                    <div class="wx-card-head"><span class="mono text-cyan" style="font-size:9.5px">● HOURLY</span></div>
+                    <div style="display:flex;gap:14px;font-family:var(--font-mono);font-size:12px" data-legacy-hourly>
+                      <div><div class="text-muted" data-lh-time>6 PM</div><div class="text-cyan" data-lh-temp>72°</div></div>
+                      <div><div class="text-muted" data-lh-time>7 PM</div><div class="text-cyan" data-lh-temp>70°</div></div>
+                      <div><div class="text-muted" data-lh-time>8 PM</div><div class="text-cyan" data-lh-temp>67°</div></div>
+                      <div><div class="text-muted" data-lh-time>9 PM</div><div class="text-cyan" data-lh-temp>64°</div></div>
+                      <div><div class="text-muted" data-lh-time>10 PM</div><div class="text-cyan" data-lh-temp>61°</div></div>
+                    </div>
+                  </div>
+
+                  <!-- Hourly Forecast Card (Promoted ABOVE 7-Day, with Vector SVG Icons + Precip %!) -->
+                  <div class="wx-glass-card modern-only">
+                    <div class="wx-horizon-rail" style="--rail-color:var(--wx-gold)"></div>
+                    <div class="wx-card-head">
+                      <span class="wx-card-kicker"><span class="wx-pip" style="--pip-color:var(--wx-gold)"></span>Hourly Horizon</span>
+                      <span class="wx-card-tag">NEXT 12H</span>
+                    </div>
+                    <div class="hourly-row scroll-x" data-hourly-strip>
+                      <div class="hour-pill now">
+                        <span class="hour-time">Now</span>
+                        <svg class="wx-ico" style="--ico-size:20px" aria-hidden="true"><use href="#ico-wx-rain"/></svg>
+                        <span class="hour-pop">70%</span>
+                        <span class="hour-temp">72°</span>
+                      </div>
+                      <div class="hour-pill">
+                        <span class="hour-time">7 PM</span>
+                        <svg class="wx-ico" style="--ico-size:20px" aria-hidden="true"><use href="#ico-wx-sun-rain"/></svg>
+                        <span class="hour-pop">45%</span>
+                        <span class="hour-temp">70°</span>
+                      </div>
+                      <div class="hour-pill">
+                        <span class="hour-time">8 PM</span>
+                        <svg class="wx-ico" style="--ico-size:20px" aria-hidden="true"><use href="#ico-wx-sunset"/></svg>
+                        <span class="hour-pop" style="color:var(--wx-gold)">Set</span>
+                        <span class="hour-temp">67°</span>
+                      </div>
+                      <div class="hour-pill">
+                        <span class="hour-time">9 PM</span>
+                        <svg class="wx-ico" style="--ico-size:20px" aria-hidden="true"><use href="#ico-wx-cloud"/></svg>
+                        <span class="hour-pop">15%</span>
+                        <span class="hour-temp">64°</span>
+                      </div>
+                      <div class="hour-pill">
+                        <span class="hour-time">10 PM</span>
+                        <svg class="wx-ico" style="--ico-size:20px" aria-hidden="true"><use href="#ico-wx-moon"/></svg>
+                        <span class="hour-pop">&nbsp;</span>
+                        <span class="hour-temp">61°</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 7-Day Synoptic Forecast with Vector Icons & Thermal Range Bars -->
+                  <div class="wx-glass-card modern-only">
+                    <div class="wx-horizon-rail"></div>
+                    <div class="wx-card-head">
+                      <span class="wx-card-kicker"><span class="wx-pip"></span>7-Day Synoptic</span>
+                      <span class="wx-card-tag">NWS · IWX</span>
+                    </div>
+                    <div class="day-rows" data-day-rows>
+                      <div class="day-row" data-today-row>
+                        <span class="day-name" data-today-name>Today</span>
+                        <svg class="wx-ico" style="--ico-size:19px" aria-hidden="true"><use data-today-icon href="#ico-wx-sun-rain"/></svg>
+                        <span class="day-pop" data-today-pop>70%</span>
+                        <span class="day-low" data-f="58">58°</span>
+                        <div class="temp-track"><div class="temp-fill" style="left:22%;width:56%"></div></div>
+                        <span class="day-high" data-f="76">76°</span>
+                      </div>
+                      <div class="day-row">
+                        <span class="day-name">Wed</span>
+                        <svg class="wx-ico" style="--ico-size:19px" aria-hidden="true"><use href="#ico-wx-partly"/></svg>
+                        <span class="day-pop">20%</span>
+                        <span class="day-low" data-f="54">54°</span>
+                        <div class="temp-track"><div class="temp-fill" style="left:12%;width:60%"></div></div>
+                        <span class="day-high" data-f="74">74°</span>
+                      </div>
+                      <div class="day-row">
+                        <span class="day-name">Thu</span>
+                        <svg class="wx-ico" style="--ico-size:19px" aria-hidden="true"><use href="#ico-wx-sun"/></svg>
+                        <span class="day-pop">&nbsp;</span>
+                        <span class="day-low" data-f="52">52°</span>
+                        <div class="temp-track"><div class="temp-fill" style="left:8%;width:72%"></div></div>
+                        <span class="day-high" data-f="79">79°</span>
+                      </div>
+                      <div class="day-row">
+                        <span class="day-name">Fri</span>
+                        <svg class="wx-ico" style="--ico-size:19px" aria-hidden="true"><use href="#ico-wx-tstorm"/></svg>
+                        <span class="day-pop">80%</span>
+                        <span class="day-low" data-f="60">60°</span>
+                        <div class="temp-track"><div class="temp-fill" style="left:28%;width:64%"></div></div>
+                        <span class="day-high" data-f="82">82°</span>
+                      </div>
+                      <div class="day-row">
+                        <span class="day-name">Sat</span>
+                        <svg class="wx-ico" style="--ico-size:19px" aria-hidden="true"><use href="#ico-wx-partly"/></svg>
+                        <span class="day-pop">25%</span>
+                        <span class="day-low" data-f="55">55°</span>
+                        <div class="temp-track"><div class="temp-fill" style="left:15%;width:58%"></div></div>
+                        <span class="day-high" data-f="75">75°</span>
+                      </div>
+                      <div class="day-row">
+                        <span class="day-name">Sun</span>
+                        <svg class="wx-ico" style="--ico-size:19px" aria-hidden="true"><use href="#ico-wx-sun"/></svg>
+                        <span class="day-pop">&nbsp;</span>
+                        <span class="day-low" data-f="51">51°</span>
+                        <div class="temp-track"><div class="temp-fill" style="left:6%;width:66%"></div></div>
+                        <span class="day-high" data-f="74">74°</span>
+                      </div>
+                      <div class="day-row">
+                        <span class="day-name">Mon</span>
+                        <svg class="wx-ico" style="--ico-size:19px" aria-hidden="true"><use href="#ico-wx-sun-rain"/></svg>
+                        <span class="day-pop">35%</span>
+                        <span class="day-low" data-f="53">53°</span>
+                        <div class="temp-track"><div class="temp-fill" style="left:10%;width:58%"></div></div>
+                        <span class="day-high" data-f="73">73°</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Floating iOS 26 Capsule + Circular Config Orb -->
+                <div class="ios-dock-wrap" aria-label="iPhone tab bar preview">
+                  <div class="ios-dock-capsule">
+                    <div class="ios-dock-btn active"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-surface"/></svg><span>Surface</span></div>
+                    <div class="ios-dock-btn"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-tactical"/></svg><span>Tactical</span></div>
+                    <div class="ios-dock-btn"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-radar"/></svg><span>Radar</span></div>
+                    <div class="ios-dock-btn"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-severe"/></svg><span>Severe</span></div>
+                    <div class="ios-dock-btn"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-tropics"/></svg><span>Tropics</span></div>
+                  </div>
+                  <div class="ios-dock-orb"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-config"/></svg><span>Config</span></div>
+                </div>
+                <div class="home-indicator"></div>
+              </div>
+            </div>
+            <div class="device-caption">
+              <h3>1 · Surface Telemetry</h3>
+              <p>Open sky hero, swept Condition ribbon, 15m Nowcast bars, Hourly above 7-Day thermal bars.</p>
+            </div>
+          </div>
+
+          <!-- PHONE 2: FULL-BLEED INTERACTIVE RADAR -->
+          <div class="device-column">
+            <div class="iphone-frame">
+              <div class="iphone-screen radar-canvas">
+                <div class="ios-status-bar" style="background:linear-gradient(180deg,rgba(4,9,20,0.78),transparent)">
+                  <span data-bind="phoneClock">9:41</span>
+                  <div class="dynamic-island">
+                    <span class="modern-only" style="display:inline-flex;align-items:center;gap:4px">
+                      <svg class="wx-ico" style="--ico-size:12px" aria-hidden="true"><use href="#ico-tab-radar"/></svg>
+                      <span>MRMS</span>
+                    </span>
+                    <span class="modern-only text-green">LIVE</span>
+                    <span class="legacy-only" style="color:#64748b">—</span>
+                  </div>
+                  <span>5G 100%</span>
+                </div>
+
+                <!-- Full-Bleed Vector + Weather-Reactive MRMS Doppler SVG Map (Modern) -->
+                <svg class="modern-only" role="img" aria-label="Interactive Doppler radar map centered on New Haven and Fort Wayne, Indiana" viewBox="0 0 384 812" style="position:absolute;inset:0;width:100%;height:100%">
+                  <rect width="384" height="812" fill="#050c18"/>
+                  <g stroke="rgba(56,225,255,0.13)" stroke-width="1" fill="none">
+                    <circle cx="192" cy="390" r="75"/>
+                    <circle cx="192" cy="390" r="150"/>
+                    <circle cx="192" cy="390" r="235"/>
+                    <line x1="192" y1="120" x2="192" y2="660" stroke-dasharray="3 5"/>
+                    <line x1="20" y1="390" x2="364" y2="390" stroke-dasharray="3 5"/>
+                  </g>
+                  <g fill="none" stroke-linecap="round">
+                    <path d="M155 95 C172 220, 178 330, 182 405 C186 490, 150 610, 128 730" stroke="rgba(148,167,197,0.28)" stroke-width="2.2"/>
+                    <path d="M12 365 C95 375, 165 392, 215 396 C278 402, 330 418, 376 432" stroke="rgba(148,167,197,0.26)" stroke-width="2"/>
+                    <path d="M180 395 Q245 362 345 318" stroke="rgba(56,225,255,0.22)" stroke-width="2.6"/>
+                  </g>
+
+                  <!-- Weather-Reactive Doppler Echo Regimes -->
+                  <g data-radar-echo-group>
+                    <!-- Regime 1: Light Stratiform Rain Band (18-36 dBZ green/lime/soft-yellow, NO severe red/magenta!) -->
+                    <g class="echo-regime echo-rain">
+                      <ellipse cx="186" cy="402" rx="136" ry="74" transform="rotate(-24 186 402)" fill="url(#mrms-rain-outer)"/>
+                      <ellipse cx="174" cy="410" rx="82" ry="42" transform="rotate(-22 174 410)" fill="url(#mrms-rain-core)"/>
+                      <ellipse cx="256" cy="356" rx="76" ry="38" transform="rotate(-26 256 356)" fill="url(#mrms-rain-outer)"/>
+                      <path d="M168 412 L226 382" stroke="rgba(124,236,255,0.85)" stroke-width="1.8" stroke-dasharray="4 3"/>
+                      <polygon points="230,380 221,380 225,388" fill="#7cecff"/>
+                    </g>
+                    <!-- Regime 2: Condition Red Severe Supercell + Hook Echo (65+ dBZ magenta/red hail core) -->
+                    <g class="echo-regime echo-severe">
+                      <ellipse cx="165" cy="408" rx="118" ry="74" transform="rotate(-24 165 408)" fill="url(#mrms-band-2)"/>
+                      <ellipse cx="152" cy="418" rx="70" ry="42" transform="rotate(-22 152 418)" fill="url(#mrms-core-1)"/>
+                      <ellipse cx="238" cy="346" rx="64" ry="34" transform="rotate(-28 238 346)" fill="url(#mrms-band-2)"/>
+                      <path d="M152 418 L214 382" stroke="#ffffff" stroke-width="2" stroke-dasharray="4 3"/>
+                      <polygon points="218,379 208,380 213,388" fill="#ffffff"/>
+                      <polygon points="154,410 147,424 161,424" fill="none" stroke="#ffe082" stroke-width="1.8"/>
+                    </g>
+                    <!-- Regime 3: Golden Hour Clear-Air Bragg Scatter (5-10 dBZ calm atmospheric bloom) -->
+                    <g class="echo-regime echo-golden">
+                      <circle cx="192" cy="390" r="88" fill="url(#mrms-clear-golden)"/>
+                      <circle cx="192" cy="390" r="46" fill="none" stroke="rgba(56,225,255,0.22)" stroke-dasharray="2 6"/>
+                      <line x1="192" y1="390" x2="316" y2="322" stroke="rgba(245,166,35,0.34)" stroke-width="1.6"/>
+                    </g>
+                    <!-- Regime 4: Night Nocturnal Clear-Air Inversion Ring (6-12 dBZ calm sweep) -->
+                    <g class="echo-regime echo-night">
+                      <circle cx="192" cy="390" r="96" fill="url(#mrms-clear-night)"/>
+                      <circle cx="192" cy="390" r="52" fill="none" stroke="rgba(154,174,255,0.25)" stroke-dasharray="3 6"/>
+                      <line x1="192" y1="390" x2="108" y2="278" stroke="rgba(124,236,255,0.30)" stroke-width="1.6"/>
+                    </g>
+                  </g>
+
+                  <g font-family="ui-monospace, SF Mono, monospace" font-size="10" font-weight="700">
+                    <circle cx="182" cy="392" r="4" fill="#38e1ff"/>
+                    <text x="190" y="388" fill="#f3f8ff" data-radar-neighbor>FORT WAYNE</text>
+                    <circle cx="212" cy="398" r="5.5" fill="#30d158" stroke="#ffffff" stroke-width="1.5"/>
+                    <text x="222" y="402" fill="#7cecff" data-radar-station>NEW HAVEN ★</text>
+                    <text x="98" y="476" fill="rgba(180,197,223,0.75)" data-radar-sub1>HUNTINGTON</text>
+                    <text x="236" y="294" fill="rgba(180,197,223,0.75)" data-radar-sub2>AUBURN</text>
+                  </g>
+                </svg>
+
+                <div class="ios-radar-full">
+                  <!-- Floating Top Glass Pills -->
+                  <div class="radar-hud-top modern-only">
+                    <span class="wx-pill">
+                      <svg class="wx-ico text-cyan" style="--ico-size:13px" aria-hidden="true"><use href="#ico-tab-radar"/></svg>
+                      <span>Composite ▾</span>
+                    </span>
+                    <span class="wx-pill"><span class="wx-pip" data-radar-pip style="--pip-color:var(--wx-green)"></span><span data-bind="radarModePill">MRMS · Stratiform</span></span>
+                    <span class="wx-pill"><svg class="wx-ico text-cyan" style="--ico-size:13px" aria-hidden="true"><use href="#ico-crosshair"/></svg><span data-bind="icao">KFWA</span></span>
+                  </div>
+
+                  <!-- Legacy v1 Broken 240px Static Radar Card (Only in Before Mode) -->
+                  <div class="wx-glass-card legacy-only" style="width:100%">
+                    <div class="wx-card-head">
+                      <span class="mono text-cyan" style="font-size:10px">● RADAR</span>
+                      <span class="mono text-muted" style="font-size:9px">KIWX</span>
+                    </div>
+                    <div style="font-weight:600;font-size:15px">Composite Reflectivity</div>
+                    <div class="flex-between mono text-cyan" style="font-size:11px;margin-block:6px">
+                      <span>Loop (unclickable text)</span><span>6/6</span>
+                    </div>
+                    <div style="height:210px;background:#091324;border:1px solid rgba(56,225,255,0.25);display:grid;place-items:center;color:var(--wx-text-secondary);font-size:12px;text-align:center;padding:16px">
+                      Static 240pt max-height PNG box<br>(No MapKit pan/zoom, no play button, no scrubber, no dBZ legend — 55% of screen wasted below)
+                    </div>
+                  </div>
+
+                  <!-- Floating Scrubber & Reflectivity Glass Capsule -->
+                  <div class="wx-glass-card radar-scrubber-card modern-only">
+                    <div class="wx-horizon-rail" style="--rail-color:var(--wx-cyan)"></div>
+                    <div class="flex-between" style="margin-block-end:6px">
+                      <button type="button" class="wx-pill" data-radar-play aria-label="Play radar loop" style="padding:5px 12px;background:rgba(56,225,255,0.20);border-color:rgba(56,225,255,0.45)">▶ Play</button>
+                      <span class="mono" style="font-size:11.5px;font-weight:700;color:var(--wx-cyan-soft)" data-radar-time>6:45 PM · LIVE</span>
+                    </div>
+                    <label for="lineup-radar-scrub" class="mono text-muted" style="font-size:9.5px;display:block;margin-block-end:2px" data-bind="radarTimelineLabel">DOPPLER SCAN TIMELINE (30M LOOP)</label>
+                    <input id="lineup-radar-scrub" class="wx-range-slider" type="range" min="0" max="5" step="1" value="5" aria-valuetext="Frame 6 of 6, 6:45 PM LIVE" data-radar-slider style="margin-block-end:6px">
+                    <div class="dbz-bar" aria-hidden="true"></div>
+                    <div class="flex-between mono" style="font-size:9px;color:var(--wx-text-secondary);margin-block-start:4px">
+                      <span>10 dBZ CLEAR</span>
+                      <span>35 RAIN</span>
+                      <span>65+ SEVERE</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="ios-dock-wrap" aria-label="iPhone tab bar preview">
+                  <div class="ios-dock-capsule">
+                    <div class="ios-dock-btn"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-surface"/></svg><span>Surface</span></div>
+                    <div class="ios-dock-btn"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-tactical"/></svg><span>Tactical</span></div>
+                    <div class="ios-dock-btn active"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-radar"/></svg><span>Radar</span></div>
+                    <div class="ios-dock-btn"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-severe"/></svg><span>Severe</span></div>
+                    <div class="ios-dock-btn"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-tropics"/></svg><span>Tropics</span></div>
+                  </div>
+                  <div class="ios-dock-orb"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-config"/></svg><span>Config</span></div>
+                </div>
+                <div class="home-indicator"></div>
+              </div>
+            </div>
+            <div class="device-caption">
+              <h3>2 · Edge-to-Edge Doppler Radar</h3>
+              <p>100% viewport MapKit canvas with weather-coherent MRMS echoes, Play/Scrub capsule &amp; dBZ spectrum.</p>
+            </div>
+          </div>
+
+          <!-- PHONE 3: TACTICAL SENSORS & SOLAR ARC -->
+          <div class="device-column">
+            <div class="iphone-frame">
+              <div class="iphone-screen wx-atmosphere">
+                <div class="ios-status-bar">
+                  <span data-bind="phoneClock">9:41</span>
+                  <div class="dynamic-island">
+                    <span class="modern-only" style="display:inline-flex;align-items:center;gap:4px">
+                      <svg class="wx-ico" style="--ico-size:12px" aria-hidden="true"><use href="#ico-tab-tactical"/></svg>
+                      <span>SENSORS</span>
+                    </span>
+                    <span class="modern-only text-cyan" data-bind="icao">KFWA</span>
+                    <span class="legacy-only" style="color:#64748b">—</span>
+                  </div>
+                  <span>5G 100%</span>
+                </div>
+
+                <!-- Legacy v1 Top Pill -->
+                <div class="legacy-only" style="padding:4px 12px">
+                  <div class="wx-glass-card" style="padding:6px 10px">
+                    <div class="flex-between mono" style="font-size:9.5px">
+                      <span class="text-gold">● WX.IOS</span>
+                      <strong data-bind="placeUpper">NEW HAVEN, IN</strong>
+                      <span class="text-cyan" data-bind="obsTime">6:45 PM</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="ios-top-bar modern-only">
+                  <span class="ios-loc-pill">
+                    <span class="wx-pip" style="--pip-color:var(--wx-cyan)"></span>
+                    <span>Tactical sensors</span>
+                  </span>
+                  <span class="ios-sync-pill"><span data-bind="obsTime">6:45 PM</span> · 248M</span>
+                </div>
+
+                <div class="ios-body scroll-y">
+                  <!-- Legacy v1 Bare 8-Tile Box (No Solar Arc in v1!) -->
+                  <div class="legacy-only">
+                    <div class="mono text-cyan" style="font-size:12px;font-weight:700;margin-block-end:8px">Tactical sensors</div>
+                    <div class="wx-glass-card">
+                      <div class="wx-card-head">
+                        <span class="mono text-cyan" style="font-size:9.5px">● SENSORS</span>
+                        <span class="mono text-muted" style="font-size:9px" data-bind="icao">KFWA</span>
+                      </div>
+                      <div class="sensor-grid-2x4" style="gap:8px">
+                        <div class="wx-sensor-capsule" style="padding:5px 7px"><div class="mono text-muted" style="font-size:7.5px">HUMIDITY</div><div style="font-size:11px;font-weight:600" data-bind="rhVal">78%</div></div>
+                        <div class="wx-sensor-capsule" style="padding:5px 7px"><div class="mono text-muted" style="font-size:7.5px">WIND</div><div style="font-size:11px;font-weight:600" data-bind="windChipPlain">9 mph SSW</div></div>
+                        <div class="wx-sensor-capsule" style="padding:5px 7px"><div class="mono text-muted" style="font-size:7.5px">PRESSURE</div><div style="font-size:11px;font-weight:600" data-bind="pressVal">29.92</div></div>
+                        <div class="wx-sensor-capsule" style="padding:5px 7px"><div class="mono text-muted" style="font-size:7.5px">DEW POINT</div><div style="font-size:11px;font-weight:600" data-bind="dewVal">64°</div></div>
+                        <div class="wx-sensor-capsule" style="padding:5px 7px"><div class="mono text-muted" style="font-size:7.5px">AQI</div><div style="font-size:11px;font-weight:600"><span data-bind="aqiVal">28</span> Good</div></div>
+                        <div class="wx-sensor-capsule" style="padding:5px 7px"><div class="mono text-muted" style="font-size:7.5px">UV</div><div style="font-size:11px;font-weight:600" data-bind="uvVal">1.2</div></div>
+                        <div class="wx-sensor-capsule" style="padding:5px 7px"><div class="mono text-muted" style="font-size:7.5px">MOON</div><div style="font-size:11px;font-weight:600">Waning Gibbous</div></div>
+                        <div class="wx-sensor-capsule" style="padding:5px 7px"><div class="mono text-muted" style="font-size:7.5px">VIS</div><div style="font-size:11px;font-weight:600" data-bind="visVal">6.5 mi</div></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Sculpted Solar Ephemeris Orbital Sine-Arc Card (Weather-Regime Reactive!) -->
+                  <div class="wx-glass-card modern-only">
+                    <div class="wx-horizon-rail" style="--rail-color:var(--wx-gold)"></div>
+                    <div class="wx-card-head">
+                      <span class="wx-card-kicker"><span class="wx-pip" style="--pip-color:var(--wx-gold)"></span>Solar &amp; Lunar Orbit</span>
+                      <span class="wx-card-tag" data-bind="solarTag" style="color:var(--wx-gold);border-color:rgba(245,166,35,0.35);background:rgba(245,166,35,0.12)">+15.4° WNW</span>
+                    </div>
+                    <svg data-solar-svg role="img" aria-label="Solar horizon curve" viewBox="0 0 310 74" style="width:100%;height:70px">
+                      <line x1="8" y1="52" x2="302" y2="52" stroke="rgba(255,255,255,0.20)" stroke-dasharray="3 3"/>
+                      <path d="M12 64 C65 64, 95 14, 155 14 C215 14, 245 64, 298 64" fill="none" stroke="rgba(56,225,255,0.28)" stroke-width="2.2"/>
+                      <path data-solar-progress d="M48 52 C85 24, 122 14, 155 14 C184 14, 204 26, 214 36" fill="none" stroke="#f5a623" stroke-width="3" stroke-linecap="round"/>
+                      <circle data-solar-halo cx="214" cy="36" r="13" fill="rgba(245,166,35,0.26)"/>
+                      <circle data-solar-orb cx="214" cy="36" r="6.5" fill="#ffe082"/>
+                      <text x="14" y="69" fill="#9bb0cf" font-size="9.5" font-family="ui-monospace, monospace">↑ 7:12 AM</text>
+                      <text x="128" y="10" fill="#ffe082" font-size="9.5" font-family="ui-monospace, monospace">NOON 1:38P</text>
+                      <text x="198" y="69" fill="#f5a623" font-size="9.5" font-family="ui-monospace, monospace">↓ 8:04 PM</text>
+                    </svg>
+                    <div class="flex-between" style="font-size:11.5px;color:var(--wx-text-secondary);margin-block-start:4px">
+                      <span style="display:inline-flex;align-items:center;gap:5px">
+                        <svg class="wx-ico" style="--ico-size:14px" aria-hidden="true"><use href="#ico-wx-gibbous"/></svg>
+                        <span data-bind="ephemLeft">Waning Gibbous · 87%</span>
+                      </span>
+                      <span class="mono text-cyan" data-bind="ephemRight">12h 52m Daylight</span>
+                    </div>
+                  </div>
+
+                  <!-- 2x3 Sculpted Sensor Capsules (100% Weather-Regime & Unit Reactive!) -->
+                  <div class="sensor-grid-2x4 modern-only">
+                    <div class="wx-sensor-capsule">
+                      <div class="sensor-label">
+                        <span>HUMIDITY</span>
+                        <svg class="wx-ico text-cyan" style="--ico-size:13px" aria-hidden="true"><use href="#ico-droplet"/></svg>
+                      </div>
+                      <div class="sensor-val" data-bind="rhVal">78%</div>
+                      <div class="sensor-sub" data-bind="dewSub">Dew point 64° · Muggy</div>
+                    </div>
+                    <div class="wx-sensor-capsule">
+                      <div class="sensor-label">
+                        <span>WIND</span>
+                        <svg class="wx-ico text-cyan" style="--ico-size:13px" aria-hidden="true"><use href="#ico-wind"/></svg>
+                      </div>
+                      <div class="sensor-val" data-bind="windVal">9 mph</div>
+                      <div class="sensor-sub" data-bind="windSub">SSW (205°) · Gust 17</div>
+                    </div>
+                    <div class="wx-sensor-capsule">
+                      <div class="sensor-label">
+                        <span>PRESSURE</span>
+                        <span class="text-amber mono" data-bind="pressTrend">↘</span>
+                      </div>
+                      <div class="sensor-val" data-bind="pressVal">29.92</div>
+                      <div class="sensor-sub" data-bind="pressSub">1013 hPa · Falling slow</div>
+                    </div>
+                    <div class="wx-sensor-capsule">
+                      <div class="sensor-label"><span>AIR QUALITY</span><span class="text-green">●</span></div>
+                      <div class="sensor-val"><span data-bind="aqiVal">28</span> <small style="font-size:13px" class="text-green" data-bind="aqiCat">Good</small></div>
+                      <div class="sensor-sub" data-bind="aqiSub">PM2.5 6.8 µg/m³</div>
+                    </div>
+                    <div class="wx-sensor-capsule">
+                      <div class="sensor-label">
+                        <span>UV INDEX</span>
+                        <svg class="wx-ico text-gold" style="--ico-size:14px" aria-hidden="true"><use href="#ico-tab-surface"/></svg>
+                      </div>
+                      <div class="sensor-val" data-bind="uvVal">1.2</div>
+                      <div class="sensor-sub" data-bind="uvSub">Low · Cloud shielded</div>
+                    </div>
+                    <div class="wx-sensor-capsule">
+                      <div class="sensor-label">
+                        <span>VISIBILITY</span>
+                        <svg class="wx-ico text-cyan" style="--ico-size:14px" aria-hidden="true"><use href="#ico-eye"/></svg>
+                      </div>
+                      <div class="sensor-val" data-bind="visVal">6.5 mi</div>
+                      <div class="sensor-sub" data-bind="visSub">Light mist ceiling</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="ios-dock-wrap" aria-label="iPhone tab bar preview">
+                  <div class="ios-dock-capsule">
+                    <div class="ios-dock-btn"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-surface"/></svg><span>Surface</span></div>
+                    <div class="ios-dock-btn active"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-tactical"/></svg><span>Tactical</span></div>
+                    <div class="ios-dock-btn"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-radar"/></svg><span>Radar</span></div>
+                    <div class="ios-dock-btn"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-severe"/></svg><span>Severe</span></div>
+                    <div class="ios-dock-btn"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-tropics"/></svg><span>Tropics</span></div>
+                  </div>
+                  <div class="ios-dock-orb"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-config"/></svg><span>Config</span></div>
+                </div>
+                <div class="home-indicator"></div>
+              </div>
+            </div>
+            <div class="device-caption">
+              <h3>3 · Tactical Sensor Array</h3>
+              <p>Weather-reactive solar ephemeris curve + concentric frosted sensor capsules replacing 5pt micro-boxes.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================================
+         PANEL 2: Interactive iPhone Prototype (Click All 6 Tabs incl. Severe, Tropics, Config!)
+         ===================================================================== -->
+    <section role="tabpanel" id="panel-iphone-interactive" aria-labelledby="tab-iphone-interactive" class="studio-panel" hidden="until-found">
+      <div class="panel-inner">
+        <div class="section-caption">
+          <div>
+            <h2>Interactive iPhone 17 Pro Prototype — Tap or Arrow-Key the Floating Dock</h2>
+            <p>Test every screen including full-bleed <strong>Radar</strong>, Starfleet winged <strong>Severe</strong>, <strong>Tropics</strong>, and live dark-glass <strong>Config / Saved Stations</strong> — while preserving 100% of existing XCUITest identifiers (<code>tabbar.custom</code>, <code>tab.Surface</code> … <code>tab.Config</code>, <code>Tactical sensors</code>, <code>Saved place</code>, <code>config.place</code>).</p>
+          </div>
+        </div>
+
+        <div class="interactive-workbench">
+          <div class="iphone-frame" id="interactive-phone">
+            <div class="iphone-screen wx-atmosphere" id="interactive-phone-screen">
+              <div class="ios-status-bar">
+                <span data-bind="phoneClock">9:41</span>
+                <div class="dynamic-island">
+                  <span>WX · <span id="proto-active-tab-label">Severe</span></span>
+                  <span class="text-cyan">●</span>
+                </div>
+                <span>5G 100%</span>
+              </div>
+
+              <div class="ios-top-bar" id="proto-top-bar">
+                <button type="button" class="ios-loc-pill" data-open-config>
+                  <span class="wx-pip" style="--pip-color:var(--wx-green)"></span>
+                  <span data-bind="place">New Haven, IN</span>
+                  <span class="text-muted">▾</span>
+                </button>
+                <span class="ios-sync-pill"><span data-bind="icao">KFWA</span> · <span data-bind="obsTime">6:45 PM</span></span>
+              </div>
+
+              <!-- Proto Screen 1: Surface -->
+              <div role="tabpanel" id="proto-panel-Surface" aria-labelledby="proto-tab-Surface" class="ios-body scroll-y" data-proto-screen="Surface" hidden>
+                <div class="ios-hero">
+                  <div class="ios-hero-temp-row">
+                    <svg width="52" height="52" aria-hidden="true"><use data-hero-icon href="#wx-icon-rain-sun"/></svg>
+                    <span class="ios-hero-temp" data-bind="temp">72°</span>
+                  </div>
+                  <div class="ios-hero-cond" data-bind="cond">Light Rain &amp; Mist</div>
+                  <div class="ios-hero-meta" data-bind="hl">H: 76°  L: 58°  ·  Feels 71°</div>
+                  <div class="ios-quick-chips">
+                    <span class="ios-micro-pill" data-bind="windChip">↘ 9 mph SSW</span>
+                    <span class="ios-micro-pill">
+                      <svg class="wx-ico text-cyan" style="--ico-size:11px" aria-hidden="true"><use href="#ico-droplet"/></svg>
+                      <span data-bind="rhChip">78% RH</span>
+                    </span>
+                    <span class="ios-micro-pill"><span class="text-green">●</span> <span data-bind="aqiChip">AQI 28</span></span>
+                  </div>
+                </div>
+                <button type="button" class="wx-alert-ribbon cond-yellow" data-open-severe data-alert-conditional>
+                  <span class="snw-wing-badge" data-bind="alertBadge">COND · YELLOW</span>
+                  <div style="flex:1;min-inline-size:0">
+                    <div style="font-size:12.5px;font-weight:700;color:#fff" data-bind="alertTitle">Areal Flood Watch</div>
+                    <div style="font-size:11px;color:rgba(255,238,214,0.9)" data-bind="alertSub">Tap to inspect SPC &amp; Active Advisory</div>
+                  </div>
+                  <span aria-hidden="true">›</span>
+                </button>
+                <div class="wx-glass-card">
+                  <div class="wx-horizon-rail"></div>
+                  <div class="wx-card-head">
+                    <span class="wx-card-kicker"><span class="wx-pip"></span>Precip Nowcast</span>
+                    <span class="wx-card-tag">MRMS · 15M</span>
+                  </div>
+                  <div style="font-size:14px;font-weight:700" data-bind="nowcastTitle">Rain tapering off in ~18 min</div>
+                  <div style="font-size:11.5px;color:var(--wx-text-secondary);margin-block-start:2px" data-bind="nowcastSub">Light stratiform band moving ENE at 28 mph</div>
+                  <div class="nowcast-bars" data-nowcast-bars role="img" aria-label="Precipitation intensity over next 60 minutes">
+                    <div class="nowcast-bar heavy" style="height:88%"></div>
+                    <div class="nowcast-bar heavy" style="height:95%"></div>
+                    <div class="nowcast-bar" style="height:76%"></div>
+                    <div class="nowcast-bar" style="height:64%"></div>
+                    <div class="nowcast-bar" style="height:48%"></div>
+                    <div class="nowcast-bar" style="height:34%"></div>
+                    <div class="nowcast-bar" style="height:22%"></div>
+                    <div class="nowcast-bar dry" style="height:14%"></div>
+                    <div class="nowcast-bar dry" style="height:14%"></div>
+                    <div class="nowcast-bar dry" style="height:14%"></div>
+                    <div class="nowcast-bar dry" style="height:14%"></div>
+                    <div class="nowcast-bar" style="height:26%"></div>
+                    <div class="nowcast-bar" style="height:38%"></div>
+                    <div class="nowcast-bar" style="height:24%"></div>
+                    <div class="nowcast-bar dry" style="height:14%"></div>
+                    <div class="nowcast-bar dry" style="height:14%"></div>
+                  </div>
+                </div>
+                <div class="wx-glass-card">
+                  <div class="wx-horizon-rail" style="--rail-color:var(--wx-gold)"></div>
+                  <div class="wx-card-head">
+                    <span class="wx-card-kicker"><span class="wx-pip" style="--pip-color:var(--wx-gold)"></span>Hourly Horizon</span>
+                    <span class="wx-card-tag">NEXT 12H</span>
+                  </div>
+                  <div class="hourly-row scroll-x" data-hourly-strip>
+                    <div class="hour-pill now"><span class="hour-time">Now</span><svg class="wx-ico" style="--ico-size:20px" aria-hidden="true"><use href="#ico-wx-rain"/></svg><span class="hour-pop">70%</span><span class="hour-temp">72°</span></div>
+                    <div class="hour-pill"><span class="hour-time">7 PM</span><svg class="wx-ico" style="--ico-size:20px" aria-hidden="true"><use href="#ico-wx-sun-rain"/></svg><span class="hour-pop">45%</span><span class="hour-temp">70°</span></div>
+                    <div class="hour-pill"><span class="hour-time">8 PM</span><svg class="wx-ico" style="--ico-size:20px" aria-hidden="true"><use href="#ico-wx-sunset"/></svg><span class="hour-pop" style="color:var(--wx-gold)">Set</span><span class="hour-temp">67°</span></div>
+                    <div class="hour-pill"><span class="hour-time">9 PM</span><svg class="wx-ico" style="--ico-size:20px" aria-hidden="true"><use href="#ico-wx-cloud"/></svg><span class="hour-pop">15%</span><span class="hour-temp">64°</span></div>
+                    <div class="hour-pill"><span class="hour-time">10 PM</span><svg class="wx-ico" style="--ico-size:20px" aria-hidden="true"><use href="#ico-wx-moon"/></svg><span class="hour-pop">&nbsp;</span><span class="hour-temp">61°</span></div>
+                  </div>
+                </div>
+                <div class="wx-glass-card">
+                  <div class="wx-horizon-rail"></div>
+                  <div class="wx-card-head">
+                    <span class="wx-card-kicker"><span class="wx-pip"></span>7-Day Synoptic</span>
+                    <span class="wx-card-tag">NWS · IWX</span>
+                  </div>
+                  <div class="day-rows" data-day-rows>
+                    <div class="day-row" data-today-row><span class="day-name" data-today-name>Today</span><svg class="wx-ico" style="--ico-size:19px" aria-hidden="true"><use data-today-icon href="#ico-wx-sun-rain"/></svg><span class="day-pop" data-today-pop>70%</span><span class="day-low" data-f="58">58°</span><div class="temp-track"><div class="temp-fill" style="left:22%;width:56%"></div></div><span class="day-high" data-f="76">76°</span></div>
+                    <div class="day-row"><span class="day-name">Wed</span><svg class="wx-ico" style="--ico-size:19px" aria-hidden="true"><use href="#ico-wx-partly"/></svg><span class="day-pop">20%</span><span class="day-low" data-f="54">54°</span><div class="temp-track"><div class="temp-fill" style="left:12%;width:60%"></div></div><span class="day-high" data-f="74">74°</span></div>
+                    <div class="day-row"><span class="day-name">Thu</span><svg class="wx-ico" style="--ico-size:19px" aria-hidden="true"><use href="#ico-wx-sun"/></svg><span class="day-pop">&nbsp;</span><span class="day-low" data-f="52">52°</span><div class="temp-track"><div class="temp-fill" style="left:8%;width:72%"></div></div><span class="day-high" data-f="79">79°</span></div>
+                    <div class="day-row"><span class="day-name">Fri</span><svg class="wx-ico" style="--ico-size:19px" aria-hidden="true"><use href="#ico-wx-tstorm"/></svg><span class="day-pop">80%</span><span class="day-low" data-f="60">60°</span><div class="temp-track"><div class="temp-fill" style="left:28%;width:64%"></div></div><span class="day-high" data-f="82">82°</span></div>
+                    <div class="day-row"><span class="day-name">Sat</span><svg class="wx-ico" style="--ico-size:19px" aria-hidden="true"><use href="#ico-wx-partly"/></svg><span class="day-pop">25%</span><span class="day-low" data-f="55">55°</span><div class="temp-track"><div class="temp-fill" style="left:15%;width:58%"></div></div><span class="day-high" data-f="75">75°</span></div>
+                    <div class="day-row"><span class="day-name">Sun</span><svg class="wx-ico" style="--ico-size:19px" aria-hidden="true"><use href="#ico-wx-sun"/></svg><span class="day-pop">&nbsp;</span><span class="day-low" data-f="51">51°</span><div class="temp-track"><div class="temp-fill" style="left:6%;width:66%"></div></div><span class="day-high" data-f="74">74°</span></div>
+                    <div class="day-row"><span class="day-name">Mon</span><svg class="wx-ico" style="--ico-size:19px" aria-hidden="true"><use href="#ico-wx-sun-rain"/></svg><span class="day-pop">35%</span><span class="day-low" data-f="53">53°</span><div class="temp-track"><div class="temp-fill" style="left:10%;width:58%"></div></div><span class="day-high" data-f="73">73°</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Proto Screen 2: Tactical (Solar Orbit + Surface Sensors + Convective Sounding; preserves "Tactical sensors" XCUITest label!) -->
+              <div role="tabpanel" id="proto-panel-Tactical" aria-labelledby="proto-tab-Tactical" class="ios-body scroll-y" data-proto-screen="Tactical" hidden>
+                <div class="mono text-cyan" style="font-size:11.5px;font-weight:700;padding-inline:4px">Tactical sensors</div>
+                <div class="wx-glass-card">
+                  <div class="wx-horizon-rail" style="--rail-color:var(--wx-gold)"></div>
+                  <div class="wx-card-head">
+                    <span class="wx-card-kicker"><span class="wx-pip" style="--pip-color:var(--wx-gold)"></span>Solar &amp; Lunar Orbit</span>
+                    <span class="wx-card-tag" data-bind="solarTag" style="color:var(--wx-gold);border-color:rgba(245,166,35,0.35);background:rgba(245,166,35,0.12)">+15.4° WNW</span>
+                  </div>
+                  <svg data-solar-svg role="img" aria-label="Solar horizon curve" viewBox="0 0 310 74" style="width:100%;height:66px">
+                    <line x1="8" y1="52" x2="302" y2="52" stroke="rgba(255,255,255,0.20)" stroke-dasharray="3 3"/>
+                    <path d="M12 64 C65 64, 95 14, 155 14 C215 14, 245 64, 298 64" fill="none" stroke="rgba(56,225,255,0.28)" stroke-width="2"/>
+                    <path data-solar-progress d="M48 52 C85 24, 122 14, 155 14 C184 14, 204 26, 214 36" fill="none" stroke="#f5a623" stroke-width="2.8" stroke-linecap="round"/>
+                    <circle data-solar-halo cx="214" cy="36" r="12" fill="rgba(245,166,35,0.25)"/>
+                    <circle data-solar-orb cx="214" cy="36" r="6" fill="#ffe082"/>
+                    <text x="14" y="69" fill="#9bb0cf" font-size="9" font-family="ui-monospace, monospace">↑ 7:12 AM</text>
+                    <text x="198" y="69" fill="#f5a623" font-size="9" font-family="ui-monospace, monospace">↓ 8:04 PM</text>
+                  </svg>
+                </div>
+                <div class="sensor-grid-2x4">
+                  <div class="wx-sensor-capsule"><div class="sensor-label"><span>HUMIDITY</span><svg class="wx-ico text-cyan" style="--ico-size:13px" aria-hidden="true"><use href="#ico-droplet"/></svg></div><div class="sensor-val" data-bind="rhVal">78%</div><div class="sensor-sub" data-bind="dewSub">Dew point 64° · Muggy</div></div>
+                  <div class="wx-sensor-capsule"><div class="sensor-label"><span>WIND</span><svg class="wx-ico text-cyan" style="--ico-size:13px" aria-hidden="true"><use href="#ico-wind"/></svg></div><div class="sensor-val" data-bind="windVal">9 mph</div><div class="sensor-sub" data-bind="windSub">SSW (205°) · Gust 17</div></div>
+                  <div class="wx-sensor-capsule"><div class="sensor-label"><span>PRESSURE</span><span class="text-amber mono" data-bind="pressTrend">↘</span></div><div class="sensor-val" data-bind="pressVal">29.92</div><div class="sensor-sub" data-bind="pressSub">1013 hPa · Falling slow</div></div>
+                  <div class="wx-sensor-capsule"><div class="sensor-label"><span>UV INDEX</span><svg class="wx-ico text-gold" style="--ico-size:13px" aria-hidden="true"><use href="#ico-tab-surface"/></svg></div><div class="sensor-val" data-bind="uvVal">1.2</div><div class="sensor-sub" data-bind="uvSub">Low · Cloud shielded</div></div>
+                </div>
+                <div class="wx-glass-card">
+                  <div class="wx-horizon-rail" style="--rail-color:var(--wx-cyan)"></div>
+                  <div class="wx-card-head">
+                    <span class="wx-card-kicker"><span class="wx-pip"></span>Atmospheric Sounding</span>
+                    <span class="wx-card-tag">KILN · RAOB</span>
+                  </div>
+                  <div class="sensor-grid-2x4">
+                    <div class="wx-sensor-capsule"><div class="sensor-label">SBCAPE</div><div class="sensor-val" data-bind="capeVal">420</div><div class="sensor-sub" data-bind="capeSub">J/kg · Moist layer</div></div>
+                    <div class="wx-sensor-capsule"><div class="sensor-label">0–6KM SHEAR</div><div class="sensor-val" data-bind="shearVal">28 kt</div><div class="sensor-sub" data-bind="shearSub">Stratiform flow</div></div>
+                    <div class="wx-sensor-capsule"><div class="sensor-label">0–1KM SRH</div><div class="sensor-val" data-bind="srhVal">95</div><div class="sensor-sub" data-bind="srhSub">m²/s² · Modest</div></div>
+                    <div class="wx-sensor-capsule"><div class="sensor-label">PWAT</div><div class="sensor-val" data-bind="pwatVal">1.42"</div><div class="sensor-sub" data-bind="pwatSub">82nd percentile</div></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Proto Screen 3: True Full-Bleed Edge-to-Edge Radar with Weather-Reactive Echoes -->
+              <div role="tabpanel" id="proto-panel-Radar" aria-labelledby="proto-tab-Radar" class="ios-radar-full" data-proto-screen="Radar" style="margin-block-start:0;padding-block-start:6px" hidden>
+                <svg role="img" aria-label="Full-bleed interactive Doppler radar map" viewBox="0 0 384 680" style="position:absolute;inset:0;width:100%;height:100%">
+                  <rect width="384" height="680" fill="#050c18"/>
+                  <g stroke="rgba(56,225,255,0.14)" fill="none">
+                    <circle cx="192" cy="300" r="70"/><circle cx="192" cy="300" r="145"/><circle cx="192" cy="300" r="220"/>
+                    <line x1="192" y1="60" x2="192" y2="540" stroke-dasharray="3 5"/>
+                    <line x1="20" y1="300" x2="364" y2="300" stroke-dasharray="3 5"/>
+                  </g>
+                  <g data-radar-echo-group>
+                    <g class="echo-regime echo-rain">
+                      <ellipse cx="184" cy="312" rx="126" ry="66" transform="rotate(-24 184 312)" fill="url(#mrms-rain-outer)"/>
+                      <ellipse cx="170" cy="320" rx="76" ry="38" transform="rotate(-22 170 320)" fill="url(#mrms-rain-core)"/>
+                      <ellipse cx="246" cy="268" rx="68" ry="34" transform="rotate(-28 246 268)" fill="url(#mrms-rain-outer)"/>
+                    </g>
+                    <g class="echo-regime echo-severe">
+                      <ellipse cx="168" cy="318" rx="112" ry="68" transform="rotate(-24 168 318)" fill="url(#mrms-band-2)"/>
+                      <ellipse cx="154" cy="328" rx="64" ry="38" transform="rotate(-22 154 328)" fill="url(#mrms-core-1)"/>
+                      <ellipse cx="236" cy="260" rx="58" ry="32" transform="rotate(-28 236 260)" fill="url(#mrms-band-2)"/>
+                    </g>
+                    <g class="echo-regime echo-golden">
+                      <circle cx="192" cy="300" r="82" fill="url(#mrms-clear-golden)"/>
+                      <circle cx="192" cy="300" r="44" fill="none" stroke="rgba(56,225,255,0.22)" stroke-dasharray="2 6"/>
+                    </g>
+                    <g class="echo-regime echo-night">
+                      <circle cx="192" cy="300" r="88" fill="url(#mrms-clear-night)"/>
+                      <circle cx="192" cy="300" r="48" fill="none" stroke="rgba(154,174,255,0.24)" stroke-dasharray="3 6"/>
+                    </g>
+                  </g>
+                  <circle cx="206" cy="306" r="5.5" fill="#30d158" stroke="#fff" stroke-width="1.5"/>
+                  <text x="216" y="310" fill="#7cecff" font-family="ui-monospace, monospace" font-size="10" font-weight="700" data-radar-station>NEW HAVEN ★</text>
+                </svg>
+
+                <div class="radar-hud-top">
+                  <span class="wx-pill">
+                    <svg class="wx-ico text-cyan" style="--ico-size:13px" aria-hidden="true"><use href="#ico-tab-radar"/></svg>
+                    <span>Composite ▾</span>
+                  </span>
+                  <span class="wx-pill"><span class="wx-pip" data-radar-pip style="--pip-color:var(--wx-green)"></span><span data-bind="radarModePill">MRMS · Stratiform</span></span>
+                  <span class="wx-pill"><svg class="wx-ico text-cyan" style="--ico-size:13px" aria-hidden="true"><use href="#ico-crosshair"/></svg><span data-bind="icao">KFWA</span></span>
+                </div>
+
+                <div class="wx-glass-card radar-scrubber-card">
+                  <div class="wx-horizon-rail" style="--rail-color:var(--wx-cyan)"></div>
+                  <div class="flex-between" style="margin-block-end:6px">
+                    <button type="button" class="wx-pill" data-radar-play aria-label="Play radar loop" style="padding:5px 12px;background:rgba(56,225,255,0.20);border-color:rgba(56,225,255,0.45)">▶ Play</button>
+                    <span class="mono" style="font-size:11.5px;font-weight:700;color:var(--wx-cyan-soft)" data-radar-time>6:45 PM · LIVE</span>
+                  </div>
+                  <label for="proto-radar-scrub" class="mono text-muted" style="font-size:9.5px;display:block;margin-block-end:2px">DOPPLER SCAN TIMELINE (30M LOOP)</label>
+                  <input id="proto-radar-scrub" class="wx-range-slider" type="range" min="0" max="5" step="1" value="5" aria-valuetext="Frame 6 of 6, 6:45 PM LIVE" data-radar-slider style="margin-block-end:6px">
+                  <div class="dbz-bar" aria-hidden="true"></div>
+                  <div class="flex-between mono" style="font-size:9px;color:var(--wx-text-secondary);margin-block-start:4px">
+                    <span>10 dBZ CLEAR</span><span>35 RAIN</span><span>65+ SEVERE</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Proto Screen 4: Severe (Authentic Starfleet ConditionPanel + SPC Probabilities — Weather & Unit Reactive!) -->
+              <div role="tabpanel" id="proto-panel-Severe" aria-labelledby="proto-tab-Severe" class="ios-body scroll-y" data-proto-screen="Severe">
+                <div class="wx-glass-card" data-severe-card style="background:linear-gradient(155deg,rgba(90,18,36,0.58),rgba(20,14,34,0.52))">
+                  <div class="wx-horizon-rail" data-severe-rail style="--rail-color:var(--wx-red)"></div>
+                  <div class="flex-between" style="margin-block-end:10px">
+                    <svg width="112" height="52" aria-hidden="true"><use data-severe-panel-use href="#snw-condition-panel"/></svg>
+                    <span class="wx-card-tag" data-severe-tag data-bind="severeTag" style="color:#ffb4c0;border-color:rgba(255,92,116,0.5);background:rgba(255,59,86,0.22)">CONDITION · RED</span>
+                  </div>
+                  <div style="font-size:16px;font-weight:700" data-bind="severeTitle">Severe Thunderstorm Warning</div>
+                  <div style="font-size:12px;color:#ffd8df;margin-block:3px 8px" data-severe-meta data-bind="severeMeta">Issued by NWS Northern Indiana · Expires 7:30 PM EDT</div>
+                  <p style="font-size:12px;color:var(--wx-text-secondary)" data-bind="severeBody">60 mph wind gusts and quarter-size hail (1.00") radar indicated along a line from Roanoke to New Haven moving NE at 35 mph.</p>
+                </div>
+
+                <div class="wx-glass-card">
+                  <div class="wx-horizon-rail" style="--rail-color:var(--wx-gold)"></div>
+                  <div class="wx-card-head">
+                    <span class="wx-card-kicker"><span class="wx-pip" style="--pip-color:var(--wx-gold)"></span>SPC Day 1 Convective Outlook</span>
+                    <span class="wx-card-tag" data-bind="spcTag" style="color:var(--wx-gold);border-color:rgba(245,166,35,0.4)">SLGT · 2/5</span>
+                  </div>
+                  <div style="font-size:14.5px;font-weight:700;margin-block-end:4px" data-bind="spcHeadline">Scattered Severe Storms Possible</div>
+                  <p style="font-size:12px;color:var(--wx-text-secondary);margin-block-end:10px" data-bind="spcSummary">Discrete warm-sector supercells across northern Indiana transitioning into bowing segments this evening.</p>
+                  <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
+                    <div class="wx-sensor-capsule compact"><div class="mono text-muted" style="font-size:9.5px">TORNADO</div><div style="font-size:16px;font-weight:700;color:var(--wx-gold)" data-bind="spcTor">5%</div></div>
+                    <div class="wx-sensor-capsule compact"><div class="mono text-muted" style="font-size:9.5px">WIND</div><div style="font-size:16px;font-weight:700;color:var(--wx-amber)" data-bind="spcWind">15%</div></div>
+                    <div class="wx-sensor-capsule compact"><div class="mono text-muted" style="font-size:9.5px">HAIL</div><div style="font-size:16px;font-weight:700;color:var(--wx-gold)" data-bind="spcHail">15%</div></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Proto Screen 5: Tropics -->
+              <div role="tabpanel" id="proto-panel-Tropics" aria-labelledby="proto-tab-Tropics" class="ios-body scroll-y" data-proto-screen="Tropics" hidden>
+                <div class="wx-glass-card">
+                  <div class="wx-horizon-rail" style="--rail-color:var(--wx-amber)"></div>
+                  <div class="wx-card-head">
+                    <span class="wx-card-kicker"><span class="wx-pip" style="--pip-color:var(--wx-amber)"></span>NHC Atlantic Basin</span>
+                    <span class="wx-card-tag" style="color:var(--wx-amber);border-color:rgba(255,159,10,0.4)">CAT 3 · MAJOR</span>
+                  </div>
+                  <div style="font-size:18px;font-weight:700">Hurricane Helene (AL09)</div>
+                  <div class="mono text-cyan" style="font-size:12px;margin-block:3px 8px" data-bind="tropicsMeta">115 mph sustained · 952 mb · NNE at 16 mph</div>
+                  <p style="font-size:12px;color:var(--wx-text-secondary)">Rapidly intensifying over warm Loop Current eddies; hurricane-force wind field extending 60 nm outward.</p>
+                </div>
+                <div class="wx-glass-card">
+                  <div class="wx-card-head">
+                    <span class="wx-card-kicker"><span class="wx-pip"></span>Invest 98L Disturbance</span>
+                    <span class="wx-card-tag">7D · 60% MED</span>
+                  </div>
+                  <p style="font-size:12px;color:var(--wx-text-secondary)">Central tropical Atlantic tropical wave showing gradual organization.</p>
+                </div>
+              </div>
+
+              <!-- Proto Screen 6: Config (Preserves "Saved place" + config.place XCUITest contract!) -->
+              <div role="tabpanel" id="proto-panel-Config" aria-labelledby="proto-tab-Config" class="ios-body scroll-y" data-proto-screen="Config" hidden>
+                <div class="wx-glass-card">
+                  <div class="wx-horizon-rail"></div>
+                  <div class="wx-card-head">
+                    <span class="wx-card-kicker"><span class="wx-pip"></span>Saved place</span>
+                    <span class="wx-card-tag">ONE-SHOT GPS</span>
+                  </div>
+                  <label for="cfg-place-input" style="font-size:12px;font-weight:600;color:var(--wx-text-secondary);display:block;margin-block-end:6px">City, State, ZIP, or Airport ICAO</label>
+                  <input id="cfg-place-input" class="wx-glass-input" type="text" value="New Haven, IN" data-ax-id="config.place">
+                  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-block-start:10px">
+                    <button type="button" class="wx-pill" id="cfg-save-btn" style="flex:1;justify-content:center;background:rgba(56,225,255,0.24);border-color:rgba(56,225,255,0.5)">Save place</button>
+                    <button type="button" class="wx-pill" id="cfg-gps-btn" style="justify-content:center">
+                      <svg class="wx-ico text-cyan" style="--ico-size:13px" aria-hidden="true"><use href="#ico-pin"/></svg>
+                      <span>Current GPS</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="wx-glass-card">
+                  <div class="wx-card-head">
+                    <span class="wx-card-kicker"><span class="wx-pip" style="--pip-color:var(--wx-gold)"></span>Pinned Stations</span>
+                    <span class="wx-card-tag">TAP TO SWITCH</span>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:8px">
+                    <button type="button" class="wx-sensor-capsule flex-between station-btn" data-select-station="newhaven" aria-pressed="true">
+                      <span>★ New Haven, IN (KFWA)</span>
+                      <span style="display:inline-flex;align-items:center;gap:5px"><strong class="mono text-cyan" data-newhaven-temp>72°</strong><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use data-newhaven-icon href="#ico-wx-rain"/></svg></span>
+                    </button>
+                    <button type="button" class="wx-sensor-capsule flex-between station-btn" data-select-station="milwaukee" aria-pressed="false">
+                      <span>★ Milwaukee, WI (KMKE)</span>
+                      <span style="display:inline-flex;align-items:center;gap:5px"><strong class="mono" data-f="66">66°</strong><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-wx-partly"/></svg></span>
+                    </button>
+                    <button type="button" class="wx-sensor-capsule flex-between station-btn" data-select-station="amarillo" aria-pressed="false">
+                      <span>★ Amarillo, TX (KAMA)</span>
+                      <span style="display:inline-flex;align-items:center;gap:5px"><strong class="mono" data-f="81">81°</strong><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-wx-sun"/></svg></span>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="wx-glass-card">
+                  <div class="wx-card-head">
+                    <span class="wx-card-kicker"><span class="wx-pip"></span>Telemetry Units</span>
+                  </div>
+                  <div class="wx-segmented" role="group" aria-label="Telemetry units">
+                    <button type="button" class="wx-seg-btn" data-unit-btn="imperial" aria-pressed="true">Imperial (°F · mph)</button>
+                    <button type="button" class="wx-seg-btn" data-unit-btn="metric" aria-pressed="false">Metric (°C · km/h)</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Interactive Dock (Valid ARIA tablist -> role="none" -> role="tab" with roving tabindex) -->
+              <div class="ios-dock-wrap" role="tablist" aria-label="Interactive iPhone tabs" id="proto-tablist" data-ax-id="tabbar.custom">
+                <div class="ios-dock-capsule" role="none">
+                  <button type="button" role="tab" id="proto-tab-Surface" class="ios-dock-btn" data-proto-tab="Surface" aria-selected="false" tabindex="-1"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-surface"/></svg><span>Surface</span></button>
+                  <button type="button" role="tab" id="proto-tab-Tactical" class="ios-dock-btn" data-proto-tab="Tactical" aria-selected="false" tabindex="-1"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-tactical"/></svg><span>Tactical</span></button>
+                  <button type="button" role="tab" id="proto-tab-Radar" class="ios-dock-btn" data-proto-tab="Radar" aria-selected="false" tabindex="-1"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-radar"/></svg><span>Radar</span></button>
+                  <button type="button" role="tab" id="proto-tab-Severe" class="ios-dock-btn active" data-proto-tab="Severe" aria-selected="true" tabindex="0"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-severe"/></svg><span>Severe</span></button>
+                  <button type="button" role="tab" id="proto-tab-Tropics" class="ios-dock-btn" data-proto-tab="Tropics" aria-selected="false" tabindex="-1"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-tropics"/></svg><span>Tropics</span></button>
+                </div>
+                <button type="button" role="tab" id="proto-tab-Config" class="ios-dock-orb" data-proto-tab="Config" aria-selected="false" tabindex="-1"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-config"/></svg><span>Config</span></button>
+              </div>
+              <div class="home-indicator"></div>
+            </div>
+          </div>
+
+          <aside class="inspector-card" aria-label="iPhone UX overhaul notes">
+            <h3 style="font-size:17px;font-weight:700">Why iPhone Looked Broken — &amp; How This Fixes It</h3>
+            <div class="inspector-list">
+              <div class="inspector-item">
+                <strong>1. iOS 26 Capsule + Orb Dock:</strong> Cramming 6 tabs into a flat edge-to-edge bar forced 9pt crushed labels. Grouping the 5 weather views in a floating glass capsule + detaching <code>tab.Config</code> as a circular glass orb un-crowds labels down to 320pt widths while keeping 100% of <code>ShellUITests</code> passing untouched.
+              </div>
+              <div class="inspector-item">
+                <strong>2. Authentic Starfleet Winged Condition Panel:</strong> Previously <code>SevereView</code> rendered bare <code>Text(alert.event)</code> strings. Now active warnings bring <code>ConditionPanel</code>'s swept wings + 5 cascade bars to iOS alongside SPC tornado/wind/hail probability capsules.
+              </div>
+              <div class="inspector-item">
+                <strong>3. Live Dark-Glass Config Sheet:</strong> Replaces raw UIKit <code>.roundedBorder</code> light text boxes with dark frosted inputs, clickable pinned stations, and live <code>Imperial / Metric</code> unit conversion.
+              </div>
+              <div class="inspector-item">
+                <strong>4. Full-Bleed Radar Everywhere:</strong> Tap <em>Radar</em> in the dock (or use <code>←</code> / <code>→</code> arrow keys) to test the edge-to-edge Doppler canvas, Play/Pause loop, and range timeline scrubber.
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================================
+         PANEL 3: Widgets & Dynamic Island Live Activities
+         ===================================================================== -->
+    <section role="tabpanel" id="panel-widgets-island" aria-labelledby="tab-widgets-island" class="studio-panel" hidden="until-found">
+      <div class="panel-inner">
+        <div class="section-caption">
+          <div>
+            <h2>WidgetKit &amp; Dynamic Island — Sculpted Atmospheric Glass</h2>
+            <p>Upgrades <code>WxConditionsWidget</code> and <code>NowcastLiveActivityWidget</code> from flat <code>#0A1222</code> boxes and monospaced block characters to zero-blur analytic <code>RadialGradient</code> sky blooms (staying well inside WidgetKit's 30 MB Jetsam ceiling), rounded radar squircles, and glowing capsule rain timelines.</p>
+          </div>
+        </div>
+
+        <div class="widgets-gallery">
+          <!-- Home Screen Small + Medium -->
+          <div class="widget-stage-card wx-atmosphere">
+            <div class="mono text-cyan" style="font-size:11px;font-weight:700">HOME SCREEN · systemSmall &amp; systemMedium</div>
+            <div class="ios-widget-small wx-glass-card">
+              <div class="wx-horizon-rail"></div>
+              <div class="flex-between">
+                <span style="font-size:11.5px;font-weight:700" data-bind="placeShort">New Haven</span>
+                <span class="wx-pip" style="--pip-color:var(--wx-cyan)"></span>
+              </div>
+              <div class="flex-between" style="align-items:flex-end">
+                <div>
+                  <div class="rounded-num" style="font-size:36px;font-weight:600;line-height:1" data-bind="temp">72°</div>
+                  <div style="font-size:11px;color:var(--wx-text-secondary);margin-block-start:3px" data-bind="cond">Light Rain &amp; Mist</div>
+                </div>
+                <svg width="52" height="52" viewBox="0 0 52 52" role="img" aria-label="Mini radar thumbnail" style="border-radius:14px;background:#050c18;border:1px solid rgba(255,255,255,0.16);flex:none">
+                  <g class="echo-regime echo-rain">
+                    <ellipse cx="26" cy="27" rx="20" ry="12" transform="rotate(-22 26 27)" fill="url(#mrms-rain-outer)"/>
+                    <ellipse cx="24" cy="28" rx="12" ry="7" transform="rotate(-20 24 28)" fill="url(#mrms-rain-core)"/>
+                  </g>
+                  <g class="echo-regime echo-severe">
+                    <ellipse cx="26" cy="28" rx="18" ry="11" transform="rotate(-22 26 28)" fill="url(#mrms-core-1)"/>
+                  </g>
+                  <g class="echo-regime echo-golden">
+                    <circle cx="26" cy="26" r="16" fill="url(#mrms-clear-golden)"/>
+                  </g>
+                  <g class="echo-regime echo-night">
+                    <circle cx="26" cy="26" r="16" fill="url(#mrms-clear-night)"/>
+                  </g>
+                  <circle cx="28" cy="26" r="2.5" fill="#30d158" stroke="#fff" stroke-width="0.8"/>
+                </svg>
+              </div>
+              <div class="mono text-cyan" style="font-size:10px;font-weight:700"><span data-bind="hlCompact">H:76° L:58°</span> · <span data-bind="icao">KFWA</span></div>
+            </div>
+
+            <div class="ios-widget-medium wx-glass-card">
+              <div class="wx-horizon-rail" style="--rail-color:var(--wx-gold)"></div>
+              <div class="flex-between">
+                <div style="min-inline-size:0">
+                  <div style="font-size:12px;font-weight:700;color:var(--wx-text-secondary)"><span data-bind="placeUpper">NEW HAVEN, IN</span> · <span data-bind="icao">KFWA</span></div>
+                  <div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:8px">
+                    <span class="rounded-num" style="font-size:34px;font-weight:600" data-bind="temp">72°</span>
+                    <span style="font-size:13px;font-weight:600;color:var(--wx-cyan-soft)" data-bind="nowcastTitle">Rain tapering off in ~18 min</span>
+                  </div>
+                </div>
+                <svg width="58" height="58" viewBox="0 0 58 58" aria-hidden="true" style="border-radius:16px;background:#050c18;border:1px solid rgba(255,255,255,0.18);flex:none">
+                  <g class="echo-regime echo-rain">
+                    <ellipse cx="29" cy="30" rx="23" ry="14" transform="rotate(-20 29 30)" fill="url(#mrms-rain-outer)"/>
+                    <ellipse cx="26" cy="32" rx="14" ry="8" transform="rotate(-20 26 32)" fill="url(#mrms-rain-core)"/>
+                  </g>
+                  <g class="echo-regime echo-severe">
+                    <ellipse cx="29" cy="30" rx="22" ry="13" transform="rotate(-20 29 30)" fill="url(#mrms-band-2)"/>
+                    <ellipse cx="26" cy="32" rx="13" ry="8" transform="rotate(-20 26 32)" fill="url(#mrms-core-1)"/>
+                  </g>
+                  <g class="echo-regime echo-golden">
+                    <circle cx="29" cy="29" r="19" fill="url(#mrms-clear-golden)"/>
+                  </g>
+                  <g class="echo-regime echo-night">
+                    <circle cx="29" cy="29" r="19" fill="url(#mrms-clear-night)"/>
+                  </g>
+                  <circle cx="31" cy="29" r="2.6" fill="#30d158" stroke="#fff" stroke-width="0.9"/>
+                </svg>
+              </div>
+              <div class="nowcast-bars" data-nowcast-bars style="block-size:28px;margin-block-start:6px">
+                <div class="nowcast-bar heavy" style="height:95%"></div>
+                <div class="nowcast-bar heavy" style="height:85%"></div>
+                <div class="nowcast-bar" style="height:65%"></div>
+                <div class="nowcast-bar" style="height:45%"></div>
+                <div class="nowcast-bar" style="height:28%"></div>
+                <div class="nowcast-bar dry" style="height:18%"></div>
+                <div class="nowcast-bar dry" style="height:18%"></div>
+                <div class="nowcast-bar dry" style="height:18%"></div>
+                <div class="nowcast-bar dry" style="height:18%"></div>
+                <div class="nowcast-bar" style="height:35%"></div>
+                <div class="nowcast-bar" style="height:42%"></div>
+                <div class="nowcast-bar dry" style="height:18%"></div>
+                <div class="nowcast-bar dry" style="height:18%"></div>
+                <div class="nowcast-bar dry" style="height:18%"></div>
+                <div class="nowcast-bar dry" style="height:18%"></div>
+                <div class="nowcast-bar dry" style="height:18%"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dynamic Island + Lock Screen Accessories -->
+          <div class="widget-stage-card wx-atmosphere">
+            <div class="mono text-cyan" style="font-size:11px;font-weight:700">DYNAMIC ISLAND &amp; LOCK SCREEN ACCESSORIES</div>
+
+            <!-- Compact Island -->
+            <div style="background:#000;border-radius:999px;padding:9px 16px;display:inline-flex;align-items:center;gap:22px;border:1px solid rgba(255,255,255,0.14);align-self:flex-start;max-inline-size:100%">
+              <span style="font-size:12.5px;font-weight:700;color:var(--wx-cyan);display:inline-flex;align-items:center;gap:5px">
+                <svg class="wx-ico" style="--ico-size:13px" aria-hidden="true"><use data-island-icon href="#ico-droplet"/></svg>
+                <span data-bind="islandLead">18m</span>
+              </span>
+              <span class="island-mini-bars" data-island-bars style="block-size:14px" aria-hidden="true">
+                <span class="island-mini-bar heavy" style="height:95%"></span>
+                <span class="island-mini-bar heavy" style="height:82%"></span>
+                <span class="island-mini-bar" style="height:60%"></span>
+                <span class="island-mini-bar" style="height:38%"></span>
+                <span class="island-mini-bar dry" style="height:24%"></span>
+              </span>
+            </div>
+
+            <!-- Expanded Dynamic Island -->
+            <div class="island-expanded">
+              <div class="flex-between">
+                <div style="display:flex;align-items:center;gap:8px;min-inline-size:0">
+                  <svg width="28" height="28" aria-hidden="true" style="flex:none"><use data-hero-icon href="#wx-icon-rain-sun"/></svg>
+                  <div style="min-inline-size:0">
+                    <div style="font-size:13.5px;font-weight:700" data-bind="nowcastTitle">Rain tapering off in ~18 min</div>
+                    <div style="font-size:11px;color:var(--wx-text-secondary)"><span data-bind="place">New Haven, IN</span> · <span data-bind="icao">KFWA</span></div>
+                  </div>
+                </div>
+                <span class="wx-card-tag">LIVE QPF</span>
+              </div>
+              <div class="nowcast-bars" data-nowcast-bars style="block-size:32px">
+                <div class="nowcast-bar heavy" style="height:92%"></div>
+                <div class="nowcast-bar heavy" style="height:86%"></div>
+                <div class="nowcast-bar" style="height:70%"></div>
+                <div class="nowcast-bar" style="height:50%"></div>
+                <div class="nowcast-bar" style="height:32%"></div>
+                <div class="nowcast-bar dry" style="height:16%"></div>
+                <div class="nowcast-bar dry" style="height:16%"></div>
+                <div class="nowcast-bar dry" style="height:16%"></div>
+                <div class="nowcast-bar dry" style="height:16%"></div>
+                <div class="nowcast-bar dry" style="height:16%"></div>
+                <div class="nowcast-bar dry" style="height:16%"></div>
+                <div class="nowcast-bar dry" style="height:16%"></div>
+                <div class="nowcast-bar dry" style="height:16%"></div>
+                <div class="nowcast-bar dry" style="height:16%"></div>
+                <div class="nowcast-bar dry" style="height:16%"></div>
+                <div class="nowcast-bar dry" style="height:16%"></div>
+              </div>
+              <div class="flex-between mono" style="font-size:10px;color:var(--wx-text-muted)">
+                <span data-bind="obsTime">6:45 PM</span><span>+15M</span><span>+45M</span><span>+60M</span>
+              </div>
+            </div>
+
+            <!-- Lock Screen Rectangular -->
+            <div class="wx-glass-card wx-lock-widget">
+              <div style="font-size:11.5px;font-weight:700;color:var(--wx-text-secondary);display:flex;align-items:center;gap:6px">
+                <svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use data-hero-icon href="#wx-icon-rain-sun"/></svg>
+                <span><span data-bind="temp">72°</span> · <span data-bind="hlCompact">H:76° L:58°</span></span>
+              </div>
+              <div style="font-size:12.5px;font-weight:700;margin-block:3px" data-bind="nowcastTitle">Rain tapering off in ~18 min</div>
+              <div class="nowcast-bars" data-nowcast-bars style="block-size:14px;gap:3px">
+                <div class="nowcast-bar heavy" style="height:100%"></div>
+                <div class="nowcast-bar heavy" style="height:85%"></div>
+                <div class="nowcast-bar" style="height:68%"></div>
+                <div class="nowcast-bar" style="height:48%"></div>
+                <div class="nowcast-bar" style="height:30%"></div>
+                <div class="nowcast-bar dry" style="height:20%"></div>
+                <div class="nowcast-bar dry" style="height:20%"></div>
+                <div class="nowcast-bar dry" style="height:20%"></div>
+                <div class="nowcast-bar dry" style="height:20%"></div>
+                <div class="nowcast-bar dry" style="height:20%"></div>
+                <div class="nowcast-bar dry" style="height:20%"></div>
+                <div class="nowcast-bar" style="height:36%"></div>
+                <div class="nowcast-bar dry" style="height:20%"></div>
+                <div class="nowcast-bar dry" style="height:20%"></div>
+                <div class="nowcast-bar dry" style="height:20%"></div>
+                <div class="nowcast-bar dry" style="height:20%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================================
+         PANEL 4: macOS Desk Console Overhaul (All 8 Interactive Bridge Modes!)
+         ===================================================================== -->
+    <section role="tabpanel" id="panel-mac-desk" aria-labelledby="tab-mac-desk" class="studio-panel" hidden="until-found">
+      <div class="panel-inner">
+        <div class="section-caption">
+          <div>
+            <h2>macOS Desk Console — All 8 Interactive Bridge Modes in Sculpted Glass</h2>
+            <p>Collapses the 115pt triple-header stack + truncated <code>SYS.01</code> card into a single 54pt unified glass bridge bar, keeps the sculpted alert ribbon pinned inside the top 200pt band across all 8 modes, and upgrades <strong>Tactical</strong>, <strong>Surface</strong>, <strong>Radar</strong>, <strong>Outlooks</strong>, <strong>Chase</strong>, <strong>Climate</strong>, <strong>Tropics</strong>, and <strong>Grid</strong>.</p>
+          </div>
+        </div>
+
+        <div class="mac-window wx-atmosphere">
+          <!-- Legacy v1 115pt Stacked Triple-Header (Shown in Before Audit Mode!) -->
+          <div class="legacy-only" style="padding:10px 16px;background:#0a1222;border-block-end:1px solid rgba(56,225,255,0.35)">
+            <div class="flex-between mono" style="font-size:9px;margin-block-end:8px">
+              <div style="display:flex;align-items:center;gap:10px">
+                <div class="traffic-lights" aria-hidden="true"><span class="tl-dot tl-close"></span><span class="tl-dot tl-min"></span><span class="tl-dot tl-max"></span></div>
+                <span class="text-cyan" data-bind="placeUpper">NEW HAVEN, IN</span>
+              </div>
+              <span class="text-muted">● METEOROLOGICAL SENSOR NETWORK // ACTIVE</span>
+            </div>
+            <div class="wx-glass-card" style="padding:6px 10px;margin-block-end:8px">
+              <div class="flex-between mono" style="font-size:10px">
+                <span><strong class="text-gold">● WX.DESK</strong> &nbsp;ATMOSPHERIC TELEMETRY CONSOLE</span>
+                <span class="text-cyan">SYNC // <span data-bind="obsTime">6:45 PM</span></span>
+              </div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:5px" role="group" aria-label="Legacy v1 desk console modes">
+              <button type="button" class="legacy-mode-btn" data-mac-mode="Tactical" aria-pressed="true">TACTICAL</button>
+              <button type="button" class="legacy-mode-btn" data-mac-mode="Surface" aria-pressed="false">SURFACE</button>
+              <button type="button" class="legacy-mode-btn" data-mac-mode="Radar" aria-pressed="false">RADAR</button>
+              <button type="button" class="legacy-mode-btn" data-mac-mode="Outlooks" aria-pressed="false">CPC OUTLOOKS</button>
+              <button type="button" class="legacy-mode-btn" data-mac-mode="Chase" aria-pressed="false">STORM CHASE</button>
+              <button type="button" class="legacy-mode-btn" data-mac-mode="Climate" aria-pressed="false">CLIMATE</button>
+              <button type="button" class="legacy-mode-btn" data-mac-mode="Tropics" aria-pressed="false">TROPICS</button>
+              <button type="button" class="legacy-mode-btn" data-mac-mode="Grid" aria-pressed="false">GRID</button>
+            </div>
+          </div>
+
+          <!-- Single Unified 54pt Bridge Glass Toolbar (Modern v2) -->
+          <div class="mac-bridge-bar modern-only">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div class="traffic-lights" aria-hidden="true">
+                <span class="tl-dot tl-close"></span>
+                <span class="tl-dot tl-min"></span>
+                <span class="tl-dot tl-max"></span>
+              </div>
+              <button type="button" class="mac-loc-capsule" data-jump-config aria-label="Switch active station">
+                <span class="wx-pip" style="--pip-color:var(--wx-green)"></span>
+                <span data-bind="place">New Haven, IN</span>
+                <span class="text-gold" aria-hidden="true">★</span>
+                <span class="mono text-muted" style="font-size:11px" data-bind="icao">KFWA</span>
+                <span class="text-muted" aria-hidden="true">▾</span>
+              </button>
+            </div>
+
+            <div class="mac-mode-capsule" role="group" aria-label="Desk console modes">
+              <button type="button" class="mac-mode-btn active" data-mac-mode="Tactical" aria-pressed="true"><svg class="wx-ico" style="--ico-size:13px" aria-hidden="true"><use href="#ico-mode-dual"/></svg><span>Tactical</span></button>
+              <button type="button" class="mac-mode-btn" data-mac-mode="Surface" aria-pressed="false"><svg class="wx-ico" style="--ico-size:13px" aria-hidden="true"><use href="#ico-tab-surface"/></svg><span>Surface</span></button>
+              <button type="button" class="mac-mode-btn" data-mac-mode="Radar" aria-pressed="false"><svg class="wx-ico" style="--ico-size:13px" aria-hidden="true"><use href="#ico-tab-radar"/></svg><span>Radar</span></button>
+              <button type="button" class="mac-mode-btn" data-mac-mode="Outlooks" aria-pressed="false"><svg class="wx-ico" style="--ico-size:13px" aria-hidden="true"><use href="#ico-mode-outlooks"/></svg><span>Outlooks</span></button>
+              <button type="button" class="mac-mode-btn" data-mac-mode="Chase" aria-pressed="false"><svg class="wx-ico" style="--ico-size:13px" aria-hidden="true"><use href="#ico-tab-severe"/></svg><span>Chase</span></button>
+              <button type="button" class="mac-mode-btn" data-mac-mode="Climate" aria-pressed="false"><svg class="wx-ico" style="--ico-size:13px" aria-hidden="true"><use href="#ico-mode-climate"/></svg><span>Climate</span></button>
+              <button type="button" class="mac-mode-btn" data-mac-mode="Tropics" aria-pressed="false"><svg class="wx-ico" style="--ico-size:13px" aria-hidden="true"><use href="#ico-tab-tropics"/></svg><span>Tropics</span></button>
+              <button type="button" class="mac-mode-btn" data-mac-mode="Grid" aria-pressed="false"><svg class="wx-ico" style="--ico-size:13px" aria-hidden="true"><use href="#ico-mode-grid"/></svg><span>Grid</span></button>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span class="ios-sync-pill"><span class="text-green">●</span> SYNC <span data-bind="obsTime">6:45 PM</span></span>
+              <button type="button" class="ios-sync-pill" data-toggle-units aria-label="Toggle Imperial and Metric units" data-bind="unitBadge">°F · Imperial</button>
+            </div>
+          </div>
+
+          <!-- Pinned Top-Band Alert Banner (Preserves AlertBannerUITests top-200pt contract on all 8 modes; human-facing label!) -->
+          <div style="padding:10px 16px 0" data-alert-conditional>
+            <div class="wx-alert-ribbon cond-yellow" data-alert-conditional data-ax-id="alert-banner">
+              <span class="snw-wing-badge" data-bind="alertBadge">COND · YELLOW</span>
+              <div style="flex:1;min-inline-size:0">
+                <span style="font-size:12.5px;font-weight:700;color:#fff" data-bind="alertTitle">Areal Flood Watch</span>
+                <span style="font-size:11.5px;color:rgba(255,238,214,0.9);margin-inline-start:8px" data-bind="alertSub">Maumee River Basin · Until 9:00 PM EDT</span>
+              </div>
+              <span style="font-size:11.5px;font-weight:600;color:#fff">View Advisory ›</span>
+            </div>
+          </div>
+
+          <!-- MAC MODE 1: TACTICAL (Dual-Pane Telemetry + Doppler Radar) -->
+          <div class="mac-desk-grid" data-mac-pane="Tactical">
+            <div class="mac-left-col">
+              <!-- Legacy v1 Truncated SYS.01 Card (Only in Before Audit Mode) -->
+              <div class="wx-glass-card legacy-only">
+                <div class="wx-card-head">
+                  <span class="mono text-cyan" style="font-size:9.5px">● TACTICAL SENSOR CONTROL</span>
+                  <span class="mono text-muted" style="font-size:8.5px">SYS.01</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:11px">
+                  <span style="padding:4px 8px;border:1px solid rgba(56,225,255,0.3);background:#060a14;width:92px;overflow:hidden;white-space:nowrap">Amarillo, T</span>
+                  <span style="padding:4px 6px;border:1px solid rgba(56,225,255,0.3)">GO</span>
+                  <span style="padding:4px 6px;border:1px solid rgba(56,225,255,0.3)">GPS</span>
+                  <span class="text-amber">← Truncated input</span>
+                </div>
+              </div>
+
+              <!-- Atmospheric Hero Card -->
+              <div class="wx-glass-card">
+                <div class="wx-horizon-rail" style="--rail-color:var(--wx-cyan)"></div>
+                <div class="wx-card-head">
+                  <span class="wx-card-kicker"><span class="wx-pip"></span>Atmospheric Telemetry</span>
+                  <span class="wx-card-tag"><span data-bind="icao">KFWA</span> · METAR</span>
+                </div>
+                <div class="flex-between" style="margin-block-end:12px;flex-wrap:wrap">
+                  <div style="display:flex;align-items:center;gap:12px">
+                    <svg width="54" height="54" aria-hidden="true"><use data-hero-icon href="#wx-icon-rain-sun"/></svg>
+                    <div>
+                      <div class="rounded-num" style="font-size:48px;font-weight:600;line-height:1" data-bind="temp">72°</div>
+                      <div style="font-size:14px;font-weight:600;margin-block-start:2px" data-bind="cond">Light Rain &amp; Mist</div>
+                    </div>
+                  </div>
+                  <div style="text-align:end">
+                    <div style="font-size:13px;font-weight:600" data-bind="hl">H: 76°  L: 58°  ·  Feels 71°</div>
+                    <div class="mono text-muted" style="font-size:10.5px;margin-block-start:3px"><span data-bind="pressVal">29.92</span> · Vis <span data-bind="visVal">6.5 mi</span></div>
+                  </div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
+                  <div class="wx-sensor-capsule compact"><div class="mono text-muted" style="font-size:9.5px">HUMIDITY</div><div style="font-size:14.5px;font-weight:700" data-bind="rhVal">78%</div></div>
+                  <div class="wx-sensor-capsule compact"><div class="mono text-muted" style="font-size:9.5px">WIND</div><div style="font-size:14.5px;font-weight:700" data-bind="windVal">9 mph</div></div>
+                  <div class="wx-sensor-capsule compact"><div class="mono text-muted" style="font-size:9.5px">AQI · UV</div><div style="font-size:14.5px;font-weight:700"><span class="text-green" data-bind="aqiVal">28</span> · <span data-bind="uvVal">1.2</span></div></div>
+                </div>
+              </div>
+
+              <!-- 15-Minute Nowcast Card -->
+              <div class="wx-glass-card">
+                <div class="wx-horizon-rail" style="--rail-color:var(--wx-amber)"></div>
+                <div class="wx-card-head">
+                  <span class="wx-card-kicker"><span class="wx-pip" style="--pip-color:var(--wx-amber)"></span>Precipitation Nowcast</span>
+                  <span class="wx-card-tag">MRMS · QPF</span>
+                </div>
+                <div class="flex-between">
+                  <strong style="font-size:13.5px" data-bind="nowcastTitle">Rain tapering off in ~18 min</strong>
+                  <span class="mono text-cyan" style="font-size:11px" data-bind="qpfTotal">0.18" total</span>
+                </div>
+                <div class="nowcast-bars" data-nowcast-bars style="block-size:32px;margin-block-start:6px">
+                  <div class="nowcast-bar heavy" style="height:92%"></div>
+                  <div class="nowcast-bar heavy" style="height:88%"></div>
+                  <div class="nowcast-bar" style="height:68%"></div>
+                  <div class="nowcast-bar" style="height:52%"></div>
+                  <div class="nowcast-bar" style="height:34%"></div>
+                  <div class="nowcast-bar dry" style="height:16%"></div>
+                  <div class="nowcast-bar dry" style="height:16%"></div>
+                  <div class="nowcast-bar dry" style="height:16%"></div>
+                  <div class="nowcast-bar dry" style="height:16%"></div>
+                  <div class="nowcast-bar" style="height:28%"></div>
+                  <div class="nowcast-bar" style="height:40%"></div>
+                  <div class="nowcast-bar" style="height:24%"></div>
+                  <div class="nowcast-bar dry" style="height:16%"></div>
+                  <div class="nowcast-bar dry" style="height:16%"></div>
+                  <div class="nowcast-bar dry" style="height:16%"></div>
+                  <div class="nowcast-bar dry" style="height:16%"></div>
+                </div>
+              </div>
+
+              <!-- Hourly + Synoptic Forecast Card -->
+              <div class="wx-glass-card" style="flex:1" data-ax-id="wx.hourly.strip">
+                <div class="wx-horizon-rail" style="--rail-color:var(--wx-gold)"></div>
+                <div class="wx-card-head">
+                  <span class="wx-card-kicker"><span class="wx-pip" style="--pip-color:var(--wx-gold)"></span>Hourly &amp; Synoptic Horizon</span>
+                  <span class="wx-card-tag">NOAA · IWX</span>
+                </div>
+                <div class="hourly-row" data-hourly-strip style="margin-block-end:12px">
+                  <div class="hour-pill now"><span class="hour-time">Now</span><svg class="wx-ico" style="--ico-size:20px" aria-hidden="true"><use href="#ico-wx-rain"/></svg><span class="hour-pop">70%</span><span class="hour-temp">72°</span></div>
+                  <div class="hour-pill"><span class="hour-time">7 PM</span><svg class="wx-ico" style="--ico-size:20px" aria-hidden="true"><use href="#ico-wx-sun-rain"/></svg><span class="hour-pop">45%</span><span class="hour-temp">70°</span></div>
+                  <div class="hour-pill"><span class="hour-time">8 PM</span><svg class="wx-ico" style="--ico-size:20px" aria-hidden="true"><use href="#ico-wx-sunset"/></svg><span class="hour-pop" style="color:var(--wx-gold)">Set</span><span class="hour-temp">67°</span></div>
+                  <div class="hour-pill"><span class="hour-time">9 PM</span><svg class="wx-ico" style="--ico-size:20px" aria-hidden="true"><use href="#ico-wx-cloud"/></svg><span class="hour-pop">15%</span><span class="hour-temp">64°</span></div>
+                  <div class="hour-pill"><span class="hour-time">10 PM</span><svg class="wx-ico" style="--ico-size:20px" aria-hidden="true"><use href="#ico-wx-moon"/></svg><span class="hour-pop">&nbsp;</span><span class="hour-temp">61°</span></div>
+                </div>
+                <div class="day-rows" data-day-rows>
+                  <div class="day-row" data-today-row><span class="day-name" data-today-name>Today</span><svg class="wx-ico" style="--ico-size:19px" aria-hidden="true"><use data-today-icon href="#ico-wx-sun-rain"/></svg><span class="day-pop" data-today-pop>70%</span><span class="day-low" data-f="58">58°</span><div class="temp-track"><div class="temp-fill" style="left:22%;width:56%"></div></div><span class="day-high" data-f="76">76°</span></div>
+                  <div class="day-row"><span class="day-name">Wed</span><svg class="wx-ico" style="--ico-size:19px" aria-hidden="true"><use href="#ico-wx-partly"/></svg><span class="day-pop">20%</span><span class="day-low" data-f="54">54°</span><div class="temp-track"><div class="temp-fill" style="left:12%;width:60%"></div></div><span class="day-high" data-f="74">74°</span></div>
+                  <div class="day-row"><span class="day-name">Thu</span><svg class="wx-ico" style="--ico-size:19px" aria-hidden="true"><use href="#ico-wx-sun"/></svg><span class="day-pop">&nbsp;</span><span class="day-low" data-f="52">52°</span><div class="temp-track"><div class="temp-fill" style="left:8%;width:72%"></div></div><span class="day-high" data-f="79">79°</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Full-Height Doppler Radar Glass Card -->
+            <div class="mac-right-col">
+              <div class="wx-glass-card mac-radar-card wx-radar-frame-card">
+                <div class="wx-horizon-rail" style="--rail-color:var(--wx-cyan)"></div>
+                <div style="flex:1;position:relative;border-radius:18px;overflow:hidden;border:1px solid rgba(255,255,255,0.14);min-block-size:500px" class="radar-canvas">
+                  <svg role="img" aria-label="Mac dual-pane Doppler radar array" viewBox="0 0 700 500" style="position:absolute;inset:0;width:100%;height:100%">
+                    <rect width="700" height="500" fill="#050c18"/>
+                    <g stroke="rgba(56,225,255,0.12)" fill="none">
+                      <circle cx="350" cy="240" r="90"/><circle cx="350" cy="240" r="175"/><circle cx="350" cy="240" r="260"/>
+                      <line x1="350" y1="0" x2="350" y2="500" stroke-dasharray="4 6"/>
+                      <line x1="0" y1="240" x2="700" y2="240" stroke-dasharray="4 6"/>
+                    </g>
+                    <path d="M290 0 C320 140, 340 220, 345 250 C350 320, 300 420, 275 500" stroke="rgba(148,167,197,0.26)" stroke-width="2.2" fill="none"/>
+                    <path d="M0 222 C180 232, 310 244, 385 248 C495 254, 600 272, 700 286" stroke="rgba(148,167,197,0.24)" stroke-width="2" fill="none"/>
+                    <g data-radar-echo-group>
+                      <g class="echo-regime echo-rain">
+                        <ellipse cx="332" cy="252" rx="196" ry="96" transform="rotate(-22 332 252)" fill="url(#mrms-rain-outer)"/>
+                        <ellipse cx="308" cy="264" rx="116" ry="56" transform="rotate(-20 308 264)" fill="url(#mrms-rain-core)"/>
+                        <ellipse cx="448" cy="196" rx="108" ry="50" transform="rotate(-26 448 196)" fill="url(#mrms-rain-outer)"/>
+                      </g>
+                      <g class="echo-regime echo-severe">
+                        <ellipse cx="310" cy="258" rx="175" ry="96" transform="rotate(-22 310 258)" fill="url(#mrms-band-2)"/>
+                        <ellipse cx="290" cy="268" rx="102" ry="56" transform="rotate(-20 290 268)" fill="url(#mrms-core-1)"/>
+                        <ellipse cx="435" cy="188" rx="95" ry="48" transform="rotate(-26 435 188)" fill="url(#mrms-band-2)"/>
+                      </g>
+                      <g class="echo-regime echo-golden">
+                        <circle cx="350" cy="240" r="135" fill="url(#mrms-clear-golden)"/>
+                        <circle cx="350" cy="240" r="72" fill="none" stroke="rgba(56,225,255,0.22)" stroke-dasharray="3 6"/>
+                      </g>
+                      <g class="echo-regime echo-night">
+                        <circle cx="350" cy="240" r="142" fill="url(#mrms-clear-night)"/>
+                        <circle cx="350" cy="240" r="78" fill="none" stroke="rgba(154,174,255,0.24)" stroke-dasharray="3 6"/>
+                      </g>
+                    </g>
+                    <circle cx="345" cy="242" r="5" fill="#38e1ff"/>
+                    <text x="356" y="238" fill="#f3f8ff" font-family="ui-monospace, monospace" font-size="11" font-weight="700" data-radar-neighbor>FORT WAYNE</text>
+                    <circle cx="386" cy="250" r="6" fill="#30d158" stroke="#fff" stroke-width="1.5"/>
+                    <text x="398" y="254" fill="#7cecff" font-family="ui-monospace, monospace" font-size="11" font-weight="700" data-radar-station>NEW HAVEN ★</text>
+                  </svg>
+
+                  <!-- Floating Top Radar Pills -->
+                  <div style="position:relative;z-index:5;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:12px">
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                      <span class="wx-pill">
+                        <svg class="wx-ico text-cyan" style="--ico-size:13px" aria-hidden="true"><use href="#ico-tab-radar"/></svg>
+                        <span>Composite Reflectivity ▾</span>
+                      </span>
+                      <span class="wx-pill">
+                        <svg class="wx-ico text-cyan" style="--ico-size:13px" aria-hidden="true"><use href="#ico-layers"/></svg>
+                        <span>Regional (250 km) ▾</span>
+                      </span>
+                      <span class="wx-pill">
+                        <svg class="wx-ico text-cyan" style="--ico-size:13px" aria-hidden="true"><use href="#ico-crosshair"/></svg>
+                        <span>Recenter</span>
+                      </span>
+                    </div>
+                    <span class="wx-pill"><span class="wx-pip" data-radar-pip style="--pip-color:var(--wx-green)"></span><span data-bind="radarModePill">MRMS · Stratiform</span></span>
+                  </div>
+
+                  <!-- Floating Bottom Scrubber Capsule inside Radar Viewport -->
+                  <div style="position:absolute;inset-inline:12px;inset-block-end:12px;z-index:5" class="wx-glass-card">
+                    <div class="flex-between" style="gap:12px;flex-wrap:wrap">
+                      <button type="button" class="wx-pill" data-radar-play aria-label="Play radar loop" style="background:rgba(56,225,255,0.22);border-color:rgba(56,225,255,0.5)">▶ Play</button>
+                      <div style="flex:1;min-inline-size:160px">
+                        <label for="mac-radar-scrub" class="mono text-muted" style="font-size:9px;display:block">SCAN TIMELINE (30M)</label>
+                        <input id="mac-radar-scrub" class="wx-range-slider" type="range" min="0" max="5" step="1" value="5" aria-valuetext="Frame 6 of 6, 6:45 PM LIVE" data-radar-slider>
+                        <div class="dbz-bar" style="margin-block-start:2px"></div>
+                      </div>
+                      <span class="mono text-cyan" style="font-size:12px;font-weight:700" data-radar-time>6:45 PM · LIVE</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- MAC MODE 2: SURFACE (AirQualityCardView + EphemerisCardView + Full Synoptic) -->
+          <div class="mac-mode-stage" data-mac-pane="Surface" hidden>
+            <div class="mac-2col">
+              <div class="wx-glass-card">
+                <div class="wx-horizon-rail" style="--rail-color:var(--wx-green)"></div>
+                <div class="wx-card-head">
+                  <span class="wx-card-kicker"><span class="wx-pip" style="--pip-color:var(--wx-green)"></span>Air Quality &amp; Smoke Plume Console</span>
+                  <span class="wx-card-tag">EPA · AQI</span>
+                </div>
+                <div class="flex-between" style="margin-block-end:10px">
+                  <div>
+                    <div class="rounded-num" style="font-size:38px;font-weight:700;color:var(--wx-green)"><span data-bind="aqiVal">28</span> <small style="font-size:15px;color:var(--wx-text-secondary)">/ 500</small></div>
+                    <div style="font-size:13px;color:var(--wx-text-secondary)">Air quality is satisfactory; zero wildfire smoke plume detected overhead.</div>
+                  </div>
+                  <span class="wx-pill" style="border-color:rgba(48,209,88,0.45);color:var(--wx-green)" data-bind="aqiCat">Good</span>
+                </div>
+                <div style="block-size:7px;border-radius:999px;background:linear-gradient(90deg,#30d158 0%,#eab308 35%,#f97316 60%,#ef4444 82%,#a855f7 100%);margin-block-end:12px"></div>
+                <div class="mac-3col">
+                  <div class="wx-sensor-capsule"><div class="sensor-label">PM2.5 FINE</div><div class="sensor-val" style="font-size:17px" data-bind="pm25Val">6.8 µg/m³</div></div>
+                  <div class="wx-sensor-capsule"><div class="sensor-label">OZONE (O₃)</div><div class="sensor-val" style="font-size:17px">31 ppb</div></div>
+                  <div class="wx-sensor-capsule"><div class="sensor-label">UV INDEX</div><div class="sensor-val" style="font-size:17px"><span data-bind="uvVal">1.2</span> · <span data-bind="uvSub">Low · Cloud shielded</span></div></div>
+                </div>
+              </div>
+
+              <div class="wx-glass-card">
+                <div class="wx-horizon-rail" style="--rail-color:var(--wx-gold)"></div>
+                <div class="wx-card-head">
+                  <span class="wx-card-kicker"><span class="wx-pip" style="--pip-color:var(--wx-gold)"></span>Solar Arc &amp; Ephemeris HUD</span>
+                  <span class="wx-card-tag" data-bind="solarTag">+15.4° WNW</span>
+                </div>
+                <svg data-solar-svg role="img" aria-label="Mac solar horizon curve" viewBox="0 0 310 74" style="width:100%;height:78px">
+                  <line x1="8" y1="52" x2="302" y2="52" stroke="rgba(255,255,255,0.20)" stroke-dasharray="3 3"/>
+                  <path d="M12 64 C65 64, 95 14, 155 14 C215 14, 245 64, 298 64" fill="none" stroke="rgba(56,225,255,0.28)" stroke-width="2.2"/>
+                  <path data-solar-progress d="M48 52 C85 24, 122 14, 155 14 C184 14, 204 26, 214 36" fill="none" stroke="#f5a623" stroke-width="3" stroke-linecap="round"/>
+                  <circle data-solar-halo cx="214" cy="36" r="13" fill="rgba(245,166,35,0.26)"/>
+                  <circle data-solar-orb cx="214" cy="36" r="6.5" fill="#ffe082"/>
+                  <text x="14" y="69" fill="#9bb0cf" font-size="9.5" font-family="ui-monospace, monospace">↑ 7:12 AM</text>
+                  <text x="128" y="10" fill="#ffe082" font-size="9.5" font-family="ui-monospace, monospace">NOON 1:38P</text>
+                  <text x="198" y="69" fill="#f5a623" font-size="9.5" font-family="ui-monospace, monospace">↓ 8:04 PM</text>
+                </svg>
+                <div class="mac-3col" style="margin-block-start:8px">
+                  <div class="wx-sensor-capsule"><div class="sensor-label">CIVIL TWILIGHT</div><div class="sensor-val" style="font-size:16px">6:43A / 8:33P</div></div>
+                  <div class="wx-sensor-capsule"><div class="sensor-label">LUNAR PHASE</div><div class="sensor-val" style="font-size:16px">Waning Gibbous · 87%</div></div>
+                  <div class="wx-sensor-capsule"><div class="sensor-label">VISIBILITY</div><div class="sensor-val" style="font-size:16px"><span data-bind="visVal">6.5 mi</span></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- MAC MODE 3: FULL-THEATER DOPPLER RADAR -->
+          <div class="mac-mode-stage" data-mac-pane="Radar" hidden>
+            <div class="wx-glass-card wx-radar-frame-card" style="flex:1;display:flex;flex-direction:column">
+              <div class="wx-horizon-rail" style="--rail-color:var(--wx-cyan)"></div>
+              <div style="flex:1;position:relative;border-radius:18px;overflow:hidden;min-block-size:520px" class="radar-canvas">
+                <svg role="img" aria-label="Full-window CONUS and regional Doppler mosaic" viewBox="0 0 1100 520" style="position:absolute;inset:0;width:100%;height:100%">
+                  <rect width="1100" height="520" fill="#050c18"/>
+                  <g stroke="rgba(56,225,255,0.12)" fill="none">
+                    <circle cx="550" cy="255" r="110"/><circle cx="550" cy="255" r="215"/><circle cx="550" cy="255" r="330"/>
+                    <line x1="550" y1="0" x2="550" y2="520" stroke-dasharray="4 6"/>
+                    <line x1="0" y1="255" x2="1100" y2="255" stroke-dasharray="4 6"/>
+                  </g>
+                  <g data-radar-echo-group>
+                    <g class="echo-regime echo-rain">
+                      <ellipse cx="520" cy="268" rx="250" ry="110" transform="rotate(-20 520 268)" fill="url(#mrms-rain-outer)"/>
+                      <ellipse cx="490" cy="278" rx="145" ry="64" transform="rotate(-18 490 278)" fill="url(#mrms-rain-core)"/>
+                    </g>
+                    <g class="echo-regime echo-severe">
+                      <ellipse cx="500" cy="272" rx="220" ry="105" transform="rotate(-20 500 272)" fill="url(#mrms-band-2)"/>
+                      <ellipse cx="475" cy="282" rx="125" ry="62" transform="rotate(-18 475 282)" fill="url(#mrms-core-1)"/>
+                    </g>
+                    <g class="echo-regime echo-golden"><circle cx="550" cy="255" r="165" fill="url(#mrms-clear-golden)"/></g>
+                    <g class="echo-regime echo-night"><circle cx="550" cy="255" r="175" fill="url(#mrms-clear-night)"/></g>
+                  </g>
+                  <circle cx="578" cy="260" r="6.5" fill="#30d158" stroke="#fff" stroke-width="1.6"/>
+                  <text x="592" y="264" fill="#7cecff" font-family="ui-monospace, monospace" font-size="12" font-weight="700" data-radar-station-slash>NEW HAVEN / KFWA ★</text>
+                </svg>
+                <div style="position:relative;z-index:5;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:14px">
+                  <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <span class="wx-pill">Composite Refl</span>
+                    <span class="wx-pill" style="opacity:0.8">SRV Velocity</span>
+                    <span class="wx-pill" style="opacity:0.8">Echo Tops</span>
+                    <span class="wx-pill" style="opacity:0.8">1H QPF</span>
+                  </div>
+                  <span class="wx-pill"><span class="wx-pip" data-radar-pip style="--pip-color:var(--wx-green)"></span><span data-bind="radarModePill">MRMS · Stratiform</span> · 500 km Mosaic</span>
+                </div>
+                <div style="position:absolute;inset-inline:14px;inset-block-end:14px;z-index:5" class="wx-glass-card">
+                  <div class="flex-between" style="gap:14px;flex-wrap:wrap">
+                    <button type="button" class="wx-pill" data-radar-play aria-label="Play full-screen radar loop">▶ Play</button>
+                    <div style="flex:1;min-inline-size:180px">
+                      <label for="mac-full-radar-scrub" class="mono text-muted" style="font-size:9px;display:block">MULTI-RADAR MOSAIC TIMELINE (30M)</label>
+                      <input id="mac-full-radar-scrub" class="wx-range-slider" type="range" min="0" max="5" step="1" value="5" data-radar-slider>
+                    </div>
+                    <span class="mono text-cyan" style="font-size:12px;font-weight:700" data-radar-time>6:45 PM · LIVE</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- MAC MODE 4: CPC OUTLOOKS (CPCOutlookView Overhaul) -->
+          <div class="mac-mode-stage" data-mac-pane="Outlooks" hidden>
+            <div class="wx-glass-card">
+              <div class="wx-horizon-rail" style="--rail-color:var(--wx-amber)"></div>
+              <div class="wx-card-head">
+                <span class="wx-card-kicker"><span class="wx-pip" style="--pip-color:var(--wx-amber)"></span>Synoptic Pattern Shift Heads-Up</span>
+                <span class="wx-card-tag">NOAA · CPC</span>
+              </div>
+              <div style="font-size:15px;font-weight:700;margin-block-end:6px">Upper-level trough amplification shifting Great Lakes warmer &amp; wetter Days 6–10</div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px">
+                <span class="wx-pill" style="color:var(--wx-amber);border-color:rgba(255,159,10,0.4)">Temp Shift · Warmer (+62%)</span>
+                <span class="wx-pill" style="color:var(--wx-green);border-color:rgba(48,209,88,0.4)">Precip Shift · Wetter (+48%)</span>
+                <span class="wx-pill">Confidence · High</span>
+              </div>
+            </div>
+            <div class="mac-2col">
+              <div class="wx-glass-card">
+                <div class="wx-horizon-rail"></div>
+                <div class="wx-card-head"><span class="wx-card-kicker"><span class="wx-pip"></span>6–10 Day Numerical Outlook</span><span class="wx-card-tag">EXTENDED</span></div>
+                <div style="font-size:13px;font-weight:600" class="flex-between"><span>Above Normal Temperature</span><span class="mono text-amber">62% PROB</span></div>
+                <div class="prob-meter"><div class="prob-fill" style="width:62%;--meter-color:var(--wx-amber)"></div></div>
+                <div style="font-size:13px;font-weight:600;margin-block-start:12px" class="flex-between"><span>Above Normal Precipitation</span><span class="mono text-green">48% PROB</span></div>
+                <div class="prob-meter"><div class="prob-fill" style="width:48%;--meter-color:var(--wx-green)"></div></div>
+              </div>
+              <div class="wx-glass-card">
+                <div class="wx-horizon-rail" style="--rail-color:var(--wx-green)"></div>
+                <div class="wx-card-head"><span class="wx-card-kicker"><span class="wx-pip" style="--pip-color:var(--wx-green)"></span>8–14 Day &amp; Monthly Drought</span><span class="wx-card-tag">CPC · PDSI</span></div>
+                <div style="font-size:13px;font-weight:600" class="flex-between"><span>8–14D Near-to-Above Normal Temp</span><span class="mono text-gold">54% PROB</span></div>
+                <div class="prob-meter"><div class="prob-fill" style="width:54%;--meter-color:var(--wx-gold)"></div></div>
+                <div class="wx-sensor-capsule" style="margin-block-start:12px">
+                  <div class="sensor-label"><span>U.S. MONTHLY DROUGHT OUTLOOK</span><span class="text-green">● NOMINAL</span></div>
+                  <div style="font-size:13px;margin-block-start:4px;color:var(--wx-text-secondary)">No drought development expected across Northern Indiana &amp; Maumee Basin.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- MAC MODE 5: STORM CHASE (StormChaseView + SoundingConsoleCard Overhaul — Weather & Unit Reactive!) -->
+          <div class="mac-mode-stage" data-mac-pane="Chase" hidden>
+            <div class="mac-2col">
+              <div class="wx-glass-card">
+                <div class="wx-horizon-rail" style="--rail-color:var(--wx-gold)"></div>
+                <div class="wx-card-head">
+                  <span class="wx-card-kicker"><span class="wx-pip" style="--pip-color:var(--wx-gold)"></span>SPC Convective Outlook &amp; MCDs</span>
+                  <span class="wx-card-tag" data-bind="chaseCeilingTag">CEILING · ENH</span>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-block-end:10px">
+                  <span class="wx-pill" style="border-color:rgba(245,166,35,0.5);color:var(--wx-gold)" data-bind="chaseDay1">Day 1 · SLGT (2/5)</span>
+                  <span class="wx-pill" style="border-color:rgba(255,159,10,0.5);color:var(--wx-amber)" data-bind="chaseDay2">Day 2 · ENH (3/5)</span>
+                  <span class="wx-pill" data-bind="chaseDay3">Day 3 · MRGL (1/5)</span>
+                </div>
+                <div class="wx-sensor-capsule">
+                  <div class="sensor-label"><span class="text-amber" data-bind="chaseMcdTitle">MCD #0842 · NORTHERN INDIANA / NW OHIO</span><span class="mono text-gold" data-bind="chaseMcdProb">WATCH PROB 60%</span></div>
+                  <p style="font-size:12.5px;color:var(--wx-text-secondary);margin-block-start:4px" data-bind="chaseMcdDesc">Steep mid-level lapse rates &amp; 45–50 kt effective bulk shear supporting supercell organization.</p>
+                </div>
+              </div>
+
+              <div class="wx-glass-card">
+                <div class="wx-horizon-rail" style="--rail-color:var(--wx-red)"></div>
+                <div class="wx-card-head">
+                  <span class="wx-card-kicker"><span class="wx-pip" style="--pip-color:var(--wx-red)"></span><span data-bind="chaseClusterKicker">Cluster #1 · Wabash–Maumee Corridor</span></span>
+                  <span class="wx-card-tag" data-bind="chaseScoreTag">SCORE · 118</span>
+                </div>
+                <div class="flex-between" style="flex-wrap:wrap;margin-block-end:10px">
+                  <div>
+                    <div style="font-size:15px;font-weight:700" data-bind="chaseClusterHeadline">4 Active Severe Cells · Nearest NEXRAD KIWX</div>
+                    <div style="font-size:12px;color:var(--wx-text-secondary)">States: IN, OH · Upper-Air Sounding: KILN</div>
+                  </div>
+                  <button type="button" class="wx-pill" data-chase-intercept style="background:rgba(255,59,86,0.24);border-color:rgba(255,92,116,0.6)">
+                    <svg class="wx-ico" style="--ico-size:13px" aria-hidden="true"><use href="#ico-crosshair"/></svg>
+                    <span>Intercept Radar</span>
+                  </button>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px">
+                  <div class="wx-sensor-capsule compact"><div class="mono text-muted" style="font-size:9px">SBCAPE</div><div style="font-size:14px;font-weight:700" data-bind="capeVal">420</div></div>
+                  <div class="wx-sensor-capsule compact"><div class="mono text-muted" style="font-size:9px">0-6KM SHEAR</div><div style="font-size:14px;font-weight:700" data-bind="shearVal">28 kt</div></div>
+                  <div class="wx-sensor-capsule compact"><div class="mono text-muted" style="font-size:9px">0-1KM SRH</div><div style="font-size:14px;font-weight:700" data-bind="srhVal">95</div></div>
+                  <div class="wx-sensor-capsule compact"><div class="mono text-muted" style="font-size:9px">PWAT</div><div style="font-size:14px;font-weight:700" data-bind="pwatVal">1.42"</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- MAC MODE 6: CLIMATE (ClimateTrendsView Overhaul — Full Metric & Sky Reactivity!) -->
+          <div class="mac-mode-stage" data-mac-pane="Climate" hidden>
+            <div class="wx-glass-card">
+              <div class="wx-horizon-rail" style="--rail-color:var(--wx-amber)"></div>
+              <div class="wx-card-head">
+                <span class="wx-card-kicker"><span class="wx-pip" style="--pip-color:var(--wx-amber)"></span>NOAA 30-Year Climate Normals &amp; All-Time Daily Records</span>
+                <span class="wx-card-tag">1991–2020 · <span data-bind="icao">KFWA</span></span>
+              </div>
+              <div class="mac-3col">
+                <div class="wx-sensor-capsule"><div class="sensor-label">TODAY'S 30-YR NORMAL</div><div class="sensor-val" style="font-size:18px" data-bind="climNormal">73° / 53°</div><div class="sensor-sub" data-bind="climDepart">Departure: -1.0° (Nominal)</div></div>
+                <div class="wx-sensor-capsule"><div class="sensor-label">ALL-TIME RECORD HIGH</div><div class="sensor-val text-red" style="font-size:18px" data-bind="climRecHigh">91° (1953)</div><div class="sensor-sub" data-bind="climRecLow">Record Low: 34° (1974)</div></div>
+                <div class="wx-sensor-capsule"><div class="sensor-label">14-DAY ACCUMULATION</div><div class="sensor-val text-green" style="font-size:18px" data-bind="climPrecip">1.84 in</div><div class="sensor-sub">108% of 30-year baseline</div></div>
+              </div>
+            </div>
+            <div class="wx-glass-card">
+              <div class="wx-horizon-rail"></div>
+              <div class="wx-card-head"><span class="wx-card-kicker"><span class="wx-pip"></span>14-Day Thermal Range Envelope</span><span class="wx-card-tag">REANALYSIS</span></div>
+              <svg role="img" aria-label="14-day high and low temperature envelope chart" viewBox="0 0 900 130" style="width:100%;height:130px">
+                <defs>
+                  <linearGradient id="clim-env" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#ff3b56" stop-opacity="0.32"/>
+                    <stop offset="100%" stop-color="#38e1ff" stop-opacity="0.14"/>
+                  </linearGradient>
+                </defs>
+                <path d="M20 48 L150 38 L280 44 L410 26 L540 34 L670 42 L800 30 L880 36 L880 96 L800 92 L670 102 L540 94 L410 86 L280 98 L150 92 L20 100 Z" fill="url(#clim-env)"/>
+                <polyline points="20,48 150,38 280,44 410,26 540,34 670,42 800,30 880,36" fill="none" stroke="#ff5c74" stroke-width="2.6" stroke-linecap="round"/>
+                <polyline points="20,100 150,92 280,98 410,86 540,94 670,102 800,92 880,96" fill="none" stroke="#38e1ff" stroke-width="2.6" stroke-linecap="round"/>
+              </svg>
+            </div>
+          </div>
+
+          <!-- MAC MODE 7: TROPICS (TropicsView Overhaul — Metric Unit Reactive!) -->
+          <div class="mac-mode-stage" data-mac-pane="Tropics" hidden>
+            <div class="mac-2col">
+              <div class="wx-glass-card">
+                <div class="wx-horizon-rail" style="--rail-color:var(--wx-amber)"></div>
+                <div class="wx-card-head"><span class="wx-card-kicker"><span class="wx-pip" style="--pip-color:var(--wx-amber)"></span>#1 Hurricane Helene (AL09)</span><span class="wx-card-tag">CAT 3 · MAJOR</span></div>
+                <div style="font-size:14px;color:var(--wx-text-secondary);margin-block-end:10px" data-bind="macTropicsSub">24.6°N 84.9°W · Moving NNE at 16 mph · Hurricane-force winds extend outward 60 nm.</div>
+                <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">
+                  <div class="wx-sensor-capsule"><div class="sensor-label">MAX SUSTAINED</div><div class="sensor-val text-amber" data-bind="macTropicsMax">115 mph (100 kt)</div></div>
+                  <div class="wx-sensor-capsule"><div class="sensor-label">MIN CENTRAL BARO</div><div class="sensor-val text-red">952 mb</div></div>
+                </div>
+              </div>
+              <div class="wx-glass-card">
+                <div class="wx-horizon-rail"></div>
+                <div class="wx-card-head"><span class="wx-card-kicker"><span class="wx-pip"></span>Tropical Weather Outlook · Invests</span><span class="wx-card-tag">NHC · TWO</span></div>
+                <div class="wx-sensor-capsule">
+                  <div class="sensor-label"><span>[AL98] CENTRAL TROPICAL ATLANTIC</span><span class="mono text-amber">7D · 60% MED</span></div>
+                  <p style="font-size:12.5px;color:var(--wx-text-secondary);margin-block-start:4px" data-bind="macInvestSub">48-hour formation chance: 30% (Low) · 7-day formation chance: 60% (Medium) moving WNW at 15 mph.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- MAC MODE 8: COMMAND GRID (CommandGridView Overhaul — Sky & Metric Reactive!) -->
+          <div class="mac-mode-stage" data-mac-pane="Grid" hidden>
+            <div class="mac-3col">
+              <div class="wx-glass-card">
+                <div class="wx-horizon-rail"></div>
+                <div class="wx-card-head"><span class="wx-card-kicker"><span class="wx-pip" style="--pip-color:var(--wx-green)"></span>New Haven, IN</span><span class="wx-card-tag">KFWA · LIVE</span></div>
+                <div class="flex-between" style="margin-block-end:10px">
+                  <span class="rounded-num" style="font-size:36px;font-weight:600" data-newhaven-temp>72°</span>
+                  <svg class="wx-ico" style="--ico-size:32px" aria-hidden="true"><use data-newhaven-icon href="#ico-wx-rain"/></svg>
+                </div>
+                <div class="flex-between">
+                  <span class="mono text-muted" style="font-size:11px" data-bind="gridMetaNH">HUM 78% · SSW 9 mph</span>
+                  <button type="button" class="wx-pill" data-grid-jump="newhaven" style="padding:4px 10px;font-size:11px">Open Tactical ›</button>
+                </div>
+              </div>
+              <div class="wx-glass-card">
+                <div class="wx-horizon-rail" style="--rail-color:var(--wx-gold)"></div>
+                <div class="wx-card-head"><span class="wx-card-kicker"><span class="wx-pip" style="--pip-color:var(--wx-gold)"></span>Milwaukee, WI</span><span class="wx-card-tag">KMKE · LIVE</span></div>
+                <div class="flex-between" style="margin-block-end:10px">
+                  <span class="rounded-num" style="font-size:36px;font-weight:600" data-f="66">66°</span>
+                  <svg class="wx-ico" style="--ico-size:32px" aria-hidden="true"><use href="#ico-wx-partly"/></svg>
+                </div>
+                <div class="flex-between">
+                  <span class="mono text-muted" style="font-size:11px" data-bind="gridMetaMKE">HUM 64% · ENE 11 mph</span>
+                  <button type="button" class="wx-pill" data-grid-jump="milwaukee" style="padding:4px 10px;font-size:11px">Open Tactical ›</button>
+                </div>
+              </div>
+              <div class="wx-glass-card">
+                <div class="wx-horizon-rail" style="--rail-color:var(--wx-amber)"></div>
+                <div class="wx-card-head"><span class="wx-card-kicker"><span class="wx-pip" style="--pip-color:var(--wx-amber)"></span>Amarillo, TX</span><span class="wx-card-tag">KAMA · LIVE</span></div>
+                <div class="flex-between" style="margin-block-end:10px">
+                  <span class="rounded-num" style="font-size:36px;font-weight:600" data-f="81">81°</span>
+                  <svg class="wx-ico" style="--ico-size:32px" aria-hidden="true"><use href="#ico-wx-sun"/></svg>
+                </div>
+                <div class="flex-between">
+                  <span class="mono text-muted" style="font-size:11px" data-bind="gridMetaAMA">HUM 28% · SW 18 mph</span>
+                  <button type="button" class="wx-pill" data-grid-jump="amarillo" style="padding:4px 10px;font-size:11px">Open Tactical ›</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================================
+         PANEL 5: macOS Menu Bar HUD Popover + iPad Pro 11" Split Console
+         ===================================================================== -->
+    <section role="tabpanel" id="panel-popover-ipad" aria-labelledby="tab-popover-ipad" class="studio-panel" hidden="until-found">
+      <div class="panel-inner">
+        <div class="section-caption">
+          <div>
+            <h2>macOS Menu Bar HUD Popover &amp; iPad Pro 11" Split Desk</h2>
+            <p>Aligns the Menu Bar popover with macOS Tahoe continuous 24pt glass geometry (try switching <em>Compact / Standard / Tactical</em> below!) and completes the iPad regular-width split console with full Hourly + 5-Day telemetry and interactive radar transport controls.</p>
+          </div>
+        </div>
+
+        <div class="popover-ipad-grid">
+          <!-- Left: Menu Bar Popover -->
+          <div style="display:flex;flex-direction:column;align-items:center;gap:12px;inline-size:100%;min-inline-size:0">
+            <!-- Simulated macOS Menu Bar Pill -->
+            <div class="wx-pill" style="gap:9px;padding:6px 14px">
+              <span class="wx-pip" data-status-pip style="--pip-color:var(--wx-amber)"></span>
+              <span style="display:inline-flex;align-items:center;gap:5px">
+                <svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use data-hero-icon href="#wx-icon-rain-sun"/></svg>
+                <strong data-bind="temp">72°</strong>
+              </span>
+              <span class="mono text-muted" style="font-size:11px">[<span data-bind="icao">KFWA</span>] <span data-bind="windVal">9 mph</span></span>
+            </div>
+
+            <div class="mac-popover-frame wx-atmosphere">
+              <div class="flex-between" style="flex-wrap:wrap">
+                <div style="display:flex;align-items:center;gap:7px">
+                  <span class="wx-pip" style="--pip-color:var(--wx-green)"></span>
+                  <strong style="font-size:13px" data-bind="place">New Haven, IN</strong>
+                </div>
+                <div class="control-group" style="padding:2px 4px" role="group" aria-label="HUD density mode">
+                  <button type="button" class="pill-choice" style="padding-inline:8px;font-size:10.5px" data-hud-mode="compact" aria-pressed="false">Compact</button>
+                  <button type="button" class="pill-choice" style="padding-inline:8px;font-size:10.5px" data-hud-mode="standard" aria-pressed="true">Standard</button>
+                  <button type="button" class="pill-choice" style="padding-inline:8px;font-size:10.5px" data-hud-mode="tactical" aria-pressed="false">Tactical</button>
+                </div>
+              </div>
+
+              <!-- Pinned Grid Bar (Tactical Mode) -->
+              <div data-hud-section="tactical" hidden style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">
+                <div class="wx-sensor-capsule micro" style="border-color:rgba(56,225,255,0.45)"><div style="font-size:10.5px;font-weight:700">New Haven</div><div style="display:flex;align-items:center;gap:4px" class="mono text-cyan"><span style="font-size:12px" data-newhaven-temp>72°</span><svg class="wx-ico" style="--ico-size:14px" aria-hidden="true"><use data-newhaven-icon href="#ico-wx-rain"/></svg></div></div>
+                <div class="wx-sensor-capsule micro"><div style="font-size:10.5px;font-weight:600">Milwaukee</div><div style="display:flex;align-items:center;gap:4px" class="mono"><span style="font-size:12px" data-f="66">66°</span><svg class="wx-ico" style="--ico-size:14px" aria-hidden="true"><use href="#ico-wx-partly"/></svg></div></div>
+                <div class="wx-sensor-capsule micro"><div style="font-size:10.5px;font-weight:600">Amarillo</div><div style="display:flex;align-items:center;gap:4px" class="mono"><span style="font-size:12px" data-f="81">81°</span><svg class="wx-ico" style="--ico-size:14px" aria-hidden="true"><use href="#ico-wx-sun"/></svg></div></div>
+              </div>
+
+              <!-- Hero Observation -->
+              <div class="wx-glass-card">
+                <div class="wx-horizon-rail"></div>
+                <div class="flex-between">
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <svg width="42" height="42" aria-hidden="true"><use data-hero-icon href="#wx-icon-rain-sun"/></svg>
+                    <div>
+                      <div class="rounded-num" style="font-size:34px;font-weight:600;line-height:1" data-bind="temp">72°</div>
+                      <div style="font-size:12px;color:var(--wx-text-secondary)" data-bind="cond">Light Rain &amp; Mist</div>
+                    </div>
+                  </div>
+                  <div style="text-align:end;font-size:11.5px;color:var(--wx-text-secondary)">
+                    <div data-bind="feelsLabel">Feels 71°</div>
+                    <div class="mono text-cyan" data-bind="windChip">↘ 9 mph SSW</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Nowcast (Standard + Tactical) -->
+              <div class="wx-glass-card" data-hud-section="standard tactical">
+                <div class="wx-horizon-rail" style="--rail-color:var(--wx-amber)"></div>
+                <div style="font-size:12.5px;font-weight:700" data-bind="nowcastTitle">Rain tapering off in ~18 min</div>
+                <div class="nowcast-bars" data-nowcast-bars style="block-size:24px;margin-block-start:4px">
+                  <div class="nowcast-bar heavy" style="height:92%"></div>
+                  <div class="nowcast-bar" style="height:72%"></div>
+                  <div class="nowcast-bar" style="height:48%"></div>
+                  <div class="nowcast-bar" style="height:26%"></div>
+                  <div class="nowcast-bar dry" style="height:16%"></div>
+                  <div class="nowcast-bar dry" style="height:16%"></div>
+                  <div class="nowcast-bar dry" style="height:16%"></div>
+                  <div class="nowcast-bar dry" style="height:16%"></div>
+                  <div class="nowcast-bar" style="height:34%"></div>
+                  <div class="nowcast-bar dry" style="height:16%"></div>
+                  <div class="nowcast-bar dry" style="height:16%"></div>
+                  <div class="nowcast-bar dry" style="height:16%"></div>
+                  <div class="nowcast-bar dry" style="height:16%"></div>
+                  <div class="nowcast-bar dry" style="height:16%"></div>
+                  <div class="nowcast-bar dry" style="height:16%"></div>
+                  <div class="nowcast-bar dry" style="height:16%"></div>
+                </div>
+              </div>
+
+              <!-- Compact Forecast -->
+              <div class="wx-glass-card" data-hud-section="compact standard tactical">
+                <div class="day-rows" data-day-rows>
+                  <div class="day-row" data-today-row style="grid-template-columns:54px 20px 30px 34px 1fr 30px"><span class="day-name" data-today-name>Today</span><svg class="wx-ico" style="--ico-size:18px" aria-hidden="true"><use data-today-icon href="#ico-wx-sun-rain"/></svg><span class="day-pop" data-today-pop>70%</span><span class="day-low" data-f="58">58°</span><div class="temp-track"><div class="temp-fill" style="left:22%;width:56%"></div></div><span class="day-high" data-f="76">76°</span></div>
+                  <div class="day-row" style="grid-template-columns:54px 20px 30px 34px 1fr 30px"><span class="day-name">Wed</span><svg class="wx-ico" style="--ico-size:18px" aria-hidden="true"><use href="#ico-wx-partly"/></svg><span class="day-pop">20%</span><span class="day-low" data-f="54">54°</span><div class="temp-track"><div class="temp-fill" style="left:12%;width:60%"></div></div><span class="day-high" data-f="74">74°</span></div>
+                  <div class="day-row" style="grid-template-columns:54px 20px 30px 34px 1fr 30px"><span class="day-name">Thu</span><svg class="wx-ico" style="--ico-size:18px" aria-hidden="true"><use href="#ico-wx-sun"/></svg><span class="day-pop">&nbsp;</span><span class="day-low" data-f="52">52°</span><div class="temp-track"><div class="temp-fill" style="left:8%;width:72%"></div></div><span class="day-high" data-f="79">79°</span></div>
+                </div>
+              </div>
+
+              <div class="flex-between" style="padding-inline:2px;flex-wrap:wrap">
+                <button type="button" class="ios-sync-pill" data-toggle-units aria-label="Toggle units" data-bind="unitBadge">°F · Imperial</button>
+                <div style="display:flex;gap:6px">
+                  <button type="button" class="wx-pill" data-jump-desk-radar style="padding:5px 10px;font-size:11px">
+                    <svg class="wx-ico text-cyan" style="--ico-size:12px" aria-hidden="true"><use href="#ico-tab-radar"/></svg>
+                    <span>Radar</span>
+                  </button>
+                  <button type="button" class="wx-pill" data-jump-desk style="padding:5px 10px;font-size:11px;border-color:rgba(56,225,255,0.45)">
+                    <svg class="wx-ico" style="--ico-size:12px" aria-hidden="true"><use href="#ico-mode-dual"/></svg>
+                    <span>Open Desk</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: iPad Pro 11" Split Desk (Complete Hourly + 5-Day + Interactive Radar Transport, Zero Leaked Test IDs!) -->
+          <div class="ipad-frame">
+            <div class="ipad-screen wx-atmosphere">
+              <div class="ios-top-bar" style="padding:14px 18px 8px;flex-wrap:wrap">
+                <span class="ios-loc-pill"><span class="wx-pip" style="--pip-color:var(--wx-green)"></span><span data-bind="place">New Haven, IN</span> · Split Console</span>
+                <span class="ios-sync-pill"><span data-bind="icao">KFWA</span> · LIVE <span data-bind="obsTime">6:45 PM</span></span>
+              </div>
+
+              <div class="ipad-split-grid" data-ax-id="desk.split">
+                <!-- Left Telemetry Pane -->
+                <div style="display:flex;flex-direction:column;gap:10px;min-inline-size:0" data-ax-id="desk.telemetry">
+                  <div class="wx-glass-card">
+                    <div class="wx-horizon-rail"></div>
+                    <div class="flex-between" style="flex-wrap:wrap">
+                      <div style="display:flex;align-items:center;gap:10px">
+                        <svg width="46" height="46" aria-hidden="true"><use data-hero-icon href="#wx-icon-rain-sun"/></svg>
+                        <div>
+                          <div class="rounded-num" style="font-size:40px;font-weight:600;line-height:1" data-bind="temp">72°</div>
+                          <div style="font-size:13px;color:var(--wx-text-secondary)" data-bind="cond">Light Rain &amp; Mist</div>
+                        </div>
+                      </div>
+                      <div style="text-align:end;font-size:11.5px;color:var(--wx-text-secondary)">
+                        <div data-bind="hlCompact">H:76° L:58°</div>
+                        <div class="mono text-cyan" data-bind="windChip">↘ 9 mph SSW</div>
+                      </div>
+                    </div>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-block-start:8px">
+                      <span class="ios-micro-pill"><svg class="wx-ico text-cyan" style="--ico-size:11px" aria-hidden="true"><use href="#ico-droplet"/></svg><span data-bind="rhChip">78% RH</span></span>
+                      <span class="ios-micro-pill"><span class="text-green">●</span> <span data-bind="aqiChip">AQI 28</span></span>
+                      <span class="ios-micro-pill">UV <span data-bind="uvVal">1.2</span></span>
+                    </div>
+                  </div>
+
+                  <!-- Complete Hourly Strip + Full 5-Day Forecast Card -->
+                  <div class="wx-glass-card" style="flex:1;display:flex;flex-direction:column;justify-content:space-between">
+                    <div class="wx-horizon-rail" style="--rail-color:var(--wx-gold)"></div>
+                    <div>
+                      <div class="wx-card-head">
+                        <span class="wx-card-kicker"><span class="wx-pip" style="--pip-color:var(--wx-gold)"></span>Hourly &amp; 5-Day</span>
+                        <span class="wx-card-tag">NWS · IWX</span>
+                      </div>
+                      <div class="hourly-row scroll-x" data-hourly-strip style="margin-block-end:12px">
+                        <div class="hour-pill now"><span class="hour-time">Now</span><svg class="wx-ico" style="--ico-size:18px" aria-hidden="true"><use href="#ico-wx-rain"/></svg><span class="hour-pop">70%</span><span class="hour-temp">72°</span></div>
+                        <div class="hour-pill"><span class="hour-time">7 PM</span><svg class="wx-ico" style="--ico-size:18px" aria-hidden="true"><use href="#ico-wx-sun-rain"/></svg><span class="hour-pop">45%</span><span class="hour-temp">70°</span></div>
+                        <div class="hour-pill"><span class="hour-time">8 PM</span><svg class="wx-ico" style="--ico-size:18px" aria-hidden="true"><use href="#ico-wx-sunset"/></svg><span class="hour-pop" style="color:var(--wx-gold)">Set</span><span class="hour-temp">67°</span></div>
+                        <div class="hour-pill"><span class="hour-time">9 PM</span><svg class="wx-ico" style="--ico-size:18px" aria-hidden="true"><use href="#ico-wx-cloud"/></svg><span class="hour-pop">15%</span><span class="hour-temp">64°</span></div>
+                        <div class="hour-pill"><span class="hour-time">10 PM</span><svg class="wx-ico" style="--ico-size:18px" aria-hidden="true"><use href="#ico-wx-moon"/></svg><span class="hour-pop">&nbsp;</span><span class="hour-temp">61°</span></div>
+                      </div>
+                    </div>
+
+                    <div class="day-rows" data-day-rows data-ipad-days>
+                      <div class="day-row" data-today-row style="grid-template-columns:54px 20px 28px 32px 1fr 30px"><span class="day-name" data-today-name>Today</span><svg class="wx-ico" style="--ico-size:18px" aria-hidden="true"><use data-today-icon href="#ico-wx-sun-rain"/></svg><span class="day-pop" data-today-pop>70%</span><span class="day-low" data-f="58">58°</span><div class="temp-track"><div class="temp-fill" style="left:22%;width:56%"></div></div><span class="day-high" data-f="76">76°</span></div>
+                      <div class="day-row" style="grid-template-columns:54px 20px 28px 32px 1fr 30px"><span class="day-name">Wed</span><svg class="wx-ico" style="--ico-size:18px" aria-hidden="true"><use href="#ico-wx-partly"/></svg><span class="day-pop">20%</span><span class="day-low" data-f="54">54°</span><div class="temp-track"><div class="temp-fill" style="left:12%;width:60%"></div></div><span class="day-high" data-f="74">74°</span></div>
+                      <div class="day-row" style="grid-template-columns:54px 20px 28px 32px 1fr 30px"><span class="day-name">Thu</span><svg class="wx-ico" style="--ico-size:18px" aria-hidden="true"><use href="#ico-wx-sun"/></svg><span class="day-pop">&nbsp;</span><span class="day-low" data-f="52">52°</span><div class="temp-track"><div class="temp-fill" style="left:8%;width:72%"></div></div><span class="day-high" data-f="79">79°</span></div>
+                      <div class="day-row" style="grid-template-columns:54px 20px 28px 32px 1fr 30px"><span class="day-name">Fri</span><svg class="wx-ico" style="--ico-size:18px" aria-hidden="true"><use href="#ico-wx-tstorm"/></svg><span class="day-pop">80%</span><span class="day-low" data-f="60">60°</span><div class="temp-track"><div class="temp-fill" style="left:28%;width:64%"></div></div><span class="day-high" data-f="82">82°</span></div>
+                      <div class="day-row" style="grid-template-columns:54px 20px 28px 32px 1fr 30px"><span class="day-name">Sat</span><svg class="wx-ico" style="--ico-size:18px" aria-hidden="true"><use href="#ico-wx-partly"/></svg><span class="day-pop">25%</span><span class="day-low" data-f="55">55°</span><div class="temp-track"><div class="temp-fill" style="left:15%;width:58%"></div></div><span class="day-high" data-f="75">75°</span></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Right Interactive Doppler Radar Pane -->
+                <div class="wx-glass-card wx-radar-frame-card" data-ax-id="desk.radar" style="display:flex;flex-direction:column;min-block-size:430px">
+                  <div class="wx-horizon-rail" style="--rail-color:var(--wx-cyan)"></div>
+                  <div class="radar-canvas" style="flex:1;position:relative;border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,0.14);padding:10px;display:flex;flex-direction:column;justify-content:space-between">
+                    <svg role="img" aria-label="iPad split Doppler radar pane" viewBox="0 0 460 430" style="position:absolute;inset:0;width:100%;height:100%">
+                      <rect width="460" height="430" fill="#050c18"/>
+                      <g stroke="rgba(56,225,255,0.13)" fill="none">
+                        <circle cx="230" cy="195" r="68"/>
+                        <circle cx="230" cy="195" r="136"/>
+                        <line x1="230" y1="20" x2="230" y2="370" stroke-dasharray="3 5"/>
+                        <line x1="20" y1="195" x2="440" y2="195" stroke-dasharray="3 5"/>
+                      </g>
+                      <path d="M0 182 C120 188, 210 198, 265 202 C345 208, 405 220, 460 232" stroke="rgba(148,167,197,0.24)" stroke-width="1.8" fill="none"/>
+                      <g data-radar-echo-group>
+                        <g class="echo-regime echo-rain">
+                          <ellipse cx="220" cy="204" rx="126" ry="64" transform="rotate(-22 220 204)" fill="url(#mrms-rain-outer)"/>
+                          <ellipse cx="204" cy="212" rx="74" ry="38" transform="rotate(-20 204 212)" fill="url(#mrms-rain-core)"/>
+                          <ellipse cx="292" cy="166" rx="68" ry="32" transform="rotate(-26 292 166)" fill="url(#mrms-rain-outer)"/>
+                        </g>
+                        <g class="echo-regime echo-severe">
+                          <ellipse cx="215" cy="205" rx="115" ry="62" transform="rotate(-22 215 205)" fill="url(#mrms-band-2)"/>
+                          <ellipse cx="202" cy="213" rx="64" ry="34" transform="rotate(-20 202 213)" fill="url(#mrms-core-1)"/>
+                        </g>
+                        <g class="echo-regime echo-golden">
+                          <circle cx="230" cy="195" r="92" fill="url(#mrms-clear-golden)"/>
+                        </g>
+                        <g class="echo-regime echo-night">
+                          <circle cx="230" cy="195" r="98" fill="url(#mrms-clear-night)"/>
+                        </g>
+                      </g>
+                      <circle cx="224" cy="194" r="4" fill="#38e1ff"/>
+                      <text x="233" y="190" fill="#f3f8ff" font-family="ui-monospace, monospace" font-size="10" font-weight="700" data-radar-neighbor>FORT WAYNE</text>
+                      <circle cx="252" cy="202" r="5" fill="#30d158" stroke="#fff" stroke-width="1.4"/>
+                      <text x="262" y="206" fill="#7cecff" font-family="ui-monospace, monospace" font-size="10" font-weight="700" data-radar-station>NEW HAVEN ★</text>
+                    </svg>
+
+                    <div style="position:relative;z-index:5;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px">
+                      <span class="wx-pill">
+                        <svg class="wx-ico text-cyan" style="--ico-size:13px" aria-hidden="true"><use href="#ico-tab-radar"/></svg>
+                        <span>Composite ▾</span>
+                      </span>
+                      <span class="wx-pill"><span class="wx-pip" data-radar-pip style="--pip-color:var(--wx-green)"></span><span data-bind="radarModePill">MRMS · Stratiform</span></span>
+                    </div>
+
+                    <!-- Interactive iPad Radar Transport & Scrubber Capsule -->
+                    <div style="position:relative;z-index:5" class="wx-glass-card">
+                      <div class="flex-between" style="gap:10px;flex-wrap:wrap">
+                        <button type="button" class="wx-pill" data-radar-play aria-label="Play iPad radar loop" style="padding:5px 11px;background:rgba(56,225,255,0.20);border-color:rgba(56,225,255,0.45)">▶ Play</button>
+                        <div style="flex:1;min-inline-size:120px">
+                          <label for="ipad-radar-scrub" class="mono text-muted" style="font-size:8.5px;display:block">DOPPLER TIMELINE (30M)</label>
+                          <input id="ipad-radar-scrub" class="wx-range-slider" type="range" min="0" max="5" step="1" value="5" aria-valuetext="Frame 6 of 6, 6:45 PM LIVE" data-radar-slider>
+                          <div class="dbz-bar" style="margin-block-start:2px"></div>
+                        </div>
+                        <span class="mono text-cyan" style="font-size:11px;font-weight:700" data-radar-time>6:45 PM · LIVE</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Centered Floating iPad Glass Dock -->
+              <div class="ios-dock-wrap" style="max-inline-size:460px;margin-inline:auto">
+                <div class="ios-dock-capsule">
+                  <div class="ios-dock-btn active"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-surface"/></svg><span>Surface</span></div>
+                  <div class="ios-dock-btn"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-tactical"/></svg><span>Tactical</span></div>
+                  <div class="ios-dock-btn"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-radar"/></svg><span>Radar</span></div>
+                  <div class="ios-dock-btn"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-severe"/></svg><span>Severe</span></div>
+                  <div class="ios-dock-btn"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-tropics"/></svg><span>Tropics</span></div>
+                </div>
+                <div class="ios-dock-orb"><svg class="wx-ico" style="--ico-size:16px" aria-hidden="true"><use href="#ico-tab-config"/></svg><span>Config</span></div>
+              </div>
+              <div class="home-indicator"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

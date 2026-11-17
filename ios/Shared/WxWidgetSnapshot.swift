@@ -25,16 +25,15 @@ enum WxWidgetText {
 
 enum WxTemperature {
     static func text(f: Double?, c: Double?, units: String) -> String {
-        if units == "metric", let c {
-            return String(format: "%.0f°", c)
+        let value: Double?
+        if units == "metric" {
+            value = c ?? f.map { ($0 - 32.0) * 5.0 / 9.0 }
+        } else {
+            value = f ?? c.map { $0 * 9.0 / 5.0 + 32.0 }
         }
-        if let f {
-            return String(format: "%.0f°", f)
-        }
-        if let c {
-            return String(format: "%.0f°", c)
-        }
-        return "—"
+        guard let value else { return "—" }
+        let rounded = value.rounded()
+        return String(format: "%.0f°", rounded == 0 ? 0 : rounded)
     }
 }
 
@@ -105,6 +104,8 @@ struct WxWidgetSnapshot: Codable, Equatable, Sendable {
     var hours: [Chip]
     var days: [Chip]
     var cue: LiveActivityCue
+    var symbolName: String? = nil
+    var isNight: Bool? = nil
 
     static let placeholder = WxWidgetSnapshot(
         updatedAt: Date(timeIntervalSince1970: 0),

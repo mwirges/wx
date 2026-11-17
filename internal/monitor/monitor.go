@@ -553,7 +553,7 @@ func fetchRadarCmd(cfg MonitorConfig, loc location.Location, termW, termH int) t
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		radarW := termW / 2
+		radarW := splitRadarWidth(termW)
 		radarH := termH - headerLines - helpBarLines
 		if radarW < 10 || radarH < 5 {
 			return radarMsg{err: nil, lines: nil}

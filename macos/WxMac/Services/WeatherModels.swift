@@ -223,12 +223,156 @@ struct Forecast: Decodable, Sendable {
         case hourly
     }
 
+    init(generatedAt: String? = nil, periods: [Period] = [], hourly: [Period]? = nil) {
+        self.generatedAt = generatedAt
+        self.periods = periods
+        self.hourly = hourly
+    }
+
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         generatedAt = try c.decodeIfPresent(String.self, forKey: .generatedAt)
         periods = try c.decodeIfPresent([Period].self, forKey: .periods) ?? []
         hourly = try c.decodeIfPresent([Period].self, forKey: .hourly)
     }
+
+    /// Returns hourly periods whose 1-hour validity window has not yet elapsed at `now`.
+    /// Preserves all periods when timestamps are absent or when every period is in the past
+    /// (e.g. static test fixtures).
+    func activeHourlyPeriods(at now: Date = Date()) -> [Period] {
+        guard let hourly, !hourly.isEmpty else { return [] }
+        for idx in hourly.indices {
+            guard let start = hourly[idx].parsedStartDate else {
+                return hourly
+            }
+            let end: Date
+            if idx + 1 < hourly.count, let nextStart = hourly[idx + 1].parsedStartDate, nextStart > start {
+                end = nextStart
+            } else {
+                end = start.addingTimeInterval(3600)
+            }
+            if end > now {
+                return Array(hourly[idx...])
+            }
+        }
+        return hourly
+    }
+
+    func currentHourlyPeriod(at now: Date = Date()) -> Period? {
+        activeHourlyPeriods(at: now).first
+    }
+
+    /// Returns the High and/or Low temperature strings for the lead synoptic forecast window.
+    /// When the forecast begins at night ("Tonight"), `highText` is `nil` so tomorrow's daytime
+    /// high is never mislabeled as today's high.
+    func leadHighLow(units: String) -> (highText: String?, lowText: String?) {
+        guard let lead = synopticRows(units: units).first else {
+            return (nil, nil)
+        }
+        let hi = (lead.highText == "—") ? nil : lead.highText
+        let lo = (lead.lowText == "—") ? nil : lead.lowText
+        return (hi, lo)
+    }
+
+    /// Pairs Day + Night forecast periods into synoptic rows while keeping unpaired
+    /// lead nighttime ("Tonight") or trailing daytime periods cleanly typed so
+    /// overnight lows are never rendered as daytime highs or 0-span range dots.
+    func synopticRows(units: String) -> [SynopticForecastRow] {
+        guard !periods.isEmpty else { return [] }
+
+        func numericTemp(_ p: Period) -> Double? {
+            p.resolvedTemperature(units: units)
+        }
+
+        var rows: [SynopticForecastRow] = []
+        var i = 0
+        while i < periods.count {
+            let current = periods[i]
+            if current.resolvedIsDaytime {
+                if i + 1 < periods.count, !periods[i + 1].resolvedIsDaytime {
+                    let night = periods[i + 1]
+                    let hiNum = numericTemp(current)
+                    let loNum = numericTemp(night)
+                    let maxPop = max(current.probabilityOfPrecipitation ?? 0, night.probabilityOfPrecipitation ?? 0)
+                    rows.append(
+                        SynopticForecastRow(
+                            id: current.id,
+                            name: current.name,
+                            kind: .paired,
+                            primaryPeriod: current,
+                            secondaryPeriod: night,
+                            lowValue: loNum,
+                            highValue: hiNum,
+                            lowText: night.formattedTemperature(units: units),
+                            highText: current.formattedTemperature(units: units),
+                            precipPct: maxPop > 0 ? maxPop : nil,
+                            shortDescription: current.shortDescription
+                        )
+                    )
+                    i += 2
+                } else {
+                    let tNum = numericTemp(current)
+                    let pop = current.probabilityOfPrecipitation ?? 0
+                    rows.append(
+                        SynopticForecastRow(
+                            id: current.id,
+                            name: current.name,
+                            kind: .dayOnly,
+                            primaryPeriod: current,
+                            secondaryPeriod: nil,
+                            lowValue: nil,
+                            highValue: tNum,
+                            lowText: nil,
+                            highText: current.formattedTemperature(units: units),
+                            precipPct: pop > 0 ? pop : nil,
+                            shortDescription: current.shortDescription
+                        )
+                    )
+                    i += 1
+                }
+            } else {
+                let tNum = numericTemp(current)
+                let pop = current.probabilityOfPrecipitation ?? 0
+                rows.append(
+                    SynopticForecastRow(
+                        id: current.id,
+                        name: current.name,
+                        kind: .nightOnly,
+                        primaryPeriod: current,
+                        secondaryPeriod: nil,
+                        lowValue: tNum,
+                        highValue: nil,
+                        lowText: current.formattedTemperature(units: units),
+                        highText: nil,
+                        precipPct: pop > 0 ? pop : nil,
+                        shortDescription: current.shortDescription
+                    )
+                )
+                i += 1
+            }
+        }
+        return rows
+    }
+}
+
+struct SynopticForecastRow: Identifiable, Sendable {
+    enum Kind: Equatable, Sendable {
+        case paired
+        case nightOnly
+        case dayOnly
+    }
+
+    let id: String
+    let name: String
+    let kind: Kind
+    let primaryPeriod: Period
+    let secondaryPeriod: Period?
+    let lowValue: Double?
+    let highValue: Double?
+    let lowText: String?
+    let highText: String?
+    let precipPct: Double?
+    let shortDescription: String?
 }
 
 struct Period: Decodable, Identifiable, Sendable {
@@ -247,6 +391,53 @@ struct Period: Decodable, Identifiable, Sendable {
     var dewPointC: Double?
     var dewPointF: Double?
     var humidityPct: Double?
+
+    var resolvedIsDaytime: Bool {
+        if let isDaytime { return isDaytime }
+        let lower = name.lowercased()
+        return !(lower.contains("night") || lower.contains("tonight") || lower.contains("overnight") || lower.contains("evening") || lower.hasSuffix(" eve"))
+    }
+
+    var parsedStartDate: Date? {
+        guard let raw = startTime?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else {
+            return nil
+        }
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime]
+        if let d = iso.date(from: raw) {
+            return d
+        }
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return iso.date(from: raw)
+    }
+
+    var formattedHourLabel: String {
+        guard let date = parsedStartDate else { return name }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        formatter.dateFormat = "h a"
+        return formatter.string(from: date)
+    }
+
+    func resolvedTemperature(units: String) -> Double? {
+        if units == "metric" {
+            if let c = temperatureC { return c }
+            if let f = temperatureF { return (f - 32.0) * 5.0 / 9.0 }
+            return nil
+        }
+        if let f = temperatureF { return f }
+        if let c = temperatureC { return c * 9.0 / 5.0 + 32.0 }
+        return nil
+    }
+
+    func formattedTemperature(units: String) -> String {
+        guard let val = resolvedTemperature(units: units) else {
+            return "—"
+        }
+        let rounded = val.rounded()
+        return String(format: "%.0f°", rounded == 0 ? 0 : rounded)
+    }
 
     enum CodingKeys: String, CodingKey {
         case name

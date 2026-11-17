@@ -1,11 +1,17 @@
 package monitor
 
 import (
+	"context"
+	"image"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mwirges/wx/internal/cache"
+	"github.com/mwirges/wx/internal/location"
 	"github.com/mwirges/wx/internal/models"
+	"github.com/mwirges/wx/internal/radar"
 )
 
 // ── padToWidth ────────────────────────────────────────────────────────────────
@@ -289,5 +295,96 @@ func TestRenderConditions_WithClimate(t *testing.T) {
 		t.Errorf("expected conditions to contain normals '72°F / 50°F', got:\n%s", joined)
 	}
 }
+
+func TestRenderSplit_HasColumnDividerAndExactRowCount(t *testing.T) {
+	m := New(MonitorConfig{Imperial: true}, testLoc())
+	m.width = 80
+	m.height = 24
+	m.radarVisible = true
+
+	split := m.renderSplit(20)
+	rows := strings.Split(split, "\n")
+	if len(rows) != 20 {
+		t.Fatalf("renderSplit row count = %d, want 20", len(rows))
+	}
+	for i, row := range rows {
+		if !strings.Contains(row, "│") {
+			t.Fatalf("row %d missing column divider │: %q", i, row)
+		}
+		if got := lipgloss.Width(row); got > 80 {
+			t.Fatalf("row %d visual width = %d, want <= 80", i, got)
+		}
+	}
+}
+
+type stubSplitRadarProvider struct{}
+
+func (stubSplitRadarProvider) Name() string                      { return "stub" }
+func (stubSplitRadarProvider) Supports(_ location.Location) bool { return true }
+func (stubSplitRadarProvider) CurrentFrame(_ context.Context, _ location.Location, opts radar.Options, _ *cache.Cache) (*radar.Frame, error) {
+	return &radar.Frame{
+		Img:         image.NewRGBA(image.Rect(0, 0, 64, 64)),
+		ValidTime:   time.Date(2026, 10, 25, 18, 0, 0, 0, time.UTC),
+		Product:     opts.Product,
+		IsComposite: true,
+	}, nil
+}
+func (stubSplitRadarProvider) RecentFrames(ctx context.Context, loc location.Location, opts radar.Options, _ int, ch *cache.Cache) ([]*radar.Frame, error) {
+	f, err := stubSplitRadarProvider{}.CurrentFrame(ctx, loc, opts, ch)
+	if err != nil {
+		return nil, err
+	}
+	return []*radar.Frame{f}, nil
+}
+
+func TestView_SplitWithLiveRadarNeverExceedsTerminalWidth(t *testing.T) {
+	loc := location.Location{
+		DisplayName: "Truth or Consequences, New Mexico",
+		CountryCode: "US",
+		Lat:         33.1284,
+		Lon:         -107.2528,
+	}
+	cfg := MonitorConfig{
+		Imperial:  true,
+		RadarProv: stubSplitRadarProvider{},
+	}
+
+	for _, width := range []int{80, 81, 60} {
+		m := New(cfg, loc)
+		m.width = width
+		m.height = 24
+		m.radarVisible = true
+
+		msg := fetchRadarCmd(cfg, loc, width, 24)().(radarMsg)
+		if msg.err != nil {
+			t.Fatalf("width=%d fetchRadarCmd failed: %v", width, msg.err)
+		}
+		m.radarLines = msg.lines
+		m.radarLoading = false
+
+		view := m.View()
+		rows := strings.Split(view, "\n")
+		if len(rows) != 24 {
+			t.Fatalf("width=%d View() row count = %d, want 24", width, len(rows))
+		}
+		for i, row := range rows {
+			clean := strings.TrimSuffix(row, "\x1b[K")
+			if got := lipgloss.Width(clean); got > width {
+				t.Fatalf("width=%d row %d visual width = %d, want <= %d: %q", width, i, got, width, clean)
+			}
+		}
+
+		// Also verify shrinking terminal before next radarMsg arrives clamps stale radarLines.
+		m.width = width - 12
+		shrunk := m.View()
+		for i, row := range strings.Split(shrunk, "\n") {
+			clean := strings.TrimSuffix(row, "\x1b[K")
+			if got := lipgloss.Width(clean); got > m.width {
+				t.Fatalf("shrunk width=%d row %d visual width = %d, want <= %d", m.width, i, got, m.width)
+			}
+		}
+	}
+}
+
 
 

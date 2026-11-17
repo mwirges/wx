@@ -94,14 +94,31 @@ func writeHeader(w io.Writer, locName string, frame *Frame, opts RenderOptions) 
 		}
 	}
 	prodBadge := "● " + label
-	gap := opts.TermWidth - len(locName) - len(prodBadge)
-	if gap < 2 {
-		gap = 2
+	if opts.TermWidth > 0 && lipgloss.Width(locName)+2+lipgloss.Width(prodBadge) > opts.TermWidth {
+		if idx := strings.IndexByte(label, ' '); idx > 0 {
+			prodBadge = "● " + label[:idx]
+		}
 	}
-	fmt.Fprintf(w, "%s%s%s\x1b[K\n",
-		locStyle.Render(locName),
-		strings.Repeat(" ", gap),
-		prodStyle.Render(prodBadge))
+	badgeW := lipgloss.Width(prodBadge)
+	maxLocW := opts.TermWidth - badgeW - 2
+	if opts.TermWidth > 0 && maxLocW < 4 {
+		line := locStyle.Render(locName) + "  " + prodStyle.Render(prodBadge)
+		fmt.Fprintf(w, "%s\x1b[K\n", lipgloss.NewStyle().MaxWidth(opts.TermWidth).Render(line))
+	} else {
+		trimmedLoc := locName
+		if opts.TermWidth > 0 && lipgloss.Width(trimmedLoc) > maxLocW {
+			trimmedLoc = lipgloss.NewStyle().MaxWidth(maxLocW).Render(trimmedLoc)
+		}
+		gap := opts.TermWidth - lipgloss.Width(trimmedLoc) - badgeW
+		if gap < 2 {
+			gap = 2
+		}
+		line := locStyle.Render(trimmedLoc) + strings.Repeat(" ", gap) + prodStyle.Render(prodBadge)
+		if opts.TermWidth > 0 && lipgloss.Width(line) > opts.TermWidth {
+			line = lipgloss.NewStyle().MaxWidth(opts.TermWidth).Render(line)
+		}
+		fmt.Fprintf(w, "%s\x1b[K\n", line)
+	}
 	fmt.Fprintf(w, "%s\x1b[K\n", subStyle.Render(strings.Repeat("─", opts.TermWidth)))
 }
 

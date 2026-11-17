@@ -20,31 +20,31 @@ const (
 	maxForecastPeriods   = 10 // 5 days × day+night
 )
 
-// Styles.
+// Styles (aligned with WxGlassTheme telemetry tokens).
 var (
-	styleTitle    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("255"))
-	styleLoc      = lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
-	styleUpdated  = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	styleSep      = lipgloss.NewStyle().Foreground(lipgloss.Color("238"))
-	styleLabel    = lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
-	styleValue    = lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
-	styleDesc     = lipgloss.NewStyle().Foreground(lipgloss.Color("252")).Italic(true)
-	styleInputKey = lipgloss.NewStyle().Foreground(lipgloss.Color("255")).Bold(true)
-	styleInputVal = lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
-	styleInputErr = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
-	styleErr      = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
-	styleAlert       = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15")).Background(lipgloss.Color("160"))
-	styleCPCBanner   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("230")).Background(lipgloss.Color("24"))
-	styleChaseBanner = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("230")).Background(lipgloss.Color("130"))
-	styleHelpKey     = lipgloss.NewStyle().Foreground(lipgloss.Color("255")).Bold(true)
-	styleHelpDim     = lipgloss.NewStyle().Foreground(lipgloss.Color("238"))
-	styleLoading  = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
+	styleTitle    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#38E1FF"))
+	styleLoc      = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#F3F8FF"))
+	styleUpdated  = lipgloss.NewStyle().Foreground(lipgloss.Color("#8CA1C1"))
+	styleSep      = lipgloss.NewStyle().Foreground(lipgloss.Color("239"))
+	styleLabel    = lipgloss.NewStyle().Foreground(lipgloss.Color("#8CA1C1"))
+	styleValue    = lipgloss.NewStyle().Foreground(lipgloss.Color("#F3F8FF"))
+	styleDesc     = lipgloss.NewStyle().Foreground(lipgloss.Color("#B4C5DF")).Italic(true)
+	styleInputKey = lipgloss.NewStyle().Foreground(lipgloss.Color("#38E1FF")).Bold(true)
+	styleInputVal = lipgloss.NewStyle().Foreground(lipgloss.Color("#F3F8FF"))
+	styleInputErr = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF3B56"))
+	styleErr      = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF3B56"))
+	styleAlert       = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#F3F8FF")).Background(lipgloss.Color("#991B2E"))
+	styleCPCBanner   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#F3F8FF")).Background(lipgloss.Color("#143656"))
+	styleChaseBanner = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#F3F8FF")).Background(lipgloss.Color("#6B3E0A"))
+	styleHelpKey     = lipgloss.NewStyle().Foreground(lipgloss.Color("#38E1FF")).Bold(true)
+	styleHelpDim     = lipgloss.NewStyle().Foreground(lipgloss.Color("#8CA1C1"))
+	styleLoading  = lipgloss.NewStyle().Foreground(lipgloss.Color("#8CA1C1")).Italic(true)
 
-	styleForecastHeader = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	styleForecastHigh   = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
-	styleForecastLow    = lipgloss.NewStyle().Foreground(lipgloss.Color("39"))
-	styleForecastDesc   = lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
-	styleForecastName   = lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
+	styleForecastHeader = lipgloss.NewStyle().Foreground(lipgloss.Color("#8CA1C1"))
+	styleForecastHigh   = lipgloss.NewStyle().Foreground(lipgloss.Color("#F5A623")).Bold(true)
+	styleForecastLow    = lipgloss.NewStyle().Foreground(lipgloss.Color("#38E1FF"))
+	styleForecastDesc   = lipgloss.NewStyle().Foreground(lipgloss.Color("#B4C5DF"))
+	styleForecastName   = lipgloss.NewStyle().Foreground(lipgloss.Color("#F3F8FF"))
 )
 
 // ── View ──────────────────────────────────────────────────────────────────────
@@ -127,6 +127,11 @@ func (m MonitorModel) renderHeader() string {
 		line2 = locPart + statusPart
 	}
 
+	if m.width > 0 {
+		line1 = truncateStr(line1, m.width)
+		line2 = truncateStr(line2, m.width)
+	}
+
 	// Line 3: separator
 	line3 := styleSep.Render(strings.Repeat("─", m.width))
 
@@ -142,16 +147,37 @@ func (m MonitorModel) renderFullWidth(contentH int) string {
 
 // ── Split layout ──────────────────────────────────────────────────────────────
 
+func splitRadarWidth(termW int) int {
+	if termW < 10 {
+		return termW - termW/2
+	}
+	leftW := (termW - 3) / 2
+	return termW - leftW - 3
+}
+
 func (m MonitorModel) renderSplit(contentH int) string {
-	leftW := m.width / 2
-	rightW := m.width - leftW
+	if m.width < 10 {
+		leftW := m.width / 2
+		rightW := splitRadarWidth(m.width)
+		leftLines := normalizeLines(m.buildWeatherLines(leftW, contentH), contentH, leftW)
+		rightLines := normalizeLines(m.buildRadarLines(rightW, contentH), contentH, rightW)
+		rows := make([]string, contentH)
+		for i := 0; i < contentH; i++ {
+			rows[i] = padToWidth(leftLines[i], leftW) + rightLines[i]
+		}
+		return strings.Join(rows, "\n")
+	}
+
+	leftW := (m.width - 3) / 2
+	rightW := splitRadarWidth(m.width)
+	gutter := styleSep.Render(" │ ")
 
 	leftLines := normalizeLines(m.buildWeatherLines(leftW, contentH), contentH, leftW)
 	rightLines := normalizeLines(m.buildRadarLines(rightW, contentH), contentH, rightW)
 
 	rows := make([]string, contentH)
 	for i := 0; i < contentH; i++ {
-		rows[i] = padToWidth(leftLines[i], leftW) + rightLines[i]
+		rows[i] = padToWidth(leftLines[i], leftW) + gutter + rightLines[i]
 	}
 	return strings.Join(rows, "\n")
 }
@@ -216,12 +242,12 @@ func (m MonitorModel) renderAlerts(w int) []string {
 func (m MonitorModel) renderSignals(w int) []string {
 	var lines []string
 	if m.cpcShift != nil && m.cpcShift.HasShift {
-		text := fmt.Sprintf("🔄 CPC PATTERN SHIFT: %s (Confidence: %s)", m.cpcShift.Summary, m.cpcShift.Confidence)
+		text := fmt.Sprintf(" ◆ CPC PATTERN SHIFT: %s (Confidence: %s)", m.cpcShift.Summary, m.cpcShift.Confidence)
 		lines = append(lines, styleCPCBanner.Width(w).Render(truncateStr(text, w)))
 	}
 	if len(m.chaseClusters) > 0 {
 		top := m.chaseClusters[0]
-		text := fmt.Sprintf("⚡ STORM CHASE: %d clusters active · Top: %s (%d warnings) · Press 's' to intercept",
+		text := fmt.Sprintf(" ▲ STORM CHASE: %d clusters active · Top: %s (%d warnings) · Press 's' to intercept",
 			len(m.chaseClusters), top.Name, top.TotalAlerts)
 		lines = append(lines, styleChaseBanner.Width(w).Render(truncateStr(text, w)))
 	}
@@ -332,9 +358,9 @@ func (m MonitorModel) renderConditions(w int) []string {
 				elev := *c.Astronomy.SolarElevationDeg
 				var icon string
 				if elev > 0 {
-					icon = "☀️ "
+					icon = "☀ "
 				} else {
-					icon = "🌙 "
+					icon = "☾ "
 				}
 				regime := c.Astronomy.CurrentPeriod
 				if regime != "" {
@@ -348,10 +374,6 @@ func (m MonitorModel) renderConditions(w int) []string {
 
 		if c.Astronomy.MoonPhase != "" {
 			moonLabel := styleLabel.Render("Moon:")
-			icon := c.Astronomy.MoonPhaseIcon
-			if icon != "" {
-				icon += " "
-			}
 			phaseStr := styleValue.Render(c.Astronomy.MoonPhase)
 			var details []string
 			if c.Astronomy.MoonIlluminationPct != nil {
@@ -364,7 +386,7 @@ func (m MonitorModel) renderConditions(w int) []string {
 			if len(details) > 0 {
 				detailStr = "  " + styleDesc.Render(fmt.Sprintf("(%s)", strings.Join(details, ", ")))
 			}
-			moonLine := fmt.Sprintf("  %s %s%s%s", moonLabel, icon, phaseStr, detailStr)
+			moonLine := fmt.Sprintf("  %s ☾ %s%s", moonLabel, phaseStr, detailStr)
 			out = append(out, truncateStr(moonLine, w))
 		}
 	}
@@ -384,7 +406,7 @@ func (m MonitorModel) renderConditions(w int) []string {
 		if filled > 10 {
 			filled = 10
 		}
-		bar := output.AQIStyle(aqi).Render(strings.Repeat("■", filled)) + styleDesc.Render(strings.Repeat("□", 10-filled))
+		bar := output.AQIStyle(aqi).Render(strings.Repeat("▰", filled)) + styleDesc.Render(strings.Repeat("▱", 10-filled))
 		aqiStr := fmt.Sprintf("  %s  [%s] %s %s",
 			styleLabel.Render("Air:"),
 			bar,
@@ -630,6 +652,9 @@ func (m MonitorModel) renderHelpBar() string {
 		)
 	}
 	bar := strings.Join(parts, dim.Render("  │  "))
+	if m.width > 0 && lipgloss.Width(bar) > m.width {
+		bar = truncateStr(bar, m.width)
+	}
 	return bar + "\x1b[K"
 }
 
@@ -645,13 +670,25 @@ func padToWidth(s string, w int) string {
 	return s + strings.Repeat(" ", w-vis)
 }
 
-// normalizeLines ensures lines is exactly h entries, padding with blanks or truncating.
+// normalizeLines ensures lines is exactly h entries, padding with blanks or truncating,
+// and clamps each line to at most w visible columns.
 func normalizeLines(lines []string, h, w int) []string {
-	blank := strings.Repeat(" ", w)
-	for len(lines) < h {
-		lines = append(lines, blank)
+	out := make([]string, 0, h)
+	for i := 0; i < len(lines) && len(out) < h; i++ {
+		line := lines[i]
+		if w > 0 && lipgloss.Width(line) > w {
+			line = truncateStr(line, w)
+		}
+		out = append(out, line)
 	}
-	return lines[:h]
+	blank := ""
+	if w > 0 {
+		blank = strings.Repeat(" ", w)
+	}
+	for len(out) < h {
+		out = append(out, blank)
+	}
+	return out
 }
 
 // padLines pads a slice to exactly h lines by appending empty strings.
@@ -662,16 +699,15 @@ func padLines(lines []string, h, _ int) []string {
 	return lines
 }
 
-// truncateStr truncates s to at most maxW visible characters.
+// truncateStr truncates s to at most maxW visible characters while preserving ANSI resets.
 func truncateStr(s string, maxW int) string {
+	if maxW <= 0 {
+		return ""
+	}
 	if lipgloss.Width(s) <= maxW {
 		return s
 	}
-	runes := []rune(s)
-	for len(runes) > 0 && lipgloss.Width(string(runes)) > maxW {
-		runes = runes[:len(runes)-1]
-	}
-	return string(runes)
+	return lipgloss.NewStyle().MaxWidth(maxW).Render(s)
 }
 
 func max(a, b int) int {

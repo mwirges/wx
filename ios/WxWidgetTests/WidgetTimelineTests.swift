@@ -134,6 +134,162 @@ final class WidgetTimelineTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: directory.appendingPathComponent(WxAppGroup.radarFile).path))
     }
 
+    func testNightSnapshotRoundTripsSymbolAndLegacyCacheDecodesCleanly() throws {
+        let directory = try makeDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let now = Date(timeIntervalSince1970: 1_761_422_400)
+
+        let nightSnap = WxWidgetSnapshot(
+            updatedAt: now,
+            location: "New Haven, IN",
+            units: "imperial",
+            temperatureText: "36°",
+            condition: "Mostly Clear",
+            highText: "54°",
+            lowText: "32°",
+            precipHeadline: "Clear",
+            precipSummary: "",
+            sparkline: "",
+            hours: [],
+            days: [],
+            cue: .idle,
+            symbolName: "cloud.moon.fill",
+            isNight: true
+        )
+        try WxWidgetCache.write(nightSnap, radarPNG: nil, to: directory)
+        let loaded = WxTimelinePlanBuilder.plan(reading: directory, now: now).snapshot
+        XCTAssertEqual(loaded.symbolName, "cloud.moon.fill")
+        XCTAssertEqual(loaded.isNight, true)
+        XCTAssertEqual(loaded.condition, "Mostly Clear")
+
+        // Simulate legacy snapshot JSON written before symbolName/isNight existed
+        let legacyJSON = """
+        {
+          "updatedAt": "2026-10-25T20:00:00Z",
+          "location": "New Haven, IN",
+          "units": "imperial",
+          "temperatureText": "36°",
+          "condition": "Clear",
+          "highText": "54°",
+          "lowText": "32°",
+          "precipHeadline": "Clear",
+          "precipSummary": "",
+          "sparkline": "",
+          "hours": [],
+          "days": [],
+          "cue": {
+            "shouldRun": false,
+            "location": "New Haven, IN",
+            "headline": "—",
+            "phase": "none",
+            "minutesLabel": "—",
+            "sparkline": "",
+            "temperatureText": "36°",
+            "detail": "",
+            "cessationText": ""
+          }
+        }
+        """
+        try Data(legacyJSON.utf8).write(to: directory.appendingPathComponent(WxAppGroup.snapshotFile))
+        let legacyLoaded = WxTimelinePlanBuilder.plan(reading: directory, now: now).snapshot
+        XCTAssertEqual(legacyLoaded.temperatureText, "36°")
+        XCTAssertNil(legacyLoaded.symbolName)
+        XCTAssertNil(legacyLoaded.isNight)
+    }
+
+    func testWidgetPublishNighttimeASOSSkipsTomorrowHighTrimsExpiredHoursAndHidesDrySparkBars() throws {
+        let json = """
+        {
+          "conditions": {
+            "station": "KFWA",
+            "location": "New Haven, IN",
+            "temperature_f": 34,
+            "temperature_c": 1.1,
+            "astronomy": {
+              "solar_elevation_deg": -66.9,
+              "current_period": "Night"
+            }
+          },
+          "forecast": {
+            "periods": [
+              {
+                "name": "Tonight",
+                "is_daytime": false,
+                "temperature_f": 32,
+                "temperature_c": 0,
+                "short_description": "Partly Cloudy"
+              },
+              {
+                "name": "Tuesday",
+                "is_daytime": true,
+                "temperature_f": 54,
+                "temperature_c": 12.2,
+                "short_description": "Sunny"
+              }
+            ],
+            "hourly": [
+              {
+                "name": "11 PM",
+                "start_time": "2026-11-17T04:00:00Z",
+                "is_daytime": false,
+                "temperature_f": 36,
+                "temperature_c": 2.2,
+                "short_description": "Mostly Cloudy"
+              },
+              {
+                "name": "12 AM",
+                "start_time": "2026-11-17T05:00:00Z",
+                "is_daytime": false,
+                "temperature_f": 34,
+                "temperature_c": 1.1,
+                "short_description": "Mostly Clear"
+              }
+            ]
+          },
+          "alerts": []
+        }
+        """
+        let nowcastJSON = """
+        {
+          "location": "New Haven, IN",
+          "nowcast": {
+            "headline": "Clear · No precipitation expected next 8 hours",
+            "summary": "Conditions remain dry and clear.",
+            "is_active_precip": false,
+            "primary_phase": "none",
+            "intervals": [
+              { "start_time": "2026-11-17T05:15:00Z", "end_time": "2026-11-17T05:30:00Z", "rate_inh": 0, "phase": "none" },
+              { "start_time": "2026-11-17T05:30:00Z", "end_time": "2026-11-17T05:45:00Z", "rate_inh": 0, "phase": "none" }
+            ]
+          }
+        }
+        """
+        let payload = try JSONDecoder().decode(WxPayload.self, from: Data(json.utf8))
+        let nowcast = try JSONDecoder().decode(NowcastPayloadDTO.self, from: Data(nowcastJSON.utf8))
+        let now = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-11-17T05:22:00Z"))
+
+        let snap = WidgetPublish.snapshot(
+            place: "46774",
+            units: "imperial",
+            payload: payload,
+            nowcast: nowcast,
+            now: now
+        )
+
+        XCTAssertEqual(snap.location, "New Haven, IN")
+        XCTAssertEqual(snap.isNight, true)
+        XCTAssertEqual(snap.symbolName, "cloud.moon.fill")
+        XCTAssertEqual(snap.condition, "Mostly Clear")
+        XCTAssertEqual(snap.highText, "—", "Nighttime Tonight lead period must not report tomorrow's daytime high")
+        XCTAssertEqual(snap.lowText, "32°")
+        XCTAssertEqual(snap.hours.count, 1, "Expired 04:00Z–05:00Z hour must be trimmed at 05:22Z")
+
+        // Dry whitespace-only sparkline must NOT show 16 empty spark bars in WxConditionsView
+        let view = WxConditionsView(entry: WxWidgetEntry(date: now, snapshot: snap, radar: nil))
+        XCTAssertFalse(view.hasSparkBars)
+        XCTAssertEqual(view.rectangularHeaderText, "34°  Low 32°")
+    }
+
     private func makeDirectory() throws -> URL {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("wx-widget-\(UUID().uuidString)", isDirectory: true)

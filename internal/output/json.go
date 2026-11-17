@@ -87,8 +87,8 @@ type jsonPeriod struct {
 	Name                       string   `json:"name"`
 	StartTime                  string   `json:"start_time"`
 	IsDaytime                  bool     `json:"is_daytime"`
-	TempF                      float64  `json:"temperature_f,omitempty"`
-	TempC                      float64  `json:"temperature_c,omitempty"`
+	TempF                      *float64 `json:"temperature_f,omitempty"`
+	TempC                      float64  `json:"temperature_c"`
 	WindMPH                    float64  `json:"wind_mph,omitempty"`
 	WindKPH                    float64  `json:"wind_kph,omitempty"`
 	WindDir                    string   `json:"wind_direction,omitempty"`
@@ -173,7 +173,8 @@ func jsonPeriods(periods []models.Period, imperial bool) []jsonPeriod {
 			}
 		}
 		if imperial {
-			jp.TempF = CelsiusToFahrenheit(p.TempC)
+			tf := CelsiusToFahrenheit(p.TempC)
+			jp.TempF = &tf
 			jp.WindMPH = KphToMPH(p.WindKPH)
 		}
 		out = append(out, jp)

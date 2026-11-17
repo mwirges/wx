@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Location text field with GPS button, Favorite star toggle, and Favorites/Recents dropdown menu.
+/// Sculpted frosted capsule location input with GPS button, Favorite star toggle, and Favorites/Recents menu.
 struct LocationBarView: View {
     @EnvironmentObject var store: WeatherStore
     var isHUD: Bool = false
@@ -11,16 +11,16 @@ struct LocationBarView: View {
     }
 
     var body: some View {
-        HStack(spacing: 5) {
-            Image(systemName: "scope")
-                .font(.system(size: isHUD ? 10.5 : 11))
-                .foregroundStyle(WxTheme.snwCyan.opacity(0.85))
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: isHUD ? 10.5 : 11, weight: .semibold))
+                .foregroundStyle(WxGlassTheme.cyan)
 
             TextField(isHUD ? "Zip / City, ST" : "Zip or City, ST", text: $store.locationInput)
                 .textFieldStyle(.plain)
                 .accessibilityIdentifier("wx.location")
-                .font(.system(size: isHUD ? 11.5 : 12, weight: .medium, design: .monospaced))
-                .foregroundStyle(WxTheme.text)
+                .font(.system(size: isHUD ? 11.5 : 12, weight: .medium, design: .rounded))
+                .foregroundStyle(WxGlassTheme.textPrimary)
                 .onSubmit {
                     if let onSubmit {
                         onSubmit()
@@ -29,32 +29,29 @@ struct LocationBarView: View {
                     }
                 }
 
-            // Clear text button if user is typing
             if !store.locationInput.isEmpty {
                 Button {
                     store.locationInput = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 10))
-                        .foregroundStyle(WxTheme.snwSilver.opacity(0.5))
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(WxGlassTheme.textMuted)
                 }
                 .buttonStyle(.plain)
                 .help("Clear search")
             }
 
-            // Favorite toggle button
             Button {
                 store.toggleFavorite(store.locationInput)
             } label: {
                 Image(systemName: isCurrentFavorite ? "star.fill" : "star")
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(isCurrentFavorite ? WxTheme.snwGold : WxTheme.snwSilver.opacity(0.6))
+                    .foregroundStyle(isCurrentFavorite ? WxGlassTheme.gold : WxGlassTheme.textMuted)
             }
             .buttonStyle(.plain)
             .disabled(store.locationInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             .help(isCurrentFavorite ? "Remove from Favorites" : "Add current location to Favorites")
 
-            // CoreLocation GPS button
             Button {
                 store.useCurrentLocation()
             } label: {
@@ -63,8 +60,8 @@ struct LocationBarView: View {
                         .controlSize(.mini)
                 } else {
                     Image(systemName: "location.fill")
-                        .font(.system(size: 10.5, weight: .medium))
-                        .foregroundStyle(WxTheme.snwCyan)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(WxGlassTheme.cyan)
                 }
             }
             .buttonStyle(.plain)
@@ -73,19 +70,11 @@ struct LocationBarView: View {
             .accessibilityLabel("Use Current Location")
             .help("Acquire current location via CoreLocation")
 
-            // Saved Locations & Recents Menu
             LocationsDropdownMenu()
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, isHUD ? 5 : 6)
-        .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(isHUD ? WxTheme.snwChassis.opacity(0.92) : WxTheme.snwChassis.opacity(0.85))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .strokeBorder(WxTheme.border.opacity(0.4), lineWidth: 0.8)
-                )
-        )
+        .padding(.horizontal, 10)
+        .padding(.vertical, isHUD ? 5.5 : 6.5)
+        .wxFrostedCapsule(accent: WxGlassTheme.cyan)
     }
 }
 
@@ -141,8 +130,8 @@ struct LocationsDropdownMenu: View {
             }
         } label: {
             Image(systemName: "chevron.down.circle.fill")
-                .font(.system(size: 11))
-                .foregroundStyle(WxTheme.snwSilver.opacity(0.75))
+                .font(.system(size: 11.5))
+                .foregroundStyle(WxGlassTheme.textSecondary)
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
@@ -151,46 +140,41 @@ struct LocationsDropdownMenu: View {
     }
 }
 
-/// Horizontal quick-switch chips for favorite locations.
+/// Horizontal quick-switch capsule chips for favorite locations.
 struct FavoritesQuickBarView: View {
     @EnvironmentObject var store: WeatherStore
 
     var body: some View {
         if !store.favorites.isEmpty {
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 5) {
-                    Text("FAVORITES //")
-                        .font(.system(size: 8, weight: .bold, design: .monospaced))
-                        .foregroundStyle(WxTheme.snwSilver.opacity(0.65))
-                        .padding(.trailing, 2)
-
+                HStack(spacing: 6) {
                     ForEach(store.favorites) { fav in
                         let isSelected = store.locationInput.caseInsensitiveCompare(fav.value) == .orderedSame ||
                                          store.locationInput.caseInsensitiveCompare(fav.name) == .orderedSame
                         Button {
                             store.selectLocation(fav.value)
                         } label: {
-                            HStack(spacing: 3.5) {
+                            HStack(spacing: 4) {
                                 Image(systemName: "star.fill")
-                                    .font(.system(size: 7.5))
-                                    .foregroundStyle(isSelected ? WxTheme.snwGold : WxTheme.snwGold.opacity(0.8))
-                                Text(fav.name.uppercased())
-                                    .font(.system(size: 8.5, weight: isSelected ? .bold : .medium, design: .monospaced))
+                                    .font(.system(size: 8.5))
+                                    .foregroundStyle(WxGlassTheme.gold)
+                                Text(fav.name)
+                                    .font(.system(size: 10, weight: isSelected ? .bold : .semibold, design: .rounded))
                             }
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3.5)
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 4)
                             .background(
-                                isSelected ? WxTheme.snwGold.opacity(0.2) : WxTheme.snwChassis.opacity(0.7),
-                                in: RoundedRectangle(cornerRadius: 4)
+                                isSelected ? WxGlassTheme.gold.opacity(0.22) : Color.white.opacity(0.06),
+                                in: Capsule()
                             )
                             .overlay(
-                                RoundedRectangle(cornerRadius: 4)
+                                Capsule()
                                     .strokeBorder(
-                                        isSelected ? WxTheme.snwGold.opacity(0.8) : WxTheme.border.opacity(0.4),
-                                        lineWidth: isSelected ? 1.0 : 0.8
+                                        isSelected ? WxGlassTheme.gold.opacity(0.75) : Color.white.opacity(0.14),
+                                        lineWidth: isSelected ? 1.0 : 0.7
                                     )
                             )
-                            .foregroundStyle(isSelected ? WxTheme.text : WxTheme.textSecondary)
+                            .foregroundStyle(isSelected ? WxGlassTheme.textPrimary : WxGlassTheme.textSecondary)
                         }
                         .buttonStyle(.plain)
                         .contextMenu {
@@ -212,31 +196,6 @@ struct FavoritesQuickBarView: View {
                 }
                 .padding(.vertical, 2)
             }
-        } else {
-            HStack(spacing: 4) {
-                Text("FAVORITES //")
-                    .font(.system(size: 8, weight: .bold, design: .monospaced))
-                    .foregroundStyle(WxTheme.snwSilver.opacity(0.45))
-                Button {
-                    store.toggleFavorite(store.locationInput)
-                } label: {
-                    HStack(spacing: 3) {
-                        Image(systemName: "star")
-                            .font(.system(size: 8))
-                        Text("PIN CURRENT AS FAVORITE")
-                            .font(.system(size: 8, weight: .medium, design: .monospaced))
-                    }
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2.5)
-                    .background(WxTheme.snwChassis.opacity(0.5), in: RoundedRectangle(cornerRadius: 3))
-                    .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(WxTheme.border.opacity(0.3), lineWidth: 0.6))
-                    .foregroundStyle(WxTheme.snwSilver.opacity(0.7))
-                }
-                .buttonStyle(.plain)
-                .disabled(store.locationInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                Spacer()
-            }
-            .padding(.vertical, 2)
         }
     }
 }
